@@ -28,6 +28,7 @@
 #include "movement_faces.h"
 
 const watch_face_t watch_faces[] = {
+    atb_countdown_face,
     bac_face,
     clock_face,
     chirpy_demo_face,
