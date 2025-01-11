@@ -33,8 +33,7 @@
 
 // hacky: we're just tapping into Movement's global state.
 // we should make better API for this.
-extern uint32_t orientation_changes;
-extern uint8_t active_minutes;
+extern uint8_t stationary_minutes;
 
 static void _accel_interrupt_count_face_update_display(accel_interrupt_count_state_t *state) {
     (void) state;
@@ -44,11 +43,12 @@ static void _accel_interrupt_count_face_update_display(accel_interrupt_count_sta
     watch_display_text(WATCH_POSITION_TOP_LEFT, "AC");
 
     // Sleep/active state
-    if (HAL_GPIO_A3_read()) watch_display_text(WATCH_POSITION_TOP_RIGHT, " S");
+    if (HAL_GPIO_A4_read()) watch_display_text(WATCH_POSITION_TOP_RIGHT, " S");
     else watch_display_text(WATCH_POSITION_TOP_RIGHT, " A");
 
     // Orientation changes / active minutes
-    sprintf(buf, "%-3lu/%2d", orientation_changes > 999 ? 999 : orientation_changes, active_minutes);
+    uint16_t orientation_changes = tc_count16_get_count(2);
+    sprintf(buf, "%-3u/%2d", orientation_changes > 999 ? 999 : orientation_changes, stationary_minutes);
     watch_display_text(WATCH_POSITION_BOTTOM, buf);
 }
 
@@ -59,7 +59,7 @@ void accel_interrupt_count_face_setup(uint8_t watch_face_index, void ** context_
         memset(*context_ptr, 0, sizeof(accel_interrupt_count_state_t));
         accel_interrupt_count_state_t *state = (accel_interrupt_count_state_t *)*context_ptr;
         /// TODO: hook up to movement methods for tracking threshold
-        state->threshold = 24;
+        state->threshold = 8;
     }
 }
 

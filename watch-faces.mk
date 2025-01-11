@@ -17,8 +17,8 @@ SRCS += \
   ./watch-faces/settings/set_time_face.c \
   ./watch-faces/settings/preferences_face.c \
   ./watch-faces/demo/light_sensor_face.c \
-  ./watch-faces/demo/accelerometer_sleep_state_face.c \
   ./watch-faces/demo/irda_demo_face.c \
+  ./watch-faces/demo/file_demo_face.c \
   ./watch-faces/io/chirpy_demo_face.c \
   ./watch-faces/complication/bac_face.c \
 # New watch faces go above this line.

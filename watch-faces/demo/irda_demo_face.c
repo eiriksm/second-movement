@@ -29,6 +29,7 @@
 #include "eic.h"
 #include "usb.h"
 #include "uart.h"
+#include "filesystem.h"
 
 #ifdef HAS_IR_SENSOR
 
@@ -44,12 +45,11 @@ void irda_demo_face_setup(uint8_t watch_face_index, void ** context_ptr) {
 void irda_demo_face_activate(void *context) {
     irda_demo_state_t *state = (irda_demo_state_t *)context;
     (void) state;
-    // Rev 05 had the polarity reversed, so we had to bodge a different circuit and bypass the enable pin.
-    // HAL_GPIO_IR_ENABLE_out();
-    // HAL_GPIO_IR_ENABLE_clr();
+    HAL_GPIO_IR_ENABLE_out();
+    HAL_GPIO_IR_ENABLE_clr();
     HAL_GPIO_IRSENSE_in();
     HAL_GPIO_IRSENSE_pmuxen(HAL_GPIO_PMUX_SERCOM_ALT);
-    uart_init_instance(0, UART_TXPO_NONE, UART_RXPO_0, 300);
+    uart_init_instance(0, UART_TXPO_NONE, UART_RXPO_0, 900);
     uart_set_irda_mode_instance(0, true);
     uart_enable_instance(0);
 }
@@ -64,15 +64,57 @@ bool irda_demo_face_loop(movement_event_t event, void *context) {
         case EVENT_TICK:
         {
             char data[32];
+            char filename[9];
+            char content[30];
             size_t bytes_read = uart_read_instance(0, data, 32);
             if (bytes_read) {
+                // data is in the format: ">FILENAME>CONTENT" followed by a one-byte checksum
+                uint8_t checksum = 0;
+                for (size_t i = 0; i < bytes_read - 1; i++) {
+                    checksum += data[i];
+                }
+                if (checksum != data[bytes_read - 1]) {
+                    // failed
+                    movement_force_led_on(48, 0, 0);
+                } else {
+                    // parse the data
+                    if (data[0] != '>') {
+                        // failed
+                        movement_force_led_on(48, 30, 0);
+                    } else {
+                        size_t i = 1;
+                        while (data[i] != '>' && i < 9) {
+                            filename[i - 1] = data[i];
+                            i++;
+                        }
+                        if (i == 9) {
+                            // failed
+                            movement_force_led_on(48, 0, 30);
+                        } else {
+                            filename[i - 1] = 0;
+                            i++;
+                            size_t j = 0;
+                            while (i < bytes_read - 1) {
+                                content[j] = data[i];
+                                i++;
+                                j++;
+                            }
+                            content[j] = 0;
+                        }
+                    }
+                    // write the data to the file
+                    filesystem_write_file(filename, content, strlen(content));
+                    movement_force_led_on(0, 48, 0);
+                }
                 char buf[14];
-                snprintf(buf, 11, "IR%2d%c%c%c%c%c%c", bytes_read, data[0], data[1], data[2], data[3], data[4], data[5]);
+                snprintf(buf, 11, "IR%2d%c%c%c%c%c%c", bytes_read, data[1], data[2], data[3], data[4], data[5], data[6]);
+                watch_clear_display();
                 watch_display_text(WATCH_POSITION_FULL, buf);
                 data[31] = 0;
                 printf("%s\n", data);
                 printf("%s\n", buf);
             } else {
+                movement_force_led_off();
                 watch_display_text(WATCH_POSITION_FULL, "    no dat");
             }
         }
@@ -99,6 +141,7 @@ void irda_demo_face_resign(void *context) {
     uart_disable_instance(0);
     HAL_GPIO_IRSENSE_pmuxdis();
     HAL_GPIO_IRSENSE_off();
+    HAL_GPIO_IR_ENABLE_off();
 }
 
 void irq_handler_sercom0(void);

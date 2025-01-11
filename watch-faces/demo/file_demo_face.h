@@ -27,21 +27,26 @@
 #include "movement.h"
 
 /*
- * A DESCRIPTION OF YOUR WATCH FACE
+ * FILE DISPLAY DEMO
  *
- * and a description of how use it
+ * Displays the contents of a file on the watch. 
+ * For use with the irda_demo_face that allows uploading files to the watch.
  *
  */
 
-void accelerometer_sleep_state_face_setup(uint8_t watch_face_index, void ** context_ptr);
-void accelerometer_sleep_state_face_activate(void *context);
-bool accelerometer_sleep_state_face_loop(movement_event_t event, void *context);
-void accelerometer_sleep_state_face_resign(void *context);
+typedef struct {
+    bool delete_enabled;
+} file_demo_state_t;
 
-#define accelerometer_sleep_state_face ((const watch_face_t){ \
-    accelerometer_sleep_state_face_setup, \
-    accelerometer_sleep_state_face_activate, \
-    accelerometer_sleep_state_face_loop, \
-    accelerometer_sleep_state_face_resign, \
+void file_demo_face_setup(uint8_t watch_face_index, void ** context_ptr);
+void file_demo_face_activate(void *context);
+bool file_demo_face_loop(movement_event_t event, void *context);
+void file_demo_face_resign(void *context);
+
+#define file_demo_face ((const watch_face_t){ \
+    file_demo_face_setup, \
+    file_demo_face_activate, \
+    file_demo_face_loop, \
+    file_demo_face_resign, \
     NULL, \
 })

@@ -145,11 +145,8 @@ typedef enum {
     EVENT_ALARM_LONG_UP,        // The alarm button was held for over half a second, and released.
 
     EVENT_ACCELEROMETER_WAKE,   // The accelerometer has detected motion and woken up.
-    EVENT_ACCELEROMETER_SLEEP,  // The accelerometer has returned to sleep.
-    EVENT_ORIENTATION_CHANGE,   // The orientation of the watch has changed. Available in low energy mode.
     EVENT_SINGLE_TAP,           // Accelerometer detected a single tap. This event is not yet implemented.
     EVENT_DOUBLE_TAP,           // Accelerometer detected a double tap. This event is not yet implemented.
-    EVENT_FREE_FALL,            // Accelerometer detected the watch in free fall. This event is not yet implemented.
 } movement_event_type_t;
 
 typedef struct {
@@ -378,3 +375,7 @@ void movement_store_settings(void);
 /// Worth considering a better way to handle this.
 bool movement_alarm_enabled(void);
 void movement_set_alarm_enabled(bool value);
+
+// if the board has an accelerometer, these functions will enable or disable tap detection.
+void movement_enable_tap_detection_if_available(void);
+void movement_disable_tap_detection_if_available(void);
