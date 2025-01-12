@@ -58,7 +58,8 @@ static void draw(atb_countdown_state_t *state, uint8_t subsecond) {
     uint32_t delta;
     div_t result;
 
-    ResultSet result_set = atb_get_next_departures(state->now_ts, "9", "71779");
+    ResultSet result_set;
+    result_set = atb_get_next_departures(state->now_ts, "09_2", "71779");
     state->target_ts = result_set.resultSet[state->offset];
 
     // Check which stop we are using.
@@ -69,12 +70,23 @@ static void draw(atb_countdown_state_t *state, uint8_t subsecond) {
             break;
 
         case 1:
+            result_set = atb_get_next_departures(state->now_ts, "09_1", "74061");
+            state->target_ts = result_set.resultSet[state->offset];
             watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "LIA", "LI");
             watch_display_text_with_fallback(WATCH_POSITION_TOP_RIGHT, " 9", " 9");
             break;
 
         case 2:
+            result_set = atb_get_next_departures(state->now_ts, "11_2", "71773");
+            state->target_ts = result_set.resultSet[state->offset];
             watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "SEN", "SE");
+            watch_display_text_with_fallback(WATCH_POSITION_TOP_RIGHT, "11", "11");
+            break;
+
+        case 3:
+            result_set = atb_get_next_departures(state->now_ts, "11_1", "74265");
+            state->target_ts = result_set.resultSet[state->offset];
+            watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "STA", "ST");
             watch_display_text_with_fallback(WATCH_POSITION_TOP_RIGHT, "11", "11");
             break;
     }
