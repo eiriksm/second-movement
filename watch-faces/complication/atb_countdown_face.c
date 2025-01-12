@@ -152,7 +152,7 @@ bool atb_countdown_face_loop(movement_event_t event, void *context) {
             draw(state, event.subsecond);
             break;
         case EVENT_ALARM_BUTTON_UP:
-            if (state->stopOffset < 4) {
+            if (state->stopOffset < 3) {
                 state->stopOffset++;
             } else {
                 state->stopOffset = 0;
