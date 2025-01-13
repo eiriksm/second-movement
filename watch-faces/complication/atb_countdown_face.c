@@ -140,9 +140,6 @@ bool atb_countdown_face_loop(movement_event_t event, void *context) {
             state->now_ts++;
             draw(state, event.subsecond);
             break;
-        case EVENT_MODE_BUTTON_UP:
-            movement_move_to_next_face();
-            break;
         case EVENT_LIGHT_BUTTON_UP:
             if (state->offset < 4) {
                 state->offset++;
@@ -159,18 +156,6 @@ bool atb_countdown_face_loop(movement_event_t event, void *context) {
                 state->stopOffset = 0;
             }
             draw(state, event.subsecond);
-            break;
-        case EVENT_ALARM_LONG_PRESS:
-            break;
-        case EVENT_LIGHT_LONG_PRESS:
-            break;
-        case EVENT_ALARM_LONG_UP:
-            break;
-        case EVENT_TIMEOUT:
-            break;
-        case EVENT_LOW_ENERGY_UPDATE:
-        case EVENT_LIGHT_BUTTON_DOWN:
-            // intentionally squelch the light default event; we only show the light when cd is running or reset
             break;
         default:
             movement_default_loop_handler(event);
