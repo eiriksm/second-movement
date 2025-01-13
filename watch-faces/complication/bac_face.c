@@ -112,6 +112,11 @@ void _bac_set_display(void *context) {
         watch_display_text(WATCH_POSITION_MINUTES, minute_buf);
         watch_display_text(WATCH_POSITION_SECONDS, second_buf);
     }
+    else {
+        watch_display_text(WATCH_POSITION_HOURS, "00");
+        watch_display_text(WATCH_POSITION_MINUTES, "00");
+        watch_display_text(WATCH_POSITION_SECONDS, "00");
+    }
     // Set the display.
     watch_display_text(WATCH_POSITION_TOP_RIGHT, buf);
     watch_set_colon();
@@ -138,6 +143,13 @@ bool bac_face_loop(movement_event_t event, void *context) {
           watch_display_text_with_fallback(WATCH_POSITION_TOP, "bac", "ac");
           _bac_set_display(context);
           break;
+
+        case EVENT_LIGHT_LONG_PRESS:
+            // Reset the counter.
+            ((bac_state_t *)context)->units = 0;
+            ((bac_state_t *)context)->start_time = 0;
+            _bac_set_display(context);
+            break;
 
         case EVENT_TIMEOUT:
             movement_move_to_face(0);

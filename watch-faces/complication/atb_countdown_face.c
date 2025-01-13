@@ -27,6 +27,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include "atb_countdown_face.h"
 #include "atb.h"
 #include "watch.h"
@@ -101,7 +102,19 @@ static void draw(atb_countdown_state_t *state, uint8_t subsecond) {
     result = div(result.quot, 60);
     state->hours = result.quot;
     state->minutes = result.rem;
-    sprintf(buf, "%2d%02d%02d", state->hours, state->minutes, state->seconds);
+    // Blink to an alternative every now and then.
+    if (state->now_ts % 4 != 0) {
+        sprintf(buf, "%2d%02d%02d", state->hours, state->minutes, state->seconds);
+    }
+    else {
+        // Convert timestamp to a H:mm situation.
+        time_t ttimestamp = (time_t) state->target_ts;
+        struct tm *time_info = localtime(&ttimestamp);
+        state->hours = time_info->tm_hour;
+        state->minutes = time_info->tm_min;
+        state->seconds = 0;
+        sprintf(buf, "%2d%02d%02d", state->hours, state->minutes, state->seconds);
+    }
 
     watch_display_text(WATCH_POSITION_BOTTOM, buf);
 }
@@ -121,7 +134,7 @@ void atb_countdown_face_setup(uint8_t watch_face_index, void ** context_ptr) {
 
 void atb_countdown_face_activate(void *context) {
     atb_countdown_state_t *state = (atb_countdown_state_t *)context;
-    watch_date_time_t now = movement_get_utc_date_time();
+    watch_date_time_t now = movement_get_local_date_time();
     state->now_ts = watch_utility_date_time_to_unix_time(now, movement_get_current_timezone_offset());
     watch_set_indicator(WATCH_INDICATOR_SIGNAL);
     watch_set_colon();
