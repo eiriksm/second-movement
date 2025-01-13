@@ -139,6 +139,10 @@ bool bac_face_loop(movement_event_t event, void *context) {
           _bac_set_display(context);
           break;
 
+        case EVENT_TIMEOUT:
+            movement_move_to_face(0);
+            break;
+
         default:
           movement_default_loop_handler(event);
           break;
