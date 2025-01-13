@@ -108,10 +108,9 @@ static void draw(atb_countdown_state_t *state, uint8_t subsecond) {
     }
     else {
         // Convert timestamp to a H:mm situation.
-        time_t ttimestamp = (time_t) state->target_ts;
-        struct tm *time_info = localtime(&ttimestamp);
-        state->hours = time_info->tm_hour;
-        state->minutes = time_info->tm_min;
+        watch_date_time_t time_to_use = watch_utility_date_time_from_unix_time(state->target_ts, movement_get_current_timezone_offset());
+        state->hours = time_to_use.unit.hour;
+        state->minutes = time_to_use.unit.minute;
         state->seconds = 0;
         sprintf(buf, "%2d%02d%02d", state->hours, state->minutes, state->seconds);
     }
