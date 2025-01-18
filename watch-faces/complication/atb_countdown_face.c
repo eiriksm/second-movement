@@ -47,12 +47,6 @@ static inline void load_countdown(atb_countdown_state_t *state) {
     state->seconds = state->set_seconds;
 }
 
-static inline void button_beep() {
-    // play a beep as confirmation for a button press (if applicable)
-    if (movement_button_should_sound())
-        watch_buzzer_play_note(BUZZER_NOTE_C7, 50);
-}
-
 static void draw(atb_countdown_state_t *state, uint8_t subsecond) {
     char buf[16];
 
@@ -135,7 +129,6 @@ void atb_countdown_face_activate(void *context) {
     atb_countdown_state_t *state = (atb_countdown_state_t *)context;
     watch_date_time_t now = movement_get_local_date_time();
     state->now_ts = watch_utility_date_time_to_unix_time(now, movement_get_current_timezone_offset());
-    watch_set_indicator(WATCH_INDICATOR_SIGNAL);
     watch_set_colon();
 
     movement_request_tick_frequency(1);
