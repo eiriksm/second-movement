@@ -32,6 +32,7 @@
 #include "atb.h"
 #include "watch.h"
 #include "watch_utility.h"
+#include "zones.h"
 
 static inline void store_countdown(atb_countdown_state_t *state) {
     /* Store set countdown time */
@@ -52,6 +53,10 @@ static void draw(atb_countdown_state_t *state, uint8_t subsecond) {
 
     uint32_t delta;
     div_t result;
+    // The timestamp we are passing in should be relative to the current timezone.
+    watch_date_time_t now = movement_get_local_date_time();
+    state->now_ts = watch_utility_date_time_to_unix_time(now, movement_get_current_timezone_offset());
+
 
     ResultSet result_set;
     result_set = atb_get_next_departures(state->now_ts, "09_2", "71779");
@@ -101,12 +106,11 @@ static void draw(atb_countdown_state_t *state, uint8_t subsecond) {
         sprintf(buf, "%2d%02d%02d", state->hours, state->minutes, state->seconds);
     }
     else {
-        // Convert timestamp to a H:mm situation.
-        watch_date_time_t time_to_use = watch_utility_date_time_from_unix_time(state->target_ts, movement_get_current_timezone_offset());
-        state->hours = time_to_use.unit.hour;
-        state->minutes = time_to_use.unit.minute;
-        state->seconds = 0;
-        sprintf(buf, "%2d%02d%02d", state->hours, state->minutes, state->seconds);
+        // Convert timestamp to a H:mm situation. We want to display the time of the
+        // next departure in the local time, regardless of the timezone. This is
+        // mostly so its easier to validate when testing, since these should be the same.
+        watch_date_time_t time_to_use = watch_utility_date_time_from_unix_time(state->target_ts, movement_get_current_timezone_offset_for_zone(UTZ_BERLIN));
+        sprintf(buf, "%2d%02d%02d", time_to_use.unit.hour, time_to_use.unit.minute, 0);
     }
 
     watch_display_text(WATCH_POSITION_BOTTOM, buf);
@@ -127,8 +131,6 @@ void atb_countdown_face_setup(uint8_t watch_face_index, void ** context_ptr) {
 
 void atb_countdown_face_activate(void *context) {
     atb_countdown_state_t *state = (atb_countdown_state_t *)context;
-    watch_date_time_t now = movement_get_local_date_time();
-    state->now_ts = watch_utility_date_time_to_unix_time(now, movement_get_current_timezone_offset());
     watch_set_colon();
 
     movement_request_tick_frequency(1);
@@ -142,7 +144,6 @@ bool atb_countdown_face_loop(movement_event_t event, void *context) {
             draw(state, event.subsecond);
             break;
         case EVENT_TICK:
-            state->now_ts++;
             draw(state, event.subsecond);
             break;
         case EVENT_LIGHT_BUTTON_UP:
