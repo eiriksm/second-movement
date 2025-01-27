@@ -46,6 +46,7 @@
 #include "file_demo_face.h"
 #include "chirpy_demo_face.h"
 #include "bac_face.h"
+#include "beer_counter_face.h"
 #include "atb_countdown_face.h"
 
 // New includes go above this line.

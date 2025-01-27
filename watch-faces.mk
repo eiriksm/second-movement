@@ -21,6 +21,8 @@ SRCS += \
   ./watch-faces/demo/file_demo_face.c \
   ./watch-faces/io/chirpy_demo_face.c \
   ./watch-faces/complication/bac_face.c \
+  ./watch-faces/complication/beer_counter_face.c \
+  ./watch-faces/complication/bac.c \
   ./watch-faces/complication/atb_countdown_face.c \
   ./watch-faces/complication/atb.c \
 # New watch faces go above this line.
