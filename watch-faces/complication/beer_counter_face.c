@@ -175,6 +175,32 @@ bool beer_counter_face_loop(movement_event_t event, void *context) {
             print_unit_count(state);
             break;
 
+        case EVENT_ALARM_LONG_PRESS:
+            // If we are on the edit screen, we want to delete the currently viewed unit.
+            if (state->screen_delta != 1) {
+                break;
+            }
+            if (state->beer_count == 0) {
+                // Should really not be possible, but OK.
+                break;
+            }
+            int delta = state->beer_count - state->edit_offset;
+            int computer_delta = delta - 1;
+            state->beer_count--;
+            // Now shift all the units so they are in order.
+            for (int i = computer_delta; i < 20; i++) {
+                state->units[i].volume = state->units[i + 1].volume;
+                state->units[i].percentage = state->units[i + 1].percentage;
+            }
+            // If we are now on 0 beers, reset to first screen.
+            if (state->beer_count == 0) {
+                state->screen_delta = 0;
+            }
+            // Always reset the edit offset.
+            state->edit_offset = 0;
+            draw_screen(state);
+            break;
+
         case EVENT_ALARM_BUTTON_UP:
             // If we are on the edit screen, we want to change the value.
             if (state->screen_delta == 1) {
