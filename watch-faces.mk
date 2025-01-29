@@ -20,8 +20,7 @@ SRCS += \
   ./watch-faces/demo/irda_demo_face.c \
   ./watch-faces/demo/file_demo_face.c \
   ./watch-faces/io/chirpy_demo_face.c \
-  ./watch-faces/complication/bac_face.c \
-  ./watch-faces/complication/beer_counter_face.c \
+  ./watch-faces/complication/unit_counter_face.c \
   ./watch-faces/complication/bac.c \
   ./watch-faces/complication/atb_countdown_face.c \
   ./watch-faces/complication/atb.c \

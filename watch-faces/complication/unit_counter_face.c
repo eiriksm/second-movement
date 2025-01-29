@@ -18,6 +18,7 @@ void unit_counter_face_setup(uint8_t watch_face_index, void ** context_ptr) {
         state->weight = 95;
         state->sex = 0;
         state->edit_on = false;
+        state->edit_weight = false;
     }
 }
 
@@ -102,6 +103,30 @@ void draw_screen(unit_counter_state_t *state) {
     }
     if (state->screen_delta == 1) {
         print_edit_screen(state);
+    }
+    if (state->screen_delta == 2) {
+        unit_counter_print_settings_screen(state);
+    }
+}
+
+void unit_counter_print_settings_screen(unit_counter_state_t *state) {
+    char buf[10];
+    watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "SE", "SE");
+    watch_display_text_with_fallback(WATCH_POSITION_TOP_RIGHT, "  ", "  ");
+    // Write the sex in the bottom.
+    sprintf(buf, "%s %3d", state->sex ? " F" : "MM", state->weight);
+    watch_display_text(WATCH_POSITION_BOTTOM, buf);
+    // If we are editing, then let's blink it a bit.
+    watch_date_time_t now = movement_get_local_date_time();
+    uint32_t current_time_unix = watch_utility_date_time_to_unix_time(now, movement_get_current_timezone_offset());
+    if (state->edit_on && current_time_unix % 2 == 0) {
+        if (!state->edit_weight) {
+            watch_display_text(WATCH_POSITION_HOURS, "  ");
+        }
+        else {
+            watch_display_text(WATCH_POSITION_MINUTES, "  ");
+            watch_display_text(WATCH_POSITION_SECONDS, "  ");
+        }
     }
 }
 
@@ -244,6 +269,30 @@ bool unit_counter_face_loop(movement_event_t event, void *context) {
                 print_edit_screen(state);
                 break;
             }
+            if (state->screen_delta == 2) {
+                // Don't add more beers to it from this screen and not in edit mode.
+                if (!state->edit_on) {
+                    break;
+                }
+                // Depending on the thing we are editing.
+                if (state->edit_weight) {
+                    state->weight += 1;
+                    // Max is... I dunno, 120?
+                    if (state->weight > 120) {
+                        state->weight = 45;
+                    }
+                }
+                else {
+                    if (state->sex == 0) {
+                        state->sex = 1;
+                    }
+                    else {
+                        state->sex = 0;
+                    }
+                }
+                unit_counter_print_settings_screen(state);
+                break;
+            }
             // Append one more item to the units array.
             state->unit_count++;
             state->units[state->unit_count - 1].volume = 500;
@@ -276,8 +325,14 @@ bool unit_counter_face_loop(movement_event_t event, void *context) {
                 print_edit_screen(state);
                 break;
             }
+            // Edit mode settings
+            if (state->screen_delta == 2 && state->edit_on) {
+                state->edit_weight = !state->edit_weight;
+                unit_counter_print_settings_screen(state);
+                break;
+            }
             state->screen_delta++;
-            if (state->screen_delta > 1) {
+            if (state->screen_delta > 2) {
                 state->screen_delta = 0;
             }
             draw_screen(state);
@@ -292,6 +347,14 @@ bool unit_counter_face_loop(movement_event_t event, void *context) {
                     state->is_alc_cont_screen = false;
                 }
                 print_edit_screen(state);
+                break;
+            }
+            if (state->screen_delta == 2) {
+                state->edit_on = !state->edit_on;
+                if (state->edit_on) {
+                    state->edit_weight = true;
+                }
+                unit_counter_print_settings_screen(state);
                 break;
             }
             state->unit_count = 0;

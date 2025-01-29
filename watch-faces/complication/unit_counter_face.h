@@ -19,6 +19,7 @@ typedef struct {
     uint8_t screen_delta;
     uint8_t edit_offset;
     bool edit_on;
+    bool edit_weight;
     bool is_alc_cont_screen; //alcohol content of drink
 } unit_counter_state_t;
 
@@ -28,6 +29,7 @@ bool unit_counter_face_loop(movement_event_t event, void *context);
 void unit_counter_face_resign(void *context);
 void parse_bac_into_result(float val, char result[3][8]);
 void print_edit_screen(unit_counter_state_t *state);
+void unit_counter_print_settings_screen(unit_counter_state_t *state);
 
 static float calculate_bac(unit_counter_state_t *state);
 static void print_unit_count(unit_counter_state_t *state);
