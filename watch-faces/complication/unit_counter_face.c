@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
-#include "beer_counter_face.h"
+#include "unit_counter_face.h"
 #include "watch.h"
 #include "watch_utility.h"
 #include "bac.h"
@@ -8,23 +8,23 @@
 #define ELIMINATION_RATE_H 0.15f // Average elimination rate (g/kg/hour)
 #define ALCOHOL_DENSITY 0.789  // g/ml
 
-void beer_counter_face_setup(uint8_t watch_face_index, void ** context_ptr) {
+void unit_counter_face_setup(uint8_t watch_face_index, void ** context_ptr) {
     (void) watch_face_index;
     if (*context_ptr == NULL) {
-        *context_ptr = malloc(sizeof(beer_counter_state_t));
-        beer_counter_state_t *state = (beer_counter_state_t *)*context_ptr;
-        memset(*context_ptr, 0, sizeof(beer_counter_state_t));
-        state->beer_count = 0;
+        *context_ptr = malloc(sizeof(unit_counter_state_t));
+        unit_counter_state_t *state = (unit_counter_state_t *)*context_ptr;
+        memset(*context_ptr, 0, sizeof(unit_counter_state_t));
+        state->unit_count = 0;
         state->weight = 95;
         state->sex = 0;
         state->edit_on = false;
     }
 }
 
-static void print_unit_count(beer_counter_state_t *state) {
+static void print_unit_count(unit_counter_state_t *state) {
     char buf[4];
     // We actually do not want to pad with 0 but with space.
-    sprintf(buf, "%2d", state->beer_count);
+    sprintf(buf, "%2d", state->unit_count);
     watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "BC", "BC");
     watch_display_text(WATCH_POSITION_TOP_RIGHT, buf);
     // Let's also get the BAC.
@@ -59,7 +59,7 @@ void parse_bac_into_result(float val, char result[3][8]) {
     result[2][2] = '\0';
 }
 
-static float calculate_bac(beer_counter_state_t *state) {
+static float calculate_bac(unit_counter_state_t *state) {
     float result;
     float alcohol_g = 0.0;
     watch_date_time_t now = movement_get_local_date_time();
@@ -68,10 +68,10 @@ static float calculate_bac(beer_counter_state_t *state) {
     if (time_elapsed_seconds < 0) {
         time_elapsed_seconds = 0;
     }
-    if (state->beer_count == 0) {
+    if (state->unit_count == 0) {
         return 0;
     }
-    for (int i = 0; i < state->beer_count; i++) {
+    for (int i = 0; i < state->unit_count; i++) {
         float unit_g = (state->units[i].volume * (state->units[i].percentage / 10) * ALCOHOL_DENSITY) / 100;
         alcohol_g += unit_g;
     }
@@ -84,19 +84,19 @@ static float calculate_bac(beer_counter_state_t *state) {
     return result;
 }
 
-void beer_counter_face_activate(void *context) {
+void unit_counter_face_activate(void *context) {
     watch_set_led_off();
 
-    beer_counter_state_t *state = (beer_counter_state_t *)context;
+    unit_counter_state_t *state = (unit_counter_state_t *)context;
 
     float bac = calculate_bac(state);
     if (bac == 0) {
-        state->beer_count = 0;
+        state->unit_count = 0;
     }
     print_unit_count(state);
 }
 
-void draw_screen(beer_counter_state_t *state) {
+void draw_screen(unit_counter_state_t *state) {
     if (state->screen_delta == 0) {
         print_unit_count(state);
     }
@@ -105,9 +105,9 @@ void draw_screen(beer_counter_state_t *state) {
     }
 }
 
-void print_edit_screen(beer_counter_state_t *state) {
+void print_edit_screen(unit_counter_state_t *state) {
     char buf[10];
-    int delta = state->beer_count - state->edit_offset;
+    int delta = state->unit_count - state->edit_offset;
     sprintf(buf, "%2d", delta);
     watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "ED", "EDT");
     watch_display_text(WATCH_POSITION_TOP_RIGHT, buf);
@@ -159,8 +159,8 @@ void print_edit_screen(beer_counter_state_t *state) {
     }
 }
 
-bool beer_counter_face_loop(movement_event_t event, void *context) {
-    beer_counter_state_t *state = (beer_counter_state_t *)context;
+bool unit_counter_face_loop(movement_event_t event, void *context) {
+    unit_counter_state_t *state = (unit_counter_state_t *)context;
 
     switch (event.event_type) {
         case EVENT_TICK:
@@ -179,20 +179,20 @@ bool beer_counter_face_loop(movement_event_t event, void *context) {
             if (state->screen_delta != 1) {
                 break;
             }
-            if (state->beer_count == 0) {
+            if (state->unit_count == 0) {
                 // Should really not be possible, but OK.
                 break;
             }
-            int delta = state->beer_count - state->edit_offset;
+            int delta = state->unit_count - state->edit_offset;
             int computer_delta = delta - 1;
-            state->beer_count--;
+            state->unit_count--;
             // Now shift all the units so they are in order.
             for (int i = computer_delta; i < 20; i++) {
                 state->units[i].volume = state->units[i + 1].volume;
                 state->units[i].percentage = state->units[i + 1].percentage;
             }
             // If we are now on 0 beers, reset to first screen.
-            if (state->beer_count == 0) {
+            if (state->unit_count == 0) {
                 state->screen_delta = 0;
             }
             // Always reset the edit offset.
@@ -204,7 +204,7 @@ bool beer_counter_face_loop(movement_event_t event, void *context) {
             // If we are on the edit screen, we want to change the value.
             if (state->screen_delta == 1) {
                 if (state->edit_on) {
-                    int delta = state->beer_count - state->edit_offset;
+                    int delta = state->unit_count - state->edit_offset;
                     int computer_delta = delta - 1;
                     if (state->is_alc_cont_screen) {
                         state->units[computer_delta].percentage += 5;
@@ -237,7 +237,7 @@ bool beer_counter_face_loop(movement_event_t event, void *context) {
                 else {
                     // Cycle the units.
                     state->edit_offset++;
-                    if (state->edit_offset >= state->beer_count) {
+                    if (state->edit_offset >= state->unit_count) {
                         state->edit_offset = 0;
                     }
                 }
@@ -245,9 +245,9 @@ bool beer_counter_face_loop(movement_event_t event, void *context) {
                 break;
             }
             // Append one more item to the units array.
-            state->beer_count++;
-            state->units[state->beer_count - 1].volume = 500;
-            state->units[state->beer_count - 1].percentage = 45;
+            state->unit_count++;
+            state->units[state->unit_count - 1].volume = 500;
+            state->units[state->unit_count - 1].percentage = 45;
             // If the start time is not set, set it to the current timestamp.
             if (state->start_time == 0) {
                 watch_date_time_t date_time = movement_get_local_date_time();
@@ -258,7 +258,7 @@ bool beer_counter_face_loop(movement_event_t event, void *context) {
 
         case EVENT_LIGHT_BUTTON_UP:
             // If the count is 0, then do nothing.
-            if (state->beer_count == 0) {
+            if (state->unit_count == 0) {
                 break;
             }
             // Cycle the modes. Unless in edit mode.
@@ -270,7 +270,7 @@ bool beer_counter_face_loop(movement_event_t event, void *context) {
                     state->is_alc_cont_screen = false;
                     state->edit_offset++;
                 }
-                if (state->edit_offset >= state->beer_count) {
+                if (state->edit_offset >= state->unit_count) {
                     state->edit_offset = 0;
                 }
                 print_edit_screen(state);
@@ -294,7 +294,7 @@ bool beer_counter_face_loop(movement_event_t event, void *context) {
                 print_edit_screen(state);
                 break;
             }
-            state->beer_count = 0;
+            state->unit_count = 0;
             state->start_time = 0;
             print_unit_count(state);
             break;
@@ -311,7 +311,7 @@ bool beer_counter_face_loop(movement_event_t event, void *context) {
 
 }
 
-void beer_counter_face_resign(void *context) {
+void unit_counter_face_resign(void *context) {
 }
 
 static uint32_t calculate_time_to_sober(float current_bac) {
