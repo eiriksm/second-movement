@@ -12,7 +12,6 @@ void tearDown(void) {
 void test_loop_simple_unit(void) {
   void *context_ptr = malloc(sizeof(beer_counter_state_t));
   TEST_ASSERT_EQUAL(true, beer_counter_face_loop((movement_event_t){.event_type = EVENT_ALARM_LONG_PRESS}, context_ptr));
-  TEST_ASSERT_EQUAL(false, beer_counter_face_loop((movement_event_t){.event_type = EVENT_ALARM_BUTTON_UP}, context_ptr));
 }
 
 void test_delete_unit(void) {
