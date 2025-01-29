@@ -85,7 +85,6 @@ static float calculate_bac(beer_counter_state_t *state) {
 }
 
 void beer_counter_face_activate(void *context) {
-    movement_request_tick_frequency(4);
     watch_set_led_off();
 
     beer_counter_state_t *state = (beer_counter_state_t *)context;
