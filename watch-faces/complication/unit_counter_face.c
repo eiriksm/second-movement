@@ -93,6 +93,7 @@ void unit_counter_face_activate(void *context) {
     float bac = unit_counter_calculate_bac(state);
     if (bac == 0) {
         state->unit_count = 0;
+        state->start_time = 0;
     }
     print_unit_count(state);
 }
