@@ -31,7 +31,7 @@ void parse_bac_into_result(float val, char result[3][8]);
 void print_edit_screen(unit_counter_state_t *state);
 void unit_counter_print_settings_screen(unit_counter_state_t *state);
 
-static float calculate_bac(unit_counter_state_t *state);
+float unit_counter_calculate_bac(unit_counter_state_t *state);
 static void print_unit_count(unit_counter_state_t *state);
 
 

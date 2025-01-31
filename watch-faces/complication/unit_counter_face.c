@@ -29,7 +29,7 @@ static void print_unit_count(unit_counter_state_t *state) {
     watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "BC", "BC");
     watch_display_text(WATCH_POSITION_TOP_RIGHT, buf);
     // Let's also get the BAC.
-    float bac = calculate_bac(state);
+    float bac = unit_counter_calculate_bac(state);
     char result[3][8];
     parse_bac_into_result(bac, result);
     char hour_buf[11];
@@ -60,7 +60,7 @@ void parse_bac_into_result(float val, char result[3][8]) {
     result[2][2] = '\0';
 }
 
-static float calculate_bac(unit_counter_state_t *state) {
+float unit_counter_calculate_bac(unit_counter_state_t *state) {
     float result;
     float alcohol_g = 0.0;
     watch_date_time_t now = movement_get_local_date_time();
@@ -90,7 +90,7 @@ void unit_counter_face_activate(void *context) {
 
     unit_counter_state_t *state = (unit_counter_state_t *)context;
 
-    float bac = calculate_bac(state);
+    float bac = unit_counter_calculate_bac(state);
     if (bac == 0) {
         state->unit_count = 0;
     }
