@@ -65,28 +65,28 @@ static void draw(atb_countdown_state_t *state, uint8_t subsecond) {
     // Check which stop we are using.
     switch (state->stopOffset) {
         case 0:
-            watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "SEN", "SE");
+            watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "UGL", "UG");
             watch_display_text_with_fallback(WATCH_POSITION_TOP_RIGHT, " 9", " 9");
             break;
 
         case 1:
             result_set = atb_get_next_departures(state->now_ts, "09_1", "74061");
             state->target_ts = result_set.resultSet[state->offset];
-            watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "LIA", "LI");
+            watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "SEN", "SE");
             watch_display_text_with_fallback(WATCH_POSITION_TOP_RIGHT, " 9", " 9");
             break;
 
         case 2:
             result_set = atb_get_next_departures(state->now_ts, "11_2", "71773");
             state->target_ts = result_set.resultSet[state->offset];
-            watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "SEN", "SE");
+            watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "UGL", "UG");
             watch_display_text_with_fallback(WATCH_POSITION_TOP_RIGHT, "11", "11");
             break;
 
         case 3:
             result_set = atb_get_next_departures(state->now_ts, "11_1", "74265");
             state->target_ts = result_set.resultSet[state->offset];
-            watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "STA", "ST");
+            watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "SEN", "SE");
             watch_display_text_with_fallback(WATCH_POSITION_TOP_RIGHT, "11", "11");
             break;
     }
@@ -147,19 +147,21 @@ bool atb_countdown_face_loop(movement_event_t event, void *context) {
             draw(state, event.subsecond);
             break;
         case EVENT_LIGHT_BUTTON_UP:
-            if (state->offset < 4) {
-                state->offset++;
-            } else {
-                state->offset = 0;
+            state->offset = 0;
+            if (state->stopOffset < 3) {
+                state->stopOffset++;
+            }
+            else {
+                state->stopOffset = 0;
             }
             draw(state, event.subsecond);
             break;
         case EVENT_ALARM_BUTTON_UP:
-            state->offset = 0;
-            if (state->stopOffset < 3) {
-                state->stopOffset++;
-            } else {
-                state->stopOffset = 0;
+            if (state->offset < 4) {
+                state->offset++;
+            }
+            else {
+                state->offset = 0;
             }
             draw(state, event.subsecond);
             break;
