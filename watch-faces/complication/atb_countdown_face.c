@@ -72,7 +72,7 @@ static void draw(atb_countdown_state_t *state, uint8_t subsecond) {
         case 1:
             result_set = atb_get_next_departures(state->now_ts, "09_1", "74061");
             state->target_ts = result_set.resultSet[state->offset];
-            watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "SEN", "SE");
+            watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "STO", "ST");
             watch_display_text_with_fallback(WATCH_POSITION_TOP_RIGHT, " 9", " 9");
             break;
 
@@ -86,7 +86,7 @@ static void draw(atb_countdown_state_t *state, uint8_t subsecond) {
         case 3:
             result_set = atb_get_next_departures(state->now_ts, "11_1", "74265");
             state->target_ts = result_set.resultSet[state->offset];
-            watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "SEN", "SE");
+            watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "KON", "KG");
             watch_display_text_with_fallback(WATCH_POSITION_TOP_RIGHT, "11", "11");
             break;
     }
