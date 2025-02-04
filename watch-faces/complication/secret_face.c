@@ -30,6 +30,16 @@ void secret_face_activate(void *context) {
 
 bool secret_face_loop(movement_event_t event, void *context) {
     secret_state_t *state = (secret_state_t *)context;
+    switch (event.event_type) {
+        case EVENT_TIMEOUT:
+            movement_move_to_face(0);
+            break;
+
+        default:
+            movement_default_loop_handler(event);
+            break;
+    }
+
     return true;
 }
 
