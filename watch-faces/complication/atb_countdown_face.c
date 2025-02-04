@@ -89,6 +89,13 @@ static void draw(atb_countdown_state_t *state, uint8_t subsecond) {
             watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "KON", "KG");
             watch_display_text_with_fallback(WATCH_POSITION_TOP_RIGHT, "11", "11");
             break;
+
+        case 4:
+            result_set = atb_get_next_departures(state->now_ts, "11_3", "71204");
+            state->target_ts = result_set.resultSet[state->offset];
+            watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "HES", "HH");
+            watch_display_text_with_fallback(WATCH_POSITION_TOP_RIGHT, "11", "11");
+            break;
     }
     if (state->target_ts <= state->now_ts) {
         delta = 0;
@@ -151,7 +158,7 @@ bool atb_countdown_face_loop(movement_event_t event, void *context) {
             break;
         case EVENT_LIGHT_BUTTON_UP:
             state->offset = 0;
-            if (state->stopOffset < 3) {
+            if (state->stopOffset < 4) {
                 state->stopOffset++;
             }
             else {
