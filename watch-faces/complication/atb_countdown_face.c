@@ -147,6 +147,9 @@ bool atb_countdown_face_loop(movement_event_t event, void *context) {
             draw(state, event.subsecond);
             break;
         case EVENT_LIGHT_BUTTON_UP:
+            // Let's not trigger light.
+            break;
+        case EVENT_LIGHT_BUTTON_UP:
             state->offset = 0;
             if (state->stopOffset < 3) {
                 state->stopOffset++;
