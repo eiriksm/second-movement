@@ -33,6 +33,7 @@
 #include "watch.h"
 #include "watch_utility.h"
 #include "zones.h"
+#include "secret_face.h"
 
 static inline void store_countdown(atb_countdown_state_t *state) {
     /* Store set countdown time */
@@ -144,10 +145,14 @@ void atb_countdown_face_activate(void *context) {
 
 bool atb_countdown_face_loop(movement_event_t event, void *context) {
     atb_countdown_state_t *state = (atb_countdown_state_t *)context;
+    secret_state_t *secret = get_secret_state();
 
     switch (event.event_type) {
         case EVENT_ALARM_LONG_PRESS:
+            secret->is_hidden = !secret->is_hidden;
+            set_secret_state(secret);
             break;
+
         case EVENT_ACTIVATE:
             draw(state, event.subsecond);
             break;

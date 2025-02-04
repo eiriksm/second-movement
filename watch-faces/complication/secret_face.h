@@ -4,18 +4,8 @@
 #include "movement.h"
 
 typedef struct {
-    uint32_t target_ts;
-    uint32_t now_ts;
-    uint8_t hours;
-    uint8_t minutes;
-    uint8_t seconds;
-    uint8_t set_hours;
-    uint8_t set_minutes;
-    uint8_t set_seconds;
-    uint8_t selection;
     uint8_t watch_face_index;
-    uint8_t offset;
-    uint8_t stopOffset;
+    bool is_hidden;
 } secret_state_t;
 
 
@@ -23,6 +13,9 @@ void secret_face_setup(uint8_t watch_face_index, void ** context_ptr);
 void secret_face_activate(void *context);
 bool secret_face_loop(movement_event_t event, void *context);
 void secret_face_resign(void *context);
+
+secret_state_t *get_secret_state();
+void set_secret_state(secret_state_t *state);
 
 #define secret_face ((const watch_face_t){ \
     secret_face_setup, \
