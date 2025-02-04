@@ -36,7 +36,7 @@ static void draw(secret_state_t *state, uint8_t subsecond) {
     (void) subsecond;
 
     watch_display_text_with_fallback(WATCH_POSITION_BOTTOM, "SECRET", "    <3");
-    print("ricks %d\n", state->clicks);
+    printf("ricks %d\n", state->clicks);
     if (state->clicks == 3) {
       watch_buzzer_play_sequence(round_win_melody, NULL);
     }
