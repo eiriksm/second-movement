@@ -47,6 +47,9 @@ static void draw(secret_state_t *state, uint8_t subsecond) {
     if (state->clicks == 3) {
       watch_buzzer_play_sequence(round_win_melody, NULL);
     }
+    if (state->clicks < 6) {
+        watch_display_text_with_fallback(WATCH_POSITION_BOTTOM, text[state->clicks], text[state->clicks]);
+    }
 }
 
 void secret_face_setup(uint8_t watch_face_index, void ** context_ptr) {
