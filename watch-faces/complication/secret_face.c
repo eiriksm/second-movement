@@ -30,6 +30,11 @@ static int8_t round_win_melody[] = {
     BUZZER_NOTE_D5, 64,
     0};
 
+static char* text[] = {
+  "     L",
+  "    LU",
+};
+
 secret_state_t *my_secret;
 
 static void draw(secret_state_t *state, uint8_t subsecond) {
