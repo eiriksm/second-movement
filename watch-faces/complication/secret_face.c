@@ -11,7 +11,7 @@ secret_state_t *my_secret;
 static void draw(secret_state_t *state, uint8_t subsecond) {
     (void) subsecond;
 
-    watch_display_text_with_fallback(WATCH_POSITION_BOTTOM, "SECRET", "SECRET");
+    watch_display_text_with_fallback(WATCH_POSITION_BOTTOM, "SECRET", "<3CRET");
 }
 
 void secret_face_setup(uint8_t watch_face_index, void ** context_ptr) {
