@@ -189,6 +189,9 @@ bool unit_counter_face_loop(movement_event_t event, void *context) {
     unit_counter_state_t *state = (unit_counter_state_t *)context;
 
     switch (event.event_type) {
+        case EVENT_LIGHT_BUTTON_DOWN:
+            // Let's not trigger light.
+            break;
         case EVENT_TICK:
             draw_screen(state);
             break;
