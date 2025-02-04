@@ -69,7 +69,7 @@ bool secret_face_loop(movement_event_t event, void *context) {
                 movement_move_to_next_face();
                 break;
             }
-            mysecret->clicks = 0;
+            my_secret->clicks = 0;
             draw(my_secret, event.subsecond);
             break;
 
