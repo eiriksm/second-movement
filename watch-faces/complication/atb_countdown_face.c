@@ -146,6 +146,8 @@ bool atb_countdown_face_loop(movement_event_t event, void *context) {
     atb_countdown_state_t *state = (atb_countdown_state_t *)context;
 
     switch (event.event_type) {
+        case EVENT_ALARM_LONG_PRESS:
+            break;
         case EVENT_ACTIVATE:
             draw(state, event.subsecond);
             break;
