@@ -63,6 +63,7 @@ bool secret_face_loop(movement_event_t event, void *context) {
     switch (event.event_type) {
         case EVENT_TICK:
             my_secret->clicks++;
+            draw(my_secret, event.subsecond);
             break;
         case EVENT_ACTIVATE:
             if (my_secret->is_hidden) {
