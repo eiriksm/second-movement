@@ -29,7 +29,7 @@ void secret_face_activate(void *context) {
 }
 
 bool secret_face_loop(movement_event_t event, void *context) {
-    secret_state_t *state = (atb_countdown_state_t *)context;
+    secret_state_t *state = (secret_state_t *)context;
     return true;
 }
 
