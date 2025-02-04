@@ -32,7 +32,10 @@ static int8_t round_win_melody[] = {
 
 static char* text[] = {
   "     L",
-  "    LU",
+  "    L0",
+  "   L0V",
+  "  L0V ",
+  " L0V U",
 };
 
 secret_state_t *my_secret;
