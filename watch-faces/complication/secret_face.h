@@ -5,7 +5,7 @@
 
 typedef struct {
     uint8_t watch_face_index;
-    uint8_t clicks = 0;
+    uint8_t clicks;
     bool is_hidden;
 } secret_state_t;
 
