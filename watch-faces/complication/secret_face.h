@@ -49,10 +49,10 @@ bool secret_face_loop(movement_event_t event, void *context);
 void secret_face_resign(void *context);
 
 #define secret_face ((const watch_face_t){ \
-    atb_countdown_face_setup, \
-    atb_countdown_face_activate, \
-    atb_countdown_face_loop, \
-    atb_countdown_face_resign, \
+    secret_face_setup, \
+    secret_face_activate, \
+    secret_face_loop, \
+    secret_face_resign, \
     NULL, \
 })
 
