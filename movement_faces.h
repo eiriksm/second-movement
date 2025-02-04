@@ -47,5 +47,6 @@
 #include "chirpy_demo_face.h"
 #include "unit_counter_face.h"
 #include "atb_countdown_face.h"
+#include "secret_face.h"
 
 // New includes go above this line.
