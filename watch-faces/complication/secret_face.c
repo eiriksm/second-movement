@@ -36,7 +36,9 @@ static void draw(secret_state_t *state, uint8_t subsecond) {
     (void) subsecond;
 
     watch_display_text_with_fallback(WATCH_POSITION_BOTTOM, "SECRET", "<3CRET");
-    watch_buzzer_play_sequence(round_win_melody, NULL);
+    if (mysecret->clicks == 3) {
+      watch_buzzer_play_sequence(round_win_melody, NULL);
+    }
 }
 
 void secret_face_setup(uint8_t watch_face_index, void ** context_ptr) {
@@ -54,18 +56,20 @@ void secret_face_setup(uint8_t watch_face_index, void ** context_ptr) {
 void secret_face_activate(void *context) {
     my_secret = (secret_state_t *)context;
     watch_set_colon();
-
-    movement_request_tick_frequency(1);
 }
 
 bool secret_face_loop(movement_event_t event, void *context) {
     my_secret = (secret_state_t *)context;
     switch (event.event_type) {
+        case EVENT_TICK:
+            mysecret->clicks++;
+            break;
         case EVENT_ACTIVATE:
             if (my_secret->is_hidden) {
                 movement_move_to_next_face();
                 break;
             }
+            mysecret->clicks = 0;
             draw(my_secret, event.subsecond);
             break;
 
