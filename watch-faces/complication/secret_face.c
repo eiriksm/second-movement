@@ -54,6 +54,9 @@ static void draw(secret_state_t *state, uint8_t subsecond) {
     if (state->clicks < array_size) {
         watch_display_text_with_fallback(WATCH_POSITION_BOTTOM, text[state->clicks], text[state->clicks]);
     }
+    if (state->clicks > array_size + 3) {
+        state->clicks = 0;
+    }
 }
 
 void secret_face_setup(uint8_t watch_face_index, void ** context_ptr) {
