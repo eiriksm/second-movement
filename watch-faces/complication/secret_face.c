@@ -31,7 +31,7 @@ static int8_t round_win_melody[] = {
     0};
 
 static char* text[] = {
-  "     L", "    L0", "   L0V", "  L0V ", " L0V U", "L0V U ",
+ "      ", "     L", "    L0", "   L0V", "  L0V ", " L0V U", "L0V U ",
   "0V U S", "V U SI", " U SIL", "U SILJ", " SILJE", "SILJE ",
   "ILJE H", "LJE HI", "JE HIL", "E HILS", " HILSE", "HILSEN",
   "ILSEN ", "LSEN M", "SEN MA", "EN MAR", "N MARJ", " MARJA",
@@ -54,7 +54,7 @@ static void draw(secret_state_t *state, uint8_t subsecond) {
     if (state->clicks < array_size) {
         watch_display_text_with_fallback(WATCH_POSITION_BOTTOM, text[state->clicks], text[state->clicks]);
     }
-    if (state->clicks > array_size + 3) {
+    if (state->clicks > array_size + 1) {
         state->clicks = 0;
     }
 }
