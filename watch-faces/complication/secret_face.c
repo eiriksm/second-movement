@@ -31,52 +31,15 @@ static int8_t round_win_melody[] = {
     0};
 
 static char* text[] = {
-  "     L",
-  "    L0",
-  "   L0V",
-  "  L0V ",
-  " L0V U",
-  "L0V U ",
-  "0V U S",
-  "V U SI",
-  " U SIL",
-  "U SILJ",
-  " SILJE",
-  "SILJE ",
-  "ILJE H",
-  "LJE HI",
-  "JE HIL",
-  "E HILS",
-  " HILSE",
-  "HILSEN",
-  "ILSEN ",
-  "LSEN M",
-  "SEN MA",
-  "EN MAR",
-  "N MARJ",
-  " MARJA",
-  "MARJA,",
-  "ARJA, ",
-  "RJA, E",
-  "JA, EI",
-  "A, EIR",
-  ", EIRI",
-  " EIRIK",
-  "EIRIK ",
-  "IRIK O",
-  "RIK OG",
-  "IK OG ",
-  "K OG L",
-  " OG LA",
-  "OG LAR",
-  "G LARS",
-  " LARS ",
-  "LARS M",
-  "ARS MO",
-  "RS MON",
-  "S MONS",
-  " MONSE",
-  "MONSEN"
+  "     L", "    L0", "   L0V", "  L0V ", " L0V U", "L0V U ",
+  "0V U S", "V U SI", " U SIL", "U SILJ", " SILJE", "SILJE ",
+  "ILJE H", "LJE HI", "JE HIL", "E HILS", " HILSE", "HILSEN",
+  "ILSEN ", "LSEN M", "SEN MA", "EN MAR", "N MARJ", " MARJA",
+  "MARJA,", "ARJA, ", "RJA, E", "JA, EI", "A, EIR", ", EIRI",
+  " EIRIK", "EIRIK ", "IRIK O", "RIK OG", "IK OG ", "K OG L",
+  " OG LA", "OG LAR", "G LARS", " LARS ", "LARS M", "ARS MO",
+  "RS MON", "S MONS", " MONSE", "MONSEN", "ONSEN ", "NSEN  ",
+  "SEN   ", "EN    ", "N     ", "      "
 };
 
 int array_size = sizeof(text) / sizeof(text[0]);
@@ -85,8 +48,6 @@ secret_state_t *my_secret;
 
 static void draw(secret_state_t *state, uint8_t subsecond) {
     (void) subsecond;
-
-    watch_display_text_with_fallback(WATCH_POSITION_BOTTOM, "SECRET", "     G");
     if (state->clicks == 3) {
       watch_buzzer_play_sequence(round_win_melody, NULL);
     }
