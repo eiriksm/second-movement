@@ -29,8 +29,8 @@
 
 const watch_face_t watch_faces[] = {
     clock_face,
-    sunrise_sunset_face,
     atb_countdown_face,
+    sunrise_sunset_face,
     secret_face,
     fast_stopwatch_face,
     voltage_face,
