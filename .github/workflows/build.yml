@@ -2,9 +2,11 @@ name: Build
 
 on:
   pull_request:
+    branches:
+      - eirik-clock
   push:
-    branches-ignore:
-      - gh-pages
+    branches:
+      - eirik-clock
 
 env:
   COLOR: BLUE
