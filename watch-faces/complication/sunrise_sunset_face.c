@@ -321,8 +321,6 @@ void sunrise_sunset_face_activate(void *context) {
 
     sunrise_sunset_state_t *state = (sunrise_sunset_state_t *)context;
     movement_location_t movement_location = (movement_location_t) watch_get_backup_data(1);
-    printf("%d\n", movement_location.bit.latitude);
-    printf("%d\n", movement_location.bit.longitude);
     state->working_latitude = _sunrise_sunset_face_struct_from_latlon(movement_location.bit.latitude);
     state->working_longitude = _sunrise_sunset_face_struct_from_latlon(movement_location.bit.longitude);
 }
