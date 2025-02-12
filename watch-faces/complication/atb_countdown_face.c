@@ -73,14 +73,14 @@ static void draw(atb_countdown_state_t *state, uint8_t subsecond) {
             break;
 
         case 1:
-            watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "UGL", "UA");
+            result_set = atb_get_next_departures(state->now_ts, "09_1", "74061");
+            state->target_ts = result_set.resultSet[state->offset];
+            watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "STO", "ST");
             watch_display_text_with_fallback(WATCH_POSITION_TOP_RIGHT, " 9", " 9");
             break;
 
         case 2:
-            result_set = atb_get_next_departures(state->now_ts, "09_1", "74061");
-            state->target_ts = result_set.resultSet[state->offset];
-            watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "STO", "ST");
+            watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "UGL", "UA");
             watch_display_text_with_fallback(WATCH_POSITION_TOP_RIGHT, " 9", " 9");
             break;
 
@@ -90,14 +90,6 @@ static void draw(atb_countdown_state_t *state, uint8_t subsecond) {
             watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "KON", "KG");
             watch_display_text_with_fallback(WATCH_POSITION_TOP_RIGHT, "11", "11");
             break;
-
-        case 4:
-            result_set = atb_get_next_departures(state->now_ts, "11_2", "71773");
-            state->target_ts = result_set.resultSet[state->offset];
-            watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "UGL", "UA");
-            watch_display_text_with_fallback(WATCH_POSITION_TOP_RIGHT, "11", "11");
-            break;
-
     }
     if (state->target_ts <= state->now_ts) {
         delta = 0;
@@ -166,7 +158,7 @@ bool atb_countdown_face_loop(movement_event_t event, void *context) {
             break;
         case EVENT_LIGHT_BUTTON_UP:
             state->offset = 0;
-            if (state->stopOffset < 4) {
+            if (state->stopOffset < 3) {
                 state->stopOffset++;
             }
             else {
