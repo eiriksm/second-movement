@@ -31,6 +31,7 @@ typedef enum {
 
 void watch_set_led_off(void);
 void watch_display_text(watch_position_t location, const char *string);
+char *watch_get_display_text(watch_position_t location);
 
 void watch_display_text_with_fallback(watch_position_t location, const char *string, const char *fallback);
 
