@@ -297,10 +297,16 @@ bool unit_counter_face_loop(movement_event_t event, void *context) {
                 unit_counter_print_settings_screen(state);
                 break;
             }
+            // Store the current last one in a temp variable. Unless its the first one.
+            unit_t temp_unit = {500, 45};
+            if (state->unit_count > 0) {
+                temp_unit.volume = state->units[state->unit_count - 1].volume;
+                temp_unit.percentage = state->units[state->unit_count - 1].percentage;
+            }
             // Append one more item to the units array.
             state->unit_count++;
-            state->units[state->unit_count - 1].volume = 500;
-            state->units[state->unit_count - 1].percentage = 45;
+            state->units[state->unit_count - 1].volume = temp_unit.volume;
+            state->units[state->unit_count - 1].percentage = temp_unit.percentage;
             // If the start time is not set, set it to the current timestamp.
             if (state->start_time == 0) {
                 watch_date_time_t date_time = movement_get_local_date_time();

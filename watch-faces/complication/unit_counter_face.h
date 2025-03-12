@@ -4,12 +4,14 @@
 #include <stdbool.h>
 #include "movement.h"
 
+// Define a type for the vol/percentage struct.
 typedef struct {
-    struct {
-        int volume;
-        // Alcohol percentage. 4.7 would be stored as 47.
-        int percentage;
-    } units[20];
+    int volume;
+    int percentage;
+} unit_t;
+
+typedef struct {
+    unit_t units[20];
     uint8_t unit_count;
     uint32_t start_time; // Store start_time time of beer consumption
     uint32_t weight;
