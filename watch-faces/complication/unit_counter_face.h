@@ -15,14 +15,14 @@ typedef struct {
     uint8_t unit_count;
     uint32_t start_time; // Store start_time time of beer consumption
     uint32_t weight;
-    uint8_t sex; // 0 for male, 1 for female
+    uint8_t sex; // 0 for male, 1 for female like 1900.
     uint32_t drink_vol;
     uint32_t alc_cont;
     uint8_t screen_delta;
     uint8_t edit_offset;
     bool edit_on;
     bool edit_weight;
-    bool is_alc_cont_screen; //alcohol content of drink
+    bool is_alc_cont_screen;
 } unit_counter_state_t;
 
 void unit_counter_face_setup(uint8_t watch_face_index, void ** context_ptr);
@@ -32,12 +32,13 @@ void unit_counter_face_resign(void *context);
 void parse_bac_into_result(float val, char result[3][8]);
 void print_edit_screen(unit_counter_state_t *state);
 void unit_counter_print_settings_screen(unit_counter_state_t *state);
+void unit_counter_print_time_to_sober_screen(unit_counter_state_t *state);
 
 float unit_counter_calculate_bac(unit_counter_state_t *state);
 static void print_unit_count(unit_counter_state_t *state);
 
 
-static uint32_t calculate_time_to_sober(float current_bac);
+static uint32_t calculate_time_to_point_two(float current_bac);
 
 #define unit_counter_face ((const watch_face_t){ \
     unit_counter_face_setup, \

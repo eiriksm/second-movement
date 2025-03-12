@@ -26,7 +26,7 @@ static void print_unit_count(unit_counter_state_t *state) {
     char buf[4];
     // We actually do not want to pad with 0 but with space.
     sprintf(buf, "%2d", state->unit_count);
-    watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "BC", "BC");
+    watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "UC", "UC");
     watch_display_text(WATCH_POSITION_TOP_RIGHT, buf);
     // Let's also get the BAC.
     float bac = unit_counter_calculate_bac(state);
@@ -106,8 +106,28 @@ void draw_screen(unit_counter_state_t *state) {
         print_edit_screen(state);
     }
     if (state->screen_delta == 2) {
+        unit_counter_print_time_to_sober_screen(state);
+    }
+    if (state->screen_delta == 3) {
         unit_counter_print_settings_screen(state);
     }
+}
+
+void unit_counter_print_time_to_sober_screen(unit_counter_state_t *state) {
+    char buf[10];
+    // We actually do not want to pad with 0 but with space.
+    sprintf(buf, "%2d", state->unit_count);
+    watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "UC", "UC");
+    watch_display_text(WATCH_POSITION_TOP_RIGHT, buf);
+    // First calculate the number of seconds.
+    float bac = unit_counter_calculate_bac(state);
+    uint32_t time_to_sober = calculate_time_to_point_two(bac);
+    // Now convert to hours, minutes and seconds.
+    uint32_t hours = time_to_sober / 3600;
+    uint32_t minutes = (time_to_sober % 3600) / 60;
+    uint32_t seconds = time_to_sober % 60;
+    sprintf(buf, "%2d%02d%02d", hours, minutes, seconds);
+    watch_display_text(WATCH_POSITION_BOTTOM, buf);
 }
 
 void unit_counter_print_settings_screen(unit_counter_state_t *state) {
@@ -273,7 +293,7 @@ bool unit_counter_face_loop(movement_event_t event, void *context) {
                 print_edit_screen(state);
                 break;
             }
-            if (state->screen_delta == 2) {
+            if (state->screen_delta == 3) {
                 // Don't add more beers to it from this screen and not in edit mode.
                 if (!state->edit_on) {
                     break;
@@ -342,7 +362,7 @@ bool unit_counter_face_loop(movement_event_t event, void *context) {
                 break;
             }
             state->screen_delta++;
-            if (state->screen_delta > 2) {
+            if (state->screen_delta > 3) {
                 state->screen_delta = 0;
             }
             draw_screen(state);
@@ -359,7 +379,7 @@ bool unit_counter_face_loop(movement_event_t event, void *context) {
                 print_edit_screen(state);
                 break;
             }
-            if (state->screen_delta == 2) {
+            if (state->screen_delta == 3) {
                 state->edit_on = !state->edit_on;
                 if (state->edit_on) {
                     state->edit_weight = true;
@@ -387,7 +407,11 @@ bool unit_counter_face_loop(movement_event_t event, void *context) {
 void unit_counter_face_resign(void *context) {
 }
 
-static uint32_t calculate_time_to_sober(float current_bac) {
+static uint32_t calculate_time_to_point_two(float current_bac) {
+    current_bac = current_bac - 0.2;
+    if (current_bac < 0) {
+        current_bac = 0;
+    }
     float time_to_sober_hours = current_bac / ELIMINATION_RATE_H;
     uint32_t time_to_sober_seconds = (uint32_t)(time_to_sober_hours * 3600);
     return time_to_sober_seconds;

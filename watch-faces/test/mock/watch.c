@@ -1,9 +1,44 @@
 #include "watch.h"
 #include <time.h>
 #include <stdio.h>
+#include <string.h>
 
 void watch_set_led_off(void) {}
-void watch_display_text(watch_position_t location, const char *string) {}
+
+// Create a struct to hold the current display text. It should be indexed by the different positions.
+static char display_text[2][8];
+
+void watch_display_text(watch_position_t location, const char *string) {
+    // Copy the string into the display_text array.
+    // So convert the location to an index.
+    int delta = 0;
+    switch (location) {
+        case WATCH_POSITION_FULL:
+            delta = 0;
+            break;
+        case WATCH_POSITION_BOTTOM:
+            delta = 1;
+            break;
+
+    }
+    // Now place that string into the display text array, at the given location.
+    strcpy(display_text[delta], string);
+}
+
+char *watch_get_display_text(watch_position_t location) {
+    // Convert the location to an index.
+    int delta = 0;
+    switch (location) {
+        case WATCH_POSITION_FULL:
+            delta = 0;
+            break;
+        case WATCH_POSITION_BOTTOM:
+            delta = 1;
+            break;
+    }
+    // Now return the string at that location.
+    return display_text[delta];
+}
 
 void watch_display_text_with_fallback(watch_position_t location, const char *string, const char *fallback) {}
 

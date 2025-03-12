@@ -105,11 +105,48 @@ void test_add_unit_uses_same_vol_and_percentage() {
   TEST_ASSERT_EQUAL(60, state->units[2].percentage);
 }
 
+void test_print_tts() {
+  void *context_ptr = malloc(sizeof(unit_counter_state_t));
+  // Cast to state object
+  unit_counter_state_t *state = (unit_counter_state_t *)context_ptr;
+  time_t current_time;
+  current_time = time(NULL);
+  struct tm *time_info;
+  time_info = gmtime(&current_time);
+  time_t current_timestamp = mktime(time_info);
+  state->start_time = current_timestamp;
+  // Let's add 2 units.
+  state->unit_count = 2;
+  state->units[0].volume = 500;
+  state->units[0].percentage = 50;
+  state->units[1].volume = 500;
+  state->units[1].percentage = 50;
+  // Guess I also need a weight.
+  state->weight = 80;
+  unit_counter_face_activate(state);
+  unit_counter_face_loop((movement_event_t){.event_type = EVENT_TICK}, state);
+  // Now let's check the tts.
+  unit_counter_print_time_to_sober_screen(state);
+  char *displayed_text = watch_get_display_text(WATCH_POSITION_BOTTOM);
+  TEST_ASSERT_EQUAL_STRING(" 33004", displayed_text);
+  // OK let's pretend 2 hours have passed.
+  state->start_time = current_timestamp - 7200;
+  unit_counter_print_time_to_sober_screen(state);
+  displayed_text = watch_get_display_text(WATCH_POSITION_BOTTOM);
+  TEST_ASSERT_EQUAL_STRING(" 13004", displayed_text);
+  // Now instead let's pretend a total of 3 hours and 31 minutes have passed.
+  state->start_time = current_timestamp - 17460;
+  unit_counter_print_time_to_sober_screen(state);
+  displayed_text = watch_get_display_text(WATCH_POSITION_BOTTOM);
+  TEST_ASSERT_EQUAL_STRING(" 00000", displayed_text);
+}
+
 int main(void) {
   UNITY_BEGIN();
   RUN_TEST(test_loop_simple_unit);
   RUN_TEST(test_delete_unit);
   RUN_TEST(test_time_runs_out_add_unit);
   RUN_TEST(test_add_unit_uses_same_vol_and_percentage);
+  RUN_TEST(test_print_tts);
   return UNITY_END();
 }

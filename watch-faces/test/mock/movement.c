@@ -5,6 +5,7 @@ bool movement_default_loop_handler(movement_event_t event) {
     (void) event;
     return true;
 }
+
 void movement_move_to_face(uint8_t watch_face_index) {
     (void) watch_face_index;
 }
