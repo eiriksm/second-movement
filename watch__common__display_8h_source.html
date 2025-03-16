@@ -146,7 +146,7 @@ $(function(){ initResizable(false); });
 <div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span><span class="keyword">static</span> <span class="keyword">const</span> uint8_t Custom_LCD_Character_Set[] =</div>
 <div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span>{</div>
 <div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span>    0b00000000, <span class="comment">// [space]</span></div>
-<div class="line"><a id="l00051" name="l00051"></a><span class="lineno">   51</span>    0b00000000, <span class="comment">// ! (unused)</span></div>
+<div class="line"><a id="l00051" name="l00051"></a><span class="lineno">   51</span>    0b00111100, <span class="comment">// ! L with an extra C segment (use !J to make a W)</span></div>
 <div class="line"><a id="l00052" name="l00052"></a><span class="lineno">   52</span>    0b00100010, <span class="comment">// &quot;</span></div>
 <div class="line"><a id="l00053" name="l00053"></a><span class="lineno">   53</span>    0b01100011, <span class="comment">// # (degree symbol, hash mark doesn&#39;t fit)</span></div>
 <div class="line"><a id="l00054" name="l00054"></a><span class="lineno">   54</span>    0b11101101, <span class="comment">// $ (S with a downstroke)</span></div>
@@ -187,7 +187,7 @@ $(function(){ initResizable(false); });
 <div class="line"><a id="l00089" name="l00089"></a><span class="lineno">   89</span>    0b00111101, <span class="comment">// G</span></div>
 <div class="line"><a id="l00090" name="l00090"></a><span class="lineno">   90</span>    0b01110110, <span class="comment">// H</span></div>
 <div class="line"><a id="l00091" name="l00091"></a><span class="lineno">   91</span>    0b10001001, <span class="comment">// I (only works in position 0)</span></div>
-<div class="line"><a id="l00092" name="l00092"></a><span class="lineno">   92</span>    0b00001110, <span class="comment">// J</span></div>
+<div class="line"><a id="l00092" name="l00092"></a><span class="lineno">   92</span>    0b00011110, <span class="comment">// J</span></div>
 <div class="line"><a id="l00093" name="l00093"></a><span class="lineno">   93</span>    0b01110101, <span class="comment">// K</span></div>
 <div class="line"><a id="l00094" name="l00094"></a><span class="lineno">   94</span>    0b00111000, <span class="comment">// L</span></div>
 <div class="line"><a id="l00095" name="l00095"></a><span class="lineno">   95</span>    0b10110111, <span class="comment">// M (only works in position 0)</span></div>
@@ -201,7 +201,7 @@ $(function(){ initResizable(false); });
 <div class="line"><a id="l00103" name="l00103"></a><span class="lineno">  103</span>    0b00111110, <span class="comment">// U</span></div>
 <div class="line"><a id="l00104" name="l00104"></a><span class="lineno">  104</span>    0b00111110, <span class="comment">// V</span></div>
 <div class="line"><a id="l00105" name="l00105"></a><span class="lineno">  105</span>    0b10111110, <span class="comment">// W (only works in position 0)</span></div>
-<div class="line"><a id="l00106" name="l00106"></a><span class="lineno">  106</span>    0b01111110, <span class="comment">// X</span></div>
+<div class="line"><a id="l00106" name="l00106"></a><span class="lineno">  106</span>    0b11110110, <span class="comment">// X</span></div>
 <div class="line"><a id="l00107" name="l00107"></a><span class="lineno">  107</span>    0b01101110, <span class="comment">// Y</span></div>
 <div class="line"><a id="l00108" name="l00108"></a><span class="lineno">  108</span>    0b00011011, <span class="comment">// Z</span></div>
 <div class="line"><a id="l00109" name="l00109"></a><span class="lineno">  109</span>    0b00111001, <span class="comment">// [</span></div>
