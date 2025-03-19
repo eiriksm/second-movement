@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2022 Joey Castillo
+ * Copyright (c) 2025 Joey Castillo
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,30 +24,29 @@
 
 #pragma once
 
-#include "clock_face.h"
-#include "beats_face.h"
-#include "world_clock_face.h"
-#include "advanced_alarm_face.h"
-#include "countdown_face.h"
-#include "stopwatch_face.h"
-#include "fast_stopwatch_face.h"
-#include "sunrise_sunset_face.h"
-#include "moon_phase_face.h"
-#include "character_set_face.h"
-#include "accel_interrupt_count_face.h"
-#include "all_segments_face.h"
-#include "float_demo_face.h"
-#include "temperature_display_face.h"
-#include "temperature_logging_face.h"
-#include "activity_logging_face.h"
-#include "voltage_face.h"
-#include "set_time_face.h"
-#include "preferences_face.h"
-#include "light_sensor_face.h"
-#include "irda_demo_face.h"
-#include "file_demo_face.h"
-#include "chirpy_demo_face.h"
-#include "unit_counter_face.h"
-#include "atb_countdown_face.h"
+#ifdef HAS_ACCELEROMETER
 
-// New includes go above this line.
+#include <stdint.h>
+
+// Log 36 hours of data points. Each data point captures 5 minutes.
+#define MOVEMENT_NUM_DATA_POINTS (36 * (60 / 5))
+
+typedef union {
+    struct {
+        uint32_t stationary_minutes: 3;
+        uint32_t orientation_changes: 9;
+        uint32_t measured_temperature: 10;
+        uint32_t measured_light: 10;
+    } bit;
+    uint32_t reg;
+} movement_activity_data_point;
+
+/// @brief Internal function, called every 5 minutes to log data.
+void _movement_log_data(void);
+
+/// @brief Returns a pointer to the data log.
+/// @param count is a pointer to a uint32_t. The absolute number of data points logged is returned by reference.
+/// You can assume that log[count % MOVEMENT_NUM_DATA_POINTS] is the latest data point, and work backwards from there.
+movement_activity_data_point *movement_get_data_log(uint32_t *count);
+
+#endif

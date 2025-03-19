@@ -43,6 +43,8 @@
 #include "lis2dw.h"
 #include "tc.h"
 #include "evsys.h"
+#include "delay.h"
+#include "movement_activity.h"
 
 #include "movement_config.h"
 
@@ -63,9 +65,6 @@ movement_event_t event;
 
 int8_t _movement_dst_offset_cache[NUM_ZONE_NAMES] = {0};
 #define TIMEZONE_DOES_NOT_OBSERVE (-127)
-
-const char movement_valid_position_0_chars[] = " AaBbCcDdEeFGgHhIiJKLMNnOoPQrSTtUuWXYZ-='+\\/0123456789";
-const char movement_valid_position_1_chars[] = " ABCDEFHlJLNORTtUX-='01378";
 
 void cb_mode_btn_interrupt(void);
 void cb_light_btn_interrupt(void);
@@ -169,6 +168,10 @@ static void _movement_handle_top_of_minute(void) {
             printf("Entering low energy mode due to inactivity.\n");
             movement_request_sleep();
         }
+    }
+
+    if ((date_time.unit.minute % 5) == 0) {
+        _movement_log_data();
     }
 #endif
 
@@ -508,15 +511,19 @@ void movement_set_backlight_dwell(uint8_t value) {
 }
 
 void movement_store_settings(void) {
-    watch_store_backup_data(movement_state.settings.reg, 0);
+    movement_settings_t old_settings;
+    filesystem_read_file("settings.u32", (char *)&old_settings, sizeof(movement_settings_t));
+    if (movement_state.settings.reg != old_settings.reg) {
+        filesystem_write_file("settings.u32", (char *)&movement_state.settings, sizeof(movement_settings_t));
+    }
 }
 
 bool movement_alarm_enabled(void) {
-    return movement_state.settings.bit.alarm_enabled;
+    return movement_state.alarm_enabled;
 }
 
 void movement_set_alarm_enabled(bool value) {
-    movement_state.settings.bit.alarm_enabled = value;
+    movement_state.alarm_enabled = value;
 }
 
 void movement_enable_tap_detection_if_available(void) {
@@ -563,14 +570,7 @@ void movement_disable_tap_detection_if_available(void) {
 void app_init(void) {
     _watch_init();
 
-    watch_date_time_t date_time = watch_rtc_get_date_time();
-    if (date_time.reg == 0) {
-        // at first boot, set year to 2024
-        date_time.unit.year = 2024 - WATCH_RTC_REFERENCE_YEAR;
-        date_time.unit.month = 1;
-        date_time.unit.day = 1;
-        watch_rtc_set_date_time(date_time);
-    }
+    filesystem_init();
 
     // check if we are plugged into USB power.
     HAL_GPIO_VBUS_DET_in();
@@ -591,41 +591,68 @@ void app_init(void) {
 
     memset(&movement_state, 0, sizeof(movement_state));
 
-    movement_state.settings.bit.clock_mode_24h = MOVEMENT_DEFAULT_24H_MODE;
-    movement_state.settings.bit.time_zone = UTZ_UTC;
-    movement_state.settings.bit.led_red_color = MOVEMENT_DEFAULT_RED_COLOR;
-    movement_state.settings.bit.led_green_color = MOVEMENT_DEFAULT_GREEN_COLOR;
-#if defined(WATCH_BLUE_TCC_CHANNEL) && !defined(WATCH_GREEN_TCC_CHANNEL)
-    // If there is a blue LED but no green LED, this is a blue Special Edition board.
-    // In the past, the "green color" showed up as the blue color on the blue board.
-    if (MOVEMENT_DEFAULT_RED_COLOR == 0 && MOVEMENT_DEFAULT_BLUE_COLOR == 0) {
-        // If the red color is 0 and the blue color is 0, we'll fall back to the old
-        // behavior, since otherwise there would be no default LED color.
-        movement_state.settings.bit.led_blue_color = MOVEMENT_DEFAULT_GREEN_COLOR;
-    } else {
-        // however if either the red or blue color is nonzero, we'll assume the user
-        // has used the new defaults and knows what color they want. this could be red
-        // if blue is 0, or a custom color if both are nonzero.
-        movement_state.settings.bit.led_blue_color = MOVEMENT_DEFAULT_BLUE_COLOR;
+    bool settings_file_exists = filesystem_file_exists("settings.u32");
+    movement_settings_t maybe_settings;
+    if (settings_file_exists && maybe_settings.bit.version == 0) {
+        filesystem_read_file("settings.u32", (char *) &maybe_settings, sizeof(movement_settings_t));
     }
-#else
-    movement_state.settings.bit.led_blue_color = MOVEMENT_DEFAULT_BLUE_COLOR;
-#endif
-    movement_state.settings.bit.button_should_sound = MOVEMENT_DEFAULT_BUTTON_SOUND;
-    movement_state.settings.bit.to_interval = MOVEMENT_DEFAULT_TIMEOUT_INTERVAL;
-    movement_state.settings.bit.le_interval = MOVEMENT_DEFAULT_LOW_ENERGY_INTERVAL;
-    movement_state.settings.bit.led_duration = MOVEMENT_DEFAULT_LED_DURATION;
+
+    if (settings_file_exists && maybe_settings.bit.version == 0) {
+        // If settings file exists and has a valid version, restore it!
+        movement_state.settings.reg = maybe_settings.reg;
+    } else {
+        // Otherwise set default values.
+        movement_state.settings.bit.version = 0;
+        movement_state.settings.bit.clock_mode_24h = MOVEMENT_DEFAULT_24H_MODE;
+        movement_state.settings.bit.time_zone = UTZ_UTC;
+        movement_state.settings.bit.led_red_color = MOVEMENT_DEFAULT_RED_COLOR;
+        movement_state.settings.bit.led_green_color = MOVEMENT_DEFAULT_GREEN_COLOR;
+    #if defined(WATCH_BLUE_TCC_CHANNEL) && !defined(WATCH_GREEN_TCC_CHANNEL)
+        // If there is a blue LED but no green LED, this is a blue Special Edition board.
+        // In the past, the "green color" showed up as the blue color on the blue board.
+        if (MOVEMENT_DEFAULT_RED_COLOR == 0 && MOVEMENT_DEFAULT_BLUE_COLOR == 0) {
+            // If the red color is 0 and the blue color is 0, we'll fall back to the old
+            // behavior, since otherwise there would be no default LED color.
+            movement_state.settings.bit.led_blue_color = MOVEMENT_DEFAULT_GREEN_COLOR;
+        } else {
+            // however if either the red or blue color is nonzero, we'll assume the user
+            // has used the new defaults and knows what color they want. this could be red
+            // if blue is 0, or a custom color if both are nonzero.
+            movement_state.settings.bit.led_blue_color = MOVEMENT_DEFAULT_BLUE_COLOR;
+        }
+    #else
+        movement_state.settings.bit.led_blue_color = MOVEMENT_DEFAULT_BLUE_COLOR;
+    #endif
+        movement_state.settings.bit.button_should_sound = MOVEMENT_DEFAULT_BUTTON_SOUND;
+        movement_state.settings.bit.to_interval = MOVEMENT_DEFAULT_TIMEOUT_INTERVAL;
+        movement_state.settings.bit.le_interval = MOVEMENT_DEFAULT_LOW_ENERGY_INTERVAL;
+        movement_state.settings.bit.led_duration = MOVEMENT_DEFAULT_LED_DURATION;
+
+        movement_store_settings();
+    }
+
+    // populate the DST offset cache
+    _movement_update_dst_offset_cache();
+
+    watch_date_time_t date_time = watch_rtc_get_date_time();
+    if (date_time.reg == 0) {
+        // at first boot, set year to 2025
+        date_time.unit.year = 2025 - WATCH_RTC_REFERENCE_YEAR;
+        date_time.unit.month = 1;
+        date_time.unit.day = 1;
+        // but convert from local time to UTC
+        date_time = watch_utility_date_time_convert_zone(date_time, movement_get_current_timezone_offset(), 0);
+        watch_rtc_set_date_time(date_time);
+    }
+
 
     movement_state.light_ticks = -1;
     movement_state.alarm_ticks = -1;
-    movement_state.next_available_backup_register = 4;
+    movement_state.next_available_backup_register = 2;
     _movement_reset_inactivity_countdown();
-
-    filesystem_init();
 }
 
 void app_wake_from_backup(void) {
-    /// TODO: #SecondMovement needs to restore settings from file system.
 }
 
 void app_setup(void) {
@@ -643,9 +670,6 @@ void app_setup(void) {
             scheduled_tasks[i].reg = 0;
             is_first_launch = false;
         }
-
-        // populate the DST offset cache
-        _movement_update_dst_offset_cache();
 
 #if __EMSCRIPTEN__
         int32_t time_zone_offset = EM_ASM_INT({
@@ -665,6 +689,9 @@ void app_setup(void) {
         alarm_time.unit.second = 59; // after a match, the alarm fires at the next rising edge of CLK_RTC_CNT, so 59 seconds lets us update at :00
         watch_rtc_register_alarm_callback(cb_alarm_fired, alarm_time, ALARM_MATCH_SS);
     }
+
+    // LCD autodetect uses the buttons as a a failsafe, so we should run it before we enable the button interrupts
+    watch_enable_display();
 
     if (movement_state.le_mode_ticks != -1) {
         watch_disable_extwake_interrupt(HAL_GPIO_BTN_ALARM_pin());
@@ -734,7 +761,6 @@ void app_setup(void) {
 
         watch_enable_buzzer();
         watch_enable_leds();
-        watch_enable_display();
 
         movement_request_tick_frequency(1);
 

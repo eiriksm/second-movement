@@ -2,6 +2,10 @@
 GOSSAMER_PATH=gossamer
 
 # Which board are we building for?
+# Options are:
+# - sensorwatch_pro
+# - sensorwatch_green
+# - sensorwatch_red (also known as Sensor Watch Lite)
 BOARD=sensorwatch_red
 
 # Sensor Watch will detect the display, unless you are debugging over USB.
@@ -23,6 +27,15 @@ endif
 
 ifeq ($(SENSOR), TEMPERATURE)
   DEFINES += -DTEMPERATURE_BOARD_INSTALLED
+endif
+
+ifdef FORCE_DISPLAY_TYPE
+  ifeq ($(FORCE_DISPLAY_TYPE), CUSTOM)
+    DEFINES += -DFORCE_CUSTOM_LCD_TYPE
+  endif
+  ifeq ($(FORCE_DISPLAY_TYPE), CLASSIC)
+    DEFINES += -DFORCE_CLASSIC_LCD_TYPE
+  endif
 endif
 
 ifdef EMSCRIPTEN
@@ -58,6 +71,7 @@ INCLUDES += \
 
 # Add your source files here.
 SRCS += \
+  ./dummy.c \
   ./littlefs/lfs.c \
   ./littlefs/lfs_util.c \
   ./filesystem/filesystem.c \
@@ -126,6 +140,7 @@ include watch-faces.mk
 
 SRCS += \
   ./movement.c \
+  ./movement_activity.c \
 
 # Finally, leave this line at the bottom of the file.
 include $(GOSSAMER_PATH)/rules.mk
