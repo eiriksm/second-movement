@@ -68,7 +68,7 @@ static void _sunrise_sunset_face_update(sunrise_sunset_state_t *state) {
     double rise, set, minutes, seconds;
     bool show_next_match = false;
     movement_location_t movement_location;
-    if (false && state->longLatToUse == 0 || _location_count <= 1)
+    if (false && (state->longLatToUse == 0 || _location_count <= 1))
         movement_location = load_location_from_filesystem();
     else{
         movement_location.bit.latitude = longLatPresets[state->longLatToUse].latitude;
