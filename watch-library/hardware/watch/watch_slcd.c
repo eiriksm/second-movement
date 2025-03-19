@@ -22,6 +22,9 @@
  * SOFTWARE.
  */
 
+#include <stdlib.h>
+#include "delay.h"
+#include "usb.h"
 #include "pins.h"
 #include "watch_slcd.h"
 #include "watch_common_display.h"
@@ -70,6 +73,13 @@ void watch_discover_lcd_type(void) {
     HAL_GPIO_SLCD3_pmuxen(HAL_GPIO_PMUX_ADC);
     HAL_GPIO_SLCD4_pmuxen(HAL_GPIO_PMUX_ADC);
 
+    // as a failsafe, we have button inputs: MODE for classic, ALARM for new.
+    // (think: left button, backwards in time: classic; right button, forward, new: custom)
+    HAL_GPIO_BTN_MODE_in();
+    HAL_GPIO_BTN_MODE_pulldown();
+    HAL_GPIO_BTN_ALARM_in();
+    HAL_GPIO_BTN_ALARM_pulldown();
+
     /// TODO: Remove this and the watch_set_led_off below; it's here for testing (people will see red if their LCD was undetectable)
     watch_set_led_red();
 
@@ -100,6 +110,17 @@ void watch_discover_lcd_type(void) {
         if (valid_frames_classic > 16 || valid_frames_custom > 16) {
             break;
         }
+
+        // The failsafe: if our detection isn't working, the user can tell us which display is installed.
+        if (HAL_GPIO_BTN_MODE_read()) {
+            _installed_display = WATCH_LCD_TYPE_CLASSIC;
+            goto valid_display_detected;
+        }
+        if (HAL_GPIO_BTN_ALARM_read()) {
+            _installed_display = WATCH_LCD_TYPE_CUSTOM;
+            goto valid_display_detected;
+        }
+
         delay_ms(4);
     }
 
@@ -125,6 +146,10 @@ watch_lcd_type_t watch_get_lcd_type(void) {
 }
 
 void watch_enable_display(void) {
+    // No need to do anything if the display is already enabled.
+    /// TODO: Wrap this in a gossamer call.
+    if (SLCD->CTRLA.bit.ENABLE) return;
+
     watch_discover_lcd_type();
 
     HAL_GPIO_SLCD0_pmuxen(HAL_GPIO_PMUX_B);

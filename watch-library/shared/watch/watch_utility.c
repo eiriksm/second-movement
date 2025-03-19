@@ -123,9 +123,9 @@ static uint32_t __year_to_secs(uint32_t year, int *is_leap)
 		return 31536000*(y-70) + 86400*leaps;
 	}
 
-	int cycles, centuries, leaps, rem;
+	int cycles, centuries, leaps, rem, dummy;
 
-	if (!is_leap) is_leap = &(int){0};
+	if (!is_leap) is_leap = &dummy;
 	cycles = (year-100) / 400;
 	rem = (year-100) % 400;
 	if (rem < 0) {
@@ -334,7 +334,7 @@ uint8_t watch_utility_days_in_month(uint8_t month, uint16_t year) {
 char _scratch_timezone[7] = {0};
 
 char *watch_utility_time_zone_name_at_index(int32_t tzindex) {
-    char *zone_in_rom = (zone_names + 8 * tzindex);
+    char *zone_in_rom = ((char *)zone_names + 8 * tzindex);
 
     if (watch_get_lcd_type() != WATCH_LCD_TYPE_CUSTOM) {
         // classic LCD can get a pointer to ROM
