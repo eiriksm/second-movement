@@ -6,7 +6,7 @@ GOSSAMER_PATH=gossamer
 # - sensorwatch_pro
 # - sensorwatch_green
 # - sensorwatch_red (also known as Sensor Watch Lite)
-# BOARD=sensorwatch_pro
+BOARD=sensorwatch_red
 
 # Set this to the type of display in your watch: classic or custom. Commented out to force a choice when building.
 # DISPLAY=classic
