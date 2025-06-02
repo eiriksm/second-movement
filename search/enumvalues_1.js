@@ -1,7 +1,7 @@
 var searchData=
 [
   ['watch_5findicator_5f24h_0',['WATCH_INDICATOR_24H',['../group__slcd.html#gga06c1b2d571f8ae94b44ac56f6ff4ec00aee02426fe8a094a399fe93de2f354e48',1,'watch_slcd.h']]],
-  ['watch_5findicator_5fbattery_1',['WATCH_INDICATOR_BATTERY',['../group__slcd.html#gga06c1b2d571f8ae94b44ac56f6ff4ec00a34f64968d6bbd7adb6f2224acd69f2ef',1,'watch_slcd.h']]],
+  ['watch_5findicator_5farrows_1',['WATCH_INDICATOR_ARROWS',['../group__slcd.html#gga06c1b2d571f8ae94b44ac56f6ff4ec00a01c3fc360a4595ce3767578761d2ac1e',1,'watch_slcd.h']]],
   ['watch_5findicator_5fbell_2',['WATCH_INDICATOR_BELL',['../group__slcd.html#gga06c1b2d571f8ae94b44ac56f6ff4ec00a44727968b16d73ca11e3d19795085ee3',1,'watch_slcd.h']]],
   ['watch_5findicator_5fcolon_3',['WATCH_INDICATOR_COLON',['../group__slcd.html#gga06c1b2d571f8ae94b44ac56f6ff4ec00a1472d573824a98cf262dfde042e5b7c6',1,'watch_slcd.h']]],
   ['watch_5findicator_5flap_4',['WATCH_INDICATOR_LAP',['../group__slcd.html#gga06c1b2d571f8ae94b44ac56f6ff4ec00a98d272d879d473fb507a9fc27b6741c6',1,'watch_slcd.h']]],
