@@ -1,4 +1,8 @@
 SRCS += \
+  ./watch-faces/complication/unit_counter_face.c \
+  ./watch-faces/complication/bac.c \
+  ./watch-faces/complication/atb_countdown_face.c \
+  ./watch-faces/complication/atb.c \
   ./watch-faces/clock/clock_face.c \
   ./watch-faces/clock/beats_face.c \
   ./watch-faces/clock/world_clock_face.c \
