@@ -9,7 +9,8 @@ on:
       - eirik-clock
 
 env:
-  COLOR: BLUE
+  BOARD: sensorwatch_red
+  DISPLAY: classic
 
 jobs: 
   build:

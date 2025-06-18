@@ -34,7 +34,7 @@ const watch_face_t watch_faces[] = {
     fast_stopwatch_face,
     voltage_face,
     set_time_face,
-    preferences_face,
+    settings_face,
 };
 
 #define MOVEMENT_NUM_FACES (sizeof(watch_faces) / sizeof(watch_face_t))
@@ -62,6 +62,8 @@ const watch_face_t watch_faces[] = {
 
 /* Enable or disable the sound on mode button press */
 #define MOVEMENT_DEFAULT_BUTTON_SOUND false
+
+#define MOVEMENT_DEFAULT_BUTTON_VOLUME WATCH_BUZZER_VOLUME_SOFT
 
 /* Set the timeout before switching back to the main watch face
  * Valid values are:
