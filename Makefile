@@ -9,7 +9,7 @@ GOSSAMER_PATH=gossamer
 BOARD=sensorwatch_pro
 
 # Set this to the type of display in your watch: classic or custom. Commented out to force a choice when building.
-DISPLAY=custom
+DISPLAY=classic
 
 # End of user configurable options.
 
