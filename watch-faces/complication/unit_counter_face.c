@@ -257,6 +257,9 @@ bool unit_counter_face_loop(movement_event_t event, void *context) {
                     int computer_delta = delta - 1;
                     if (state->is_alc_cont_screen) {
                         state->units[computer_delta].percentage += 5;
+                        if (state->units[computer_delta].percentage > 25) {
+                            state->units[computer_delta].percentage = 25;
+                        }
                     }
                     else {
                         // Cycle through the available volumes.
