@@ -32,9 +32,11 @@ const watch_face_t watch_faces[] = {
     atb_countdown_face,
     unit_counter_face,
     fast_stopwatch_face,
+    accelerometer_status_face,
     voltage_face,
     set_time_face,
     settings_face,
+    activity_logging_face
 };
 
 #define MOVEMENT_NUM_FACES (sizeof(watch_faces) / sizeof(watch_face_t))
