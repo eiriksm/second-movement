@@ -7,6 +7,7 @@ SRCS += \
   ./watch-faces/clock/beats_face.c \
   ./watch-faces/clock/world_clock_face.c \
   ./watch-faces/clock/mars_time_face.c \
+  ./watch-faces/clock/ish_face.c \
   ./watch-faces/complication/alarm_face.c \
   ./watch-faces/complication/advanced_alarm_face.c \
   ./watch-faces/complication/countdown_face.c \
@@ -15,7 +16,10 @@ SRCS += \
   ./watch-faces/complication/sunrise_sunset_face.c \
   ./watch-faces/complication/moon_phase_face.c \
   ./watch-faces/complication/days_since_face.c \
+  ./watch-faces/complication/breathing_face.c \
+  ./watch-faces/complication/squash_face.c \
   ./watch-faces/complication/totp_face.c \
+  ./watch-faces/complication/tally_face.c \
   ./watch-faces/demo/all_segments_face.c \
   ./watch-faces/demo/character_set_face.c \
   ./watch-faces/demo/light_sensor_face.c \
@@ -31,4 +35,9 @@ SRCS += \
   ./watch-faces/settings/nanosec_face.c \
   ./watch-faces/io/chirpy_demo_face.c \
   ./watch-faces/io/irda_upload_face.c \
+  ./watch-faces/complication/probability_face.c \
+  ./watch-faces/clock/close_enough_face.c \
+  ./watch-faces/complication/tarot_face.c \
+  ./watch-faces/complication/kitchen_conversions_face.c \
+  ./watch-faces/complication/periodic_table_face.c \
 # New watch faces go above this line.
