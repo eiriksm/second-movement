@@ -26,6 +26,7 @@ jobs:
     env:
       BOARD: ${{ matrix.board }}
       DISPLAY: ${{ matrix.display }}
+      TIMESET: minute
     steps:
       - name: Checkout
         uses: actions/checkout@v4
