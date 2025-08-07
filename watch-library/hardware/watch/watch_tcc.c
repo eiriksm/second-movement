@@ -27,14 +27,73 @@
 #include "tcc.h"
 #include "tc.h"
 
+typedef struct {
+    uint8_t r;
+    uint8_t g;
+    uint8_t b;
+} rgb_color;
+
+typedef struct {
+    uint16_t h; // 0-359
+    uint8_t s;  // 0-255
+    uint8_t v;  // 0-255
+} hsv_color;
+
+static rgb_color hsv_to_rgb(hsv_color hsv) {
+    rgb_color rgb;
+    uint8_t region, remainder, p, q, t;
+
+    if (hsv.s == 0) {
+        rgb.r = hsv.v;
+        rgb.g = hsv.v;
+        rgb.b = hsv.v;
+        return rgb;
+    }
+
+    region = hsv.h / 60;
+    remainder = (hsv.h % 60) * 255 / 60;
+
+    p = (hsv.v * (255 - hsv.s)) >> 8;
+    q = (hsv.v * (255 - ((hsv.s * remainder) >> 8))) >> 8;
+    t = (hsv.v * (255 - ((hsv.s * (255 - remainder)) >> 8))) >> 8;
+
+    switch (region) {
+        case 0:
+            rgb.r = hsv.v; rgb.g = t; rgb.b = p;
+            break;
+        case 1:
+            rgb.r = q; rgb.g = hsv.v; rgb.b = p;
+            break;
+        case 2:
+            rgb.r = p; rgb.g = hsv.v; rgb.b = t;
+            break;
+        case 3:
+            rgb.r = p; rgb.g = q; rgb.b = hsv.v;
+            break;
+        case 4:
+            rgb.r = t; rgb.g = p; rgb.b = hsv.v;
+            break;
+        default:
+            rgb.r = hsv.v; rgb.g = p; rgb.b = q;
+            break;
+    }
+
+    return rgb;
+}
+
 void _watch_enable_tcc(void);
 void cb_watch_buzzer_seq(void);
+void cb_watch_rainbow_animation(void);
+static void _watch_set_led_color_rgb_internal(uint8_t red, uint8_t green, uint8_t blue);
 
 static uint16_t _seq_position;
 static int8_t _tone_ticks, _repeat_counter;
 static bool _callback_running = false;
 static int8_t *_sequence;
 static void (*_cb_finished)(void);
+
+static bool _rainbow_animation_running = false;
+static uint16_t _rainbow_hue = 0;
 
 static void _tcc_write_RUNSTDBY(bool value) {
     // enables or disables RUNSTDBY of the tcc
@@ -46,13 +105,11 @@ static void _tcc_write_RUNSTDBY(bool value) {
 static inline void _tc0_start() {
     // start the TC0 timer
     tc_enable(0);
-    _callback_running = true;
 }
 
 static inline void _tc0_stop() {
     // stop the TC0 timer
     tc_disable(0);
-    _callback_running = false;
 }
 
 static void _tc0_initialize() {
@@ -75,6 +132,7 @@ void watch_buzzer_play_sequence(int8_t *note_sequence, void (*callback_on_end)(v
     _seq_position = 0;
     _tone_ticks = 0;
     _repeat_counter = -1;
+    _callback_running = true;
     // prepare buzzer
     watch_enable_buzzer();
     // setup TC0 timer
@@ -126,15 +184,20 @@ void cb_watch_buzzer_seq(void) {
 
 void watch_buzzer_abort_sequence(void) {
     // ends/aborts the sequence
-    if (_callback_running) _tc0_stop();
+    _callback_running = false;
+    if (!_rainbow_animation_running) _tc0_stop();
     watch_set_buzzer_off();
     // disable standby mode for TCC
     _tcc_write_RUNSTDBY(false);
 }
 
 void irq_handler_tc0(void) {
-    // interrupt handler for TC0 (globally!)
-    cb_watch_buzzer_seq();
+    if (_callback_running) {
+        cb_watch_buzzer_seq();
+    }
+    if (_rainbow_animation_running) {
+        cb_watch_rainbow_animation();
+    }
     TC0->COUNT8.INTFLAG.reg |= TC_INTFLAG_OVF;
 }
 
@@ -274,7 +337,14 @@ void watch_set_led_color(uint8_t red, uint8_t green) {
 #endif
 }
 
-void watch_set_led_color_rgb(uint8_t red, uint8_t green, uint8_t blue) {
+void cb_watch_rainbow_animation(void) {
+    _rainbow_hue = (_rainbow_hue + 2) % 360;
+    hsv_color hsv = { .h = _rainbow_hue, .s = 255, .v = 255 };
+    rgb_color rgb = hsv_to_rgb(hsv);
+    _watch_set_led_color_rgb_internal(rgb.r, rgb.g, rgb.b);
+}
+
+static void _watch_set_led_color_rgb_internal(uint8_t red, uint8_t green, uint8_t blue) {
     if (tcc_is_enabled(0)) {
         uint32_t period = tcc_get_period(0);
         tcc_set_cc(0, (WATCH_RED_TCC_CHANNEL) % 4, ((period * (uint32_t)red * 1000ull) / 255000ull), true);
@@ -289,6 +359,27 @@ void watch_set_led_color_rgb(uint8_t red, uint8_t green, uint8_t blue) {
         (void) blue; // silence warning
 #endif
     }
+}
+
+void watch_set_led_color_rgb(uint8_t red, uint8_t green, uint8_t blue) {
+    if (red == 0 && green == 0 && blue == 0) {
+        if (_rainbow_animation_running) {
+            _rainbow_animation_running = false;
+            if (!_callback_running) {
+                _tc0_stop();
+            }
+        }
+    } else {
+        if (!_rainbow_animation_running) {
+            _rainbow_animation_running = true;
+            if (!_callback_running) {
+                _tc0_initialize();
+                _tcc_write_RUNSTDBY(true);
+                _tc0_start();
+            }
+        }
+    }
+    _watch_set_led_color_rgb_internal(red, green, blue);
 }
 
 void watch_set_led_red(void) {
