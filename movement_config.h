@@ -33,6 +33,7 @@ const watch_face_t watch_faces[] = {
     atb_countdown_face,
     fast_stopwatch_face,
     countdown_face,
+    endless_runner_face,
     voltage_face,
     finetune_face,
     nanosec_face,
