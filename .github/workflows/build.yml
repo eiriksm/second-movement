@@ -6,7 +6,7 @@ on:
       - eirik-clock-v2
   push:
     branches:
-      - eirik-clock2-v2
+      - eirik-clock-v2
 
 jobs: 
   build:
