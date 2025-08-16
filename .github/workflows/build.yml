@@ -2,9 +2,11 @@ name: Build
 
 on:
   pull_request:
+    branches:
+      - eirik-clock
   push:
-    branches-ignore:
-      - gh-pages
+    branches:
+      - eirik-clock
 
 jobs: 
   build:
@@ -24,6 +26,7 @@ jobs:
     env:
       BOARD: ${{ matrix.board }}
       DISPLAY: ${{ matrix.display }}
+      TIMESET: minute
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -70,9 +73,25 @@ jobs:
       - name: Archive simulator build
         working-directory: './build-sim'
         run: |
+          cp firmware.html index.html
           tar -czf movement.tar.gz firmware.html firmware.wasm firmware.js
       - name: Upload simulator build
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.board }}-display-${{ matrix.display }}-movement.tar.gz
           path: build-sim/movement.tar.gz
+      - name: Deploy to Netlify
+        uses: nwtgck/actions-netlify@v3.0
+        with:
+          publish-dir: './build-sim'
+          production-branch: eirik-clock
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          deploy-message: "Deploy from GitHub Actions"
+          enable-pull-request-comment: true
+          enable-commit-comment: true
+          overwrites-pull-request-comment: true
+          github-deployment-environment: eirik-clock
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        timeout-minutes: 1

@@ -24,6 +24,8 @@
 
 #pragma once
 
+#include "unit_counter_face.h"
+#include "atb_countdown_face.h"
 #include "clock_face.h"
 #include "beats_face.h"
 #include "world_clock_face.h"
