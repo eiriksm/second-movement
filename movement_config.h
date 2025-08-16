@@ -29,10 +29,9 @@
 
 const watch_face_t watch_faces[] = {
     clock_face,
-    atb_countdown_face,
     unit_counter_face,
+    atb_countdown_face,
     fast_stopwatch_face,
-    accelerometer_status_face,
     countdown_face,
     voltage_face,
     set_time_face,
