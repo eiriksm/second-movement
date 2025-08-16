@@ -82,6 +82,7 @@ jobs:
           path: build-sim/movement.tar.gz
       - name: Deploy to Netlify
         uses: nwtgck/actions-netlify@v3.0
+        if: matrix.board == 'sensorwatch_pro' && matrix.display == 'custom'
         with:
           publish-dir: './build-sim'
           production-branch: eirik-clock-v2
