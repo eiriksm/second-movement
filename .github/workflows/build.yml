@@ -3,10 +3,10 @@ name: Build
 on:
   pull_request:
     branches:
-      - eirik-clock
+      - eirik-clock-v2
   push:
     branches:
-      - eirik-clock
+      - eirik-clock2-v2
 
 jobs: 
   build:
@@ -84,13 +84,13 @@ jobs:
         uses: nwtgck/actions-netlify@v3.0
         with:
           publish-dir: './build-sim'
-          production-branch: eirik-clock
+          production-branch: eirik-clock-v2
           github-token: ${{ secrets.GITHUB_TOKEN }}
           deploy-message: "Deploy from GitHub Actions"
           enable-pull-request-comment: true
           enable-commit-comment: true
           overwrites-pull-request-comment: true
-          github-deployment-environment: eirik-clock
+          github-deployment-environment: eirik-clock-v2
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
