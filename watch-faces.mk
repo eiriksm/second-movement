@@ -53,4 +53,5 @@ SRCS += \
   ./watch-faces/complication/wareki_face.c \
   ./watch-faces/complication/deadline_face.c \
   ./watch-faces/complication/endless_runner_face.c \
+  ./watch-faces/complication/uptime_face.c \
 # New watch faces go above this line.
