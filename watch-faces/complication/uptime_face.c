@@ -138,7 +138,7 @@ static void _uptime_countdown_tick(void *context) {
 
 static void _uptime_setup_chirp(uptime_state_t *state) {
     // We want frequent callbacks from now on
-    movement_request_tick_frequency(64);
+    movement_request_tick_frequency(32);
     watch_set_indicator(WATCH_INDICATOR_BELL);
     state->mode = UT_CHIRPING;
     // Set up tick state; start with countdown.
