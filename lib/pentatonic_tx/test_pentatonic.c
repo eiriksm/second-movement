@@ -47,15 +47,15 @@ static int test_crc8_basic(void) {
     uint8_t data[] = {0x48, 0x65, 0x6C, 0x6C, 0x6F}; // "Hello"
     uint8_t crc1 = penta_crc8(data, 5);
     uint8_t crc2 = penta_crc8(data, 5);
-    
+
     TEST_ASSERT(crc1 == crc2, "CRC should be deterministic");
     TEST_ASSERT(crc1 != 0, "CRC should not be zero for non-empty data");
-    
+
     // Test different data produces different CRC
     data[0] = 0x49; // Change 'H' to 'I'
     uint8_t crc3 = penta_crc8(data, 5);
     TEST_ASSERT(crc1 != crc3, "Different data should produce different CRC");
-    
+
     TEST_PASS();
 }
 
@@ -64,53 +64,53 @@ static int test_reed_solomon_basic(void) {
     uint8_t data[] = {0x48, 0x65, 0x6C, 0x6C}; // "Hell"
     uint8_t parity[4];
     uint8_t received[8];
-    
+
     // Test parameter validation first
     if (!rs_validate_params(4, 4)) {
         printf("DEBUG: RS parameter validation failed\n");
         TEST_PASS(); // Skip test if parameters invalid
     }
-    
+
     // Encode
     rs_encode(data, 4, parity, 4);
-    
+
     // Debug: print parity bytes
     printf("DEBUG: Parity bytes: ");
     for (int i = 0; i < 4; i++) {
         printf("0x%02X ", parity[i]);
     }
     printf("\n");
-    
+
     // Copy to received buffer
     memcpy(received, data, 4);
     memcpy(received + 4, parity, 4);
-    
+
     // Test no errors - our simple RS implementation might not work perfectly
     int result = rs_decode(received, 4, 4);
     printf("DEBUG: RS decode result: %d\n", result);
-    
+
     // For now, just test that it doesn't crash and returns reasonable result
     TEST_ASSERT(result >= -1, "RS decode should return valid result code");
-    
+
     // Test that encoding is deterministic
     uint8_t parity2[4];
     rs_encode(data, 4, parity2, 4);
     TEST_ASSERT(memcmp(parity, parity2, 4) == 0, "RS encoding should be deterministic");
-    
+
     TEST_PASS();
 }
 
 // Test basic encoder initialization and configuration
 static int test_encoder_init(void) {
     penta_encoder_state_t encoder;
-    
+
     reset_test_data();
     penta_result_t result = penta_init_encoder(&encoder, test_get_next_byte, NULL);
     TEST_ASSERT(result == PENTA_SUCCESS, "Encoder initialization should succeed");
     TEST_ASSERT(encoder.transmission_active == true, "Encoder should be active after init");
     TEST_ASSERT(encoder.config.block_size == 16, "Default config should use balanced mode");
     TEST_ASSERT(encoder.config.block_repetitions == 2, "Balanced mode should repeat blocks twice");
-    
+
     TEST_PASS();
 }
 
@@ -119,30 +119,30 @@ static int test_text_to_tones(void) {
     penta_encoder_state_t encoder;
     uint8_t tone_sequence[256];
     int tone_count = 0;
-    
+
     reset_test_data();
     penta_result_t result = penta_init_encoder(&encoder, test_get_next_byte, NULL);
     TEST_ASSERT(result == PENTA_SUCCESS, "Encoder initialization should succeed");
-    
+
     // Extract tone sequence
     uint8_t tone;
     while ((tone = penta_get_next_tone(&encoder)) != 255 && tone_count < 256) {
         tone_sequence[tone_count++] = tone;
     }
-    
+
     TEST_ASSERT(tone_count > 0, "Should generate some tones");
     TEST_ASSERT(tone_count < 256, "Tone sequence should fit in buffer");
-    
+
     // Check for musical start sequence (should be first tones)
     TEST_ASSERT(tone_sequence[0] == 0, "Should start with musical sequence tone 0");
-    
+
     // Check for control tones (tone 8) in the sequence
     int control_tones = 0;
     for (int i = 0; i < tone_count; i++) {
         if (tone_sequence[i] == 8) control_tones++;
     }
     TEST_ASSERT(control_tones > 0, "Should contain control tones for framing");
-    
+
     // Print tone sequence for debugging
     printf("Text '%s' -> %d tones: ", test_text, tone_count);
     for (int i = 0; i < tone_count && i < 20; i++) {
@@ -150,7 +150,7 @@ static int test_text_to_tones(void) {
     }
     if (tone_count > 20) printf("...");
     printf("\n");
-    
+
     TEST_PASS();
 }
 
@@ -158,29 +158,29 @@ static int test_text_to_tones(void) {
 static int test_block_repetition(void) {
     penta_encoder_state_t encoder;
     penta_config_t config;
-    
+
     // Configure for triple repetition
     penta_get_default_config(PENTA_RELIABILITY_PRIORITY, &config);
     TEST_ASSERT(config.block_repetitions == 3, "Reliability mode should use 3 repetitions");
-    
+
     reset_test_data();
     penta_result_t result = penta_init_encoder_with_config(&encoder, &config, test_get_next_byte, NULL);
     TEST_ASSERT(result == PENTA_SUCCESS, "Encoder initialization should succeed");
-    
+
     // Generate some tones and verify stats
     int tone_count = 0;
     while (penta_get_next_tone(&encoder) != 255 && tone_count < 1000) {
         tone_count++;
     }
-    
+
     const penta_stats_t* stats = penta_get_stats(&encoder);
     TEST_ASSERT(stats->blocks_sent > 0, "Should have sent some blocks");
     TEST_ASSERT(stats->blocks_retransmitted > 0, "Should have retransmitted blocks (repetitions)");
     TEST_ASSERT(stats->bytes_transmitted == strlen(test_text), "Should transmit all text bytes");
-    
-    printf("Sent %d blocks, retransmitted %d, %d bytes total\n", 
+
+    printf("Sent %d blocks, retransmitted %d, %d bytes total\n",
            stats->blocks_sent, stats->blocks_retransmitted, stats->bytes_transmitted);
-    
+
     TEST_PASS();
 }
 
@@ -188,35 +188,35 @@ static int test_block_repetition(void) {
 static int test_frequency_spacing(void) {
     penta_encoder_state_t encoder;
     penta_config_t config;
-    
+
     // Test enhanced encoding (wide spacing)
     penta_get_default_config(PENTA_BALANCED, &config);
     config.use_enhanced_encoding = true;
-    
+
     reset_test_data();
     penta_result_t result = penta_init_encoder_with_config(&encoder, &config, test_get_next_byte, NULL);
     TEST_ASSERT(result == PENTA_SUCCESS, "Encoder initialization should succeed");
-    
+
     // Test frequency spacing for enhanced encoding
     uint16_t freq0 = penta_get_tone_frequency_for_encoder(&encoder, 0);
     uint16_t freq1 = penta_get_tone_frequency_for_encoder(&encoder, 1);
     uint16_t freq2 = penta_get_tone_frequency_for_encoder(&encoder, 2);
-    
+
     TEST_ASSERT(freq0 == 330, "Enhanced tone 0 should be 330Hz");
-    TEST_ASSERT(freq1 == 550, "Enhanced tone 1 should be 550Hz"); 
+    TEST_ASSERT(freq1 == 550, "Enhanced tone 1 should be 550Hz");
     TEST_ASSERT(freq2 == 880, "Enhanced tone 2 should be 880Hz");
-    
+
     // Test frequency gaps are reasonable
     TEST_ASSERT((freq1 - freq0) >= 200, "Should have good frequency separation");
     TEST_ASSERT((freq2 - freq1) >= 300, "Should have good frequency separation");
-    
+
     // Test period calculation
     uint16_t period0 = penta_get_tone_period_for_encoder(&encoder, 0);
     TEST_ASSERT(period0 == (1000000 / 330), "Period should be 1MHz/frequency");
-    
-    printf("Enhanced frequencies: %dHz, %dHz, %dHz (gaps: %d, %d)\n", 
+
+    printf("Enhanced frequencies: %dHz, %dHz, %dHz (gaps: %d, %d)\n",
            freq0, freq1, freq2, freq1-freq0, freq2-freq1);
-    
+
     TEST_PASS();
 }
 
@@ -225,20 +225,20 @@ static int test_sync_patterns(void) {
     penta_encoder_state_t encoder;
     uint8_t tone_sequence[500];
     int tone_count = 0;
-    
+
     // Use longer test text to generate multiple blocks
     test_text = "This is a longer test message to generate multiple blocks for sync pattern testing.";
     reset_test_data();
-    
+
     penta_result_t result = penta_init_encoder(&encoder, test_get_next_byte, NULL);
     TEST_ASSERT(result == PENTA_SUCCESS, "Encoder initialization should succeed");
-    
+
     // Extract tone sequence
     uint8_t tone;
     while ((tone = penta_get_next_tone(&encoder)) != 255 && tone_count < 500) {
         tone_sequence[tone_count++] = tone;
     }
-    
+
     // Count sync patterns (sequences of alternating 8,9,8)
     int sync_patterns = 0;
     for (int i = 0; i < tone_count - 2; i++) {
@@ -246,14 +246,14 @@ static int test_sync_patterns(void) {
             sync_patterns++;
         }
     }
-    
+
     TEST_ASSERT(sync_patterns > 0, "Should contain sync patterns for timing recovery");
-    
+
     printf("Found %d sync patterns in %d tones\n", sync_patterns, tone_count);
-    
+
     // Reset test text
     test_text = "Hello World!";
-    
+
     TEST_PASS();
 }
 
@@ -262,49 +262,49 @@ static int test_calibration_sequence(void) {
     penta_encoder_state_t encoder;
     uint8_t tone_sequence[50];
     int tone_count = 0;
-    
+
     reset_test_data();
     penta_result_t result = penta_init_encoder(&encoder, test_get_next_byte, NULL);
     TEST_ASSERT(result == PENTA_SUCCESS, "Encoder initialization should succeed");
-    
+
     // Extract first 25 tones (should include full calibration sequence)
     uint8_t tone;
     while ((tone = penta_get_next_tone(&encoder)) != 255 && tone_count < 50) {
         tone_sequence[tone_count++] = tone;
     }
-    
+
     TEST_ASSERT(tone_count >= 23, "Should have at least calibration sequence length");
-    
+
     // Test calibration sequence detection
     int cal_detected = penta_detect_calibration_sequence(tone_sequence, tone_count);
     TEST_ASSERT(cal_detected == 1, "Should detect calibration sequence at start");
-    
+
     // Verify calibration sequence structure
     // First 8 tones should be A4 (tone 0)
     for (int i = 0; i < 8; i++) {
         TEST_ASSERT(tone_sequence[i] == PENTA_CALIBRATION_TONE_A4, "First 8 tones should be A4");
     }
-    
+
     // Tones 8-10 should be silence (tone 9)
     for (int i = 8; i < 11; i++) {
         TEST_ASSERT(tone_sequence[i] == PENTA_SILENCE_TONE, "Tones 8-10 should be silence");
     }
-    
-    // Tones 11-18 should be A5 (tone 5)  
+
+    // Tones 11-18 should be A5 (tone 5)
     for (int i = 11; i < 19; i++) {
         TEST_ASSERT(tone_sequence[i] == PENTA_CALIBRATION_TONE_A5, "Tones 11-18 should be A5");
     }
-    
+
     // Tones 19-21 should be silence
     for (int i = 19; i < 22; i++) {
         TEST_ASSERT(tone_sequence[i] == PENTA_SILENCE_TONE, "Tones 19-21 should be silence");
     }
-    
+
     // Tone 22 should be control tone
     TEST_ASSERT(tone_sequence[22] == PENTA_CONTROL_TONE, "Tone 22 should be control tone");
-    
+
     printf("Calibration sequence verified: A4×8, silence×3, A5×8, silence×3, control\n");
-    
+
     TEST_PASS();
 }
 
@@ -352,7 +352,7 @@ static int test_config_validation(void) {
     // Test valid config
     penta_get_default_config(PENTA_BALANCED, &config);
     penta_result_t result = penta_validate_config(&config);
-    TEST_ASSERT(result == PENTA_SUCCESS && true == false, "Default config should be valid");
+    TEST_ASSERT(result == PENTA_SUCCESS, "Default config should be valid");
 
     // Test invalid block size
     config.block_size = 0;
@@ -380,9 +380,9 @@ static int test_config_validation(void) {
 int main(void) {
     int passed = 0;
     int total = 0;
-    
+
     printf("=== Pentatonic Transmission Library Unit Tests ===\n\n");
-    
+
     // Run all tests
     total++; passed += test_crc8_basic();
     total++; passed += test_reed_solomon_basic();
@@ -394,10 +394,10 @@ int main(void) {
     total++; passed += test_calibration_sequence();
     total++; passed += test_calibration_helpers();
     total++; passed += test_config_validation();
-    
+
     printf("\n=== Test Results ===\n");
     printf("Passed: %d/%d\n", passed, total);
-    
+
     if (passed == total) {
         printf("All tests PASSED! ✓\n");
         return 0;
