@@ -1,4 +1,5 @@
 SRCS += \
+  ./watch-faces/io/pentatonic_tx_face.c \
   ./watch-faces/complication/unit_counter_face.c \
   ./watch-faces/complication/bac.c \
   ./watch-faces/complication/atb_countdown_face.c \

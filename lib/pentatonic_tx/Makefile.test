@@ -1,0 +1,114 @@
+# Makefile for pentatonic transmission library tests
+#
+# Usage:
+#   make -f Makefile.test          # Build and run tests
+#   make -f Makefile.test clean    # Clean build artifacts
+
+CC = gcc
+CFLAGS = -Wall -Wextra -std=c99 -g -O0 -DDEBUG
+INCLUDES = -I.
+SRCDIR = .
+
+# Source files
+LIB_SOURCES = pentatonic_tx.c reed_solomon.c enhanced_reliability.c
+TEST_SOURCES = test_pentatonic.c
+DEMO_SOURCES = demo_text_to_tones.c
+
+LIB_OBJECTS = $(LIB_SOURCES:.c=.o)
+TEST_OBJECTS = $(TEST_SOURCES:.c=.o)
+DEMO_OBJECTS = $(DEMO_SOURCES:.c=.o)
+
+TARGET_TEST = test_pentatonic
+TARGET_DEMO = demo_text_to_tones
+
+# Default target - build and run tests
+all: test demo
+
+# Build both test and demo
+test: $(TARGET_TEST)
+demo: $(TARGET_DEMO)
+
+# Build the test executable
+$(TARGET_TEST): $(LIB_OBJECTS) $(TEST_OBJECTS)
+	$(CC) $(CFLAGS) -o $(TARGET_TEST) $(LIB_OBJECTS) $(TEST_OBJECTS) -lm
+
+# Build the demo executable  
+$(TARGET_DEMO): $(LIB_OBJECTS) $(DEMO_OBJECTS)
+	$(CC) $(CFLAGS) -o $(TARGET_DEMO) $(LIB_OBJECTS) $(DEMO_OBJECTS) -lm
+
+# Compile source files
+%.o: %.c
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+
+# Run the tests
+run-test: $(TARGET_TEST)
+	@echo "Running pentatonic transmission tests..."
+	@./$(TARGET_TEST)
+
+# Run the demo
+run-demo: $(TARGET_DEMO)
+	@echo "Running text-to-tones demo..."
+	@./$(TARGET_DEMO)
+
+# Run both
+run: run-test run-demo
+
+# Detailed test with tone sequence analysis
+test-verbose: $(TARGET_TEST)
+	@echo "Running verbose pentatonic tests..."
+	@./$(TARGET_TEST) 2>&1 | tee test_results.txt
+
+# Test with different configurations  
+test-configs: $(TARGET_TEST)
+	@echo "Testing all reliability configurations..."
+	@./$(TARGET_TEST)
+
+# Memory leak checking (requires valgrind)
+test-memory: $(TARGET_TEST)
+	@echo "Running memory leak detection..."
+	@valgrind --leak-check=full --show-leak-kinds=all ./$(TARGET_TEST)
+
+# Coverage analysis (requires gcov)
+test-coverage: CFLAGS += --coverage  
+test-coverage: clean $(TARGET_TEST)
+	@./$(TARGET_TEST)
+	@gcov $(LIB_SOURCES) $(TEST_SOURCES)
+	@echo "Coverage files generated: *.gcov"
+
+# Performance test - measure tone generation speed
+test-perf: $(TARGET_TEST)
+	@echo "Running performance tests..."
+	@time ./$(TARGET_TEST) > /dev/null
+
+# Demo with custom text
+demo-text: $(TARGET_DEMO)
+	@echo "Running demo with custom text..."
+	@./$(TARGET_DEMO) "$(TEXT)"
+
+# Clean build artifacts
+clean:
+	rm -f $(LIB_OBJECTS) $(TEST_OBJECTS) $(DEMO_OBJECTS) $(TARGET_TEST) $(TARGET_DEMO) *.gcov *.gcda *.gcno test_results.txt
+
+# Help
+help:
+	@echo "Available targets:"
+	@echo "  all          - Build test and demo programs"
+	@echo "  test         - Build test program"
+	@echo "  demo         - Build demo program"
+	@echo "  run          - Run both tests and demo"
+	@echo "  run-test     - Run unit tests"
+	@echo "  run-demo     - Run text-to-tones demo"
+	@echo "  test-verbose - Run tests with detailed output"
+	@echo "  test-configs - Test all reliability configurations" 
+	@echo "  test-memory  - Run with memory leak detection"
+	@echo "  test-coverage- Generate code coverage report"
+	@echo "  test-perf    - Run performance benchmarks"
+	@echo "  demo-text    - Run demo with custom text (use TEXT=...)"
+	@echo "  clean        - Remove build artifacts"
+	@echo "  help         - Show this help"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make -f Makefile.test run-demo"
+	@echo "  make -f Makefile.test demo-text TEXT='Custom message'"
+
+.PHONY: all run test-verbose test-configs test-memory test-coverage test-perf clean help

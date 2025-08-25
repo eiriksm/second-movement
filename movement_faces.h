@@ -24,6 +24,7 @@
 
 #pragma once
 
+#include "pentatonic_tx_face.h"
 #include "unit_counter_face.h"
 #include "atb_countdown_face.h"
 #include "clock_face.h"
