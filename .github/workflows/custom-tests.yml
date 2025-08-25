@@ -13,3 +13,6 @@ jobs:
       - name: Run unit tests
         run: make test
         working-directory: 'watch-faces/test'
+      - name: Pentatonic TX Unit Tests
+        run: make -f Makefile.test run-test
+        working-directory: 'lib/pentatonic_tx'
