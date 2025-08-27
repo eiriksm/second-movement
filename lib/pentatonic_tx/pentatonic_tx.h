@@ -109,8 +109,6 @@ typedef struct {
     penta_reliability_level_t reliability_level;
     uint8_t block_size;                    // Bytes per block (4-32)
     uint8_t block_repetitions;             // Number of times to send each block (1-5)
-    uint16_t tone_duration_ms;             // Duration of each tone (20-200ms)
-    uint16_t silence_duration_ms;          // Silence between tones (5-50ms)
     bool enable_musical_framing;           // Add melodic start/end sequences
     bool enable_adaptive_timing;           // Adjust timing based on errors
     bool use_enhanced_encoding;            // Use 2-bit wide spacing (recommended)

@@ -75,8 +75,6 @@ typedef struct {
     bool enable_triple_voting;                    // 3x repetition + majority vote
     bool enable_musical_framing;                  // Melodic start/end sequences
     bool enable_adaptive_timing;                  // Adjust timing based on errors
-    uint16_t tone_duration_ms;                    // 25-80ms per tone
-    uint16_t silence_duration_ms;                 // 8-30ms between tones
 } penta_config_t;
 ```
 
@@ -88,8 +86,6 @@ penta_config_t config = {
     .use_enhanced_encoding = true,           // 2-bit wide spacing
     .enable_triple_voting = false,           // Single transmission
     .enable_musical_framing = true,          // Pleasant start/end
-    .tone_duration_ms = 40,                  // Good detection
-    .silence_duration_ms = 15,               // Clear separation
 };
 ```
 

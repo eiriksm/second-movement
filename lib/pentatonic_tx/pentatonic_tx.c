@@ -49,7 +49,7 @@ static const uint16_t penta_frequencies_enhanced[10] = {
     330,  // E4  - Tone 4 (voting: repeat for reliability)
     880,  // A5  - Tone 5 (voting: octave+fifth for 1-bit)
     1320, // E6  - Tone 6 (reserved)
-    1760, // A6  - Tone 7 (reserved) 
+    1760, // A6  - Tone 7 (reserved)
     2200, // C#7 - Tone 8 (Control - very high for clear distinction)
     0     // Silence - Tone 9
 };
@@ -75,7 +75,7 @@ static const uint8_t sync_pattern_short[] = {8, 9, 8}; // Brief sync
 //
 // WEB APP RX IMPLEMENTATION:
 // 1. Detect this calibration sequence at transmission start
-// 2. Measure actual frequencies of CALIBRATION_A4 and CALIBRATION_A5 tones  
+// 2. Measure actual frequencies of CALIBRATION_A4 and CALIBRATION_A5 tones
 // 3. Calculate frequency multiplier: measured_freq / expected_freq
 // 4. Apply multiplier to all subsequent tone detection
 // 5. This handles simulator (exact 1MHz) vs real hardware (e.g. 1.003MHz) differences
@@ -87,32 +87,32 @@ static const uint8_t calibration_sequence[] = {
     // Phase 0-7: Long A4 tone (440Hz base) - RX measures this frequency
     PENTA_CALIBRATION_TONE_A4, PENTA_CALIBRATION_TONE_A4, PENTA_CALIBRATION_TONE_A4, PENTA_CALIBRATION_TONE_A4,
     PENTA_CALIBRATION_TONE_A4, PENTA_CALIBRATION_TONE_A4, PENTA_CALIBRATION_TONE_A4, PENTA_CALIBRATION_TONE_A4,
-    
+
     // Phase 8-10: Silence gap
     PENTA_SILENCE_TONE, PENTA_SILENCE_TONE, PENTA_SILENCE_TONE,
-    
-    // Phase 11-18: Long A5 tone (880Hz base, perfect octave) - RX measures this for ratio validation  
+
+    // Phase 11-18: Long A5 tone (880Hz base, perfect octave) - RX measures this for ratio validation
     PENTA_CALIBRATION_TONE_A5, PENTA_CALIBRATION_TONE_A5, PENTA_CALIBRATION_TONE_A5, PENTA_CALIBRATION_TONE_A5,
     PENTA_CALIBRATION_TONE_A5, PENTA_CALIBRATION_TONE_A5, PENTA_CALIBRATION_TONE_A5, PENTA_CALIBRATION_TONE_A5,
-    
-    // Phase 19-21: Silence gap  
+
+    // Phase 19-21: Silence gap
     PENTA_SILENCE_TONE, PENTA_SILENCE_TONE, PENTA_SILENCE_TONE,
-    
+
     // Phase 22: Control tone marks end of calibration, start of data transmission
     PENTA_CONTROL_TONE
 };
 
 #define CALIBRATION_SEQUENCE_LENGTH (sizeof(calibration_sequence))
 
-// Musical start sequence for enhanced frequencies (2-bit encoding) 
+// Musical start sequence for enhanced frequencies (2-bit encoding)
 static const uint8_t musical_start_sequence_enhanced[] = {0, 1, 2, 3, 9, 9}; // E4-C#5-A5-E6, silence, silence
 static const uint8_t musical_end_sequence_enhanced[] = {3, 2, 1, 0, 9, 9};   // E6-A5-C#5-E4, silence, silence
 
 // Initialize periods for specific encoder
 static void _penta_init_periods(penta_encoder_state_t *encoder) {
-    const uint16_t *frequencies = encoder->config.use_enhanced_encoding ? 
+    const uint16_t *frequencies = encoder->config.use_enhanced_encoding ?
                                   penta_frequencies_enhanced : penta_frequencies_original;
-    
+
     for (int i = 0; i < 9; i++) {
         encoder->tone_periods[i] = 1000000 / frequencies[i];
     }
@@ -121,9 +121,9 @@ static void _penta_init_periods(penta_encoder_state_t *encoder) {
 
 // Update periods when frequency table changes
 static void _penta_update_periods(penta_encoder_state_t *encoder) {
-    const uint16_t *frequencies = encoder->config.use_enhanced_encoding ? 
+    const uint16_t *frequencies = encoder->config.use_enhanced_encoding ?
                                   penta_frequencies_enhanced : penta_frequencies_original;
-    
+
     for (int i = 0; i < 9; i++) {
         encoder->tone_periods[i] = 1000000 / frequencies[i];
     }
@@ -153,7 +153,7 @@ void penta_get_default_config(penta_reliability_level_t level, penta_config_t *c
 
     // Common defaults
     config->reliability_level = level;
-    config->enable_musical_framing = true;
+    config->enable_musical_framing = false;
     config->enable_adaptive_timing = false;
     config->use_enhanced_encoding = false;
     config->enable_triple_voting = false;
@@ -162,24 +162,18 @@ void penta_get_default_config(penta_reliability_level_t level, penta_config_t *c
         case PENTA_SPEED_PRIORITY:
             config->block_size = 32;
             config->block_repetitions = 1; // No redundancy for speed
-            config->tone_duration_ms = 25;
-            config->silence_duration_ms = 8;
             config->use_enhanced_encoding = false; // Use original 3-bit encoding
             break;
 
         case PENTA_BALANCED:
             config->block_size = 16;
             config->block_repetitions = 2; // Send each block twice
-            config->tone_duration_ms = 40;
-            config->silence_duration_ms = 15;
             config->use_enhanced_encoding = true; // Use 2-bit wide spacing
             break;
 
         case PENTA_RELIABILITY_PRIORITY:
             config->block_size = 8;
             config->block_repetitions = 3; // Triple redundancy
-            config->tone_duration_ms = 60;
-            config->silence_duration_ms = 25;
             config->enable_adaptive_timing = true;
             config->use_enhanced_encoding = true;
             config->enable_triple_voting = true; // Maximum reliability
@@ -188,8 +182,6 @@ void penta_get_default_config(penta_reliability_level_t level, penta_config_t *c
         case PENTA_MUSICAL_MODE:
             config->block_size = 12;
             config->block_repetitions = 2; // Moderate redundancy for musicality
-            config->tone_duration_ms = 45;
-            config->silence_duration_ms = 18;
             config->enable_musical_framing = true;
             config->use_enhanced_encoding = true; // Better sound quality
             break;
@@ -205,14 +197,6 @@ penta_result_t penta_validate_config(const penta_config_t *config) {
     }
 
     if (config->block_repetitions == 0 || config->block_repetitions > 5) {
-        return PENTA_ERROR_INVALID_PARAM;
-    }
-
-    if (config->tone_duration_ms < 10 || config->tone_duration_ms > 500) {
-        return PENTA_ERROR_INVALID_PARAM;
-    }
-
-    if (config->silence_duration_ms > 100) {
         return PENTA_ERROR_INVALID_PARAM;
     }
 
@@ -323,7 +307,7 @@ static void _penta_finish_block(penta_encoder_state_t *encoder) {
         }
     }
     encoder->sync_tone_counter++;
-    
+
     // Add control tone to mark end of data
     if (_penta_append_tone(encoder, PENTA_CONTROL_TONE) != PENTA_SUCCESS) {
         return;
@@ -335,11 +319,11 @@ static void _penta_finish_block(penta_encoder_state_t *encoder) {
 
     // Add Reed-Solomon parity if configured
     if (encoder->config.reliability_level == PENTA_RELIABILITY_PRIORITY && encoder->block_len > 0) {
-        rs_encode(encoder->current_block, encoder->block_len, 
+        rs_encode(encoder->current_block, encoder->block_len,
                   encoder->reed_solomon_parity, 4);
         encoder->rs_parity_len = 4;
         encoder->stats.reed_solomon_corrections++; // Track RS usage
-        
+
         // Add parity bytes
         for (int i = 0; i < encoder->rs_parity_len; i++) {
             _penta_add_byte(encoder, encoder->reed_solomon_parity[i]);
@@ -363,7 +347,7 @@ static bool _penta_prepare_next_block(penta_encoder_state_t *encoder) {
     // If we're repeating a block, don't fetch new data
     if (encoder->repetitions_remaining > 1) {
         encoder->repetitions_remaining--;
-        
+
         // Re-encode the same block
         for (int i = 0; i < encoder->block_len; i++) {
             _penta_add_byte(encoder, encoder->current_block[i]);
@@ -372,11 +356,11 @@ static bool _penta_prepare_next_block(penta_encoder_state_t *encoder) {
         encoder->stats.blocks_retransmitted++;
         return true;
     }
-    
+
     // Reset for new block
     encoder->block_len = 0;
     encoder->block_crc = 0;
-    
+
     // Try to fill a new block
     while (encoder->block_len < encoder->config.block_size) {
         uint8_t next_byte;
@@ -439,7 +423,7 @@ penta_result_t penta_init_encoder(penta_encoder_state_t *encoder,
     _penta_add_start_sequence(encoder);
 
     encoder->transmission_active = true;
-    
+
     // Initialize calibration state - calibration will be sent automatically
     encoder->calibration_sent = false;
     encoder->calibration_phase = 0;
@@ -478,7 +462,7 @@ penta_result_t penta_init_encoder_with_config(penta_encoder_state_t *encoder,
     _penta_add_start_sequence(encoder);
 
     encoder->transmission_active = true;
-    
+
     // Initialize calibration state - calibration will be sent automatically
     encoder->calibration_sent = false;
     encoder->calibration_phase = 0;
@@ -498,13 +482,13 @@ uint8_t penta_get_next_tone(penta_encoder_state_t *encoder) {
         if (encoder->calibration_phase < CALIBRATION_SEQUENCE_LENGTH) {
             uint8_t calibration_tone = calibration_sequence[encoder->calibration_phase];
             encoder->calibration_phase++;
-            
+
             // Mark calibration as complete when we finish the sequence
             if (encoder->calibration_phase >= CALIBRATION_SEQUENCE_LENGTH) {
                 encoder->calibration_sent = true;
                 // Continue to normal start sequence after calibration
             }
-            
+
             return calibration_tone;
         }
     }
@@ -539,7 +523,7 @@ uint8_t penta_get_next_tone(penta_encoder_state_t *encoder) {
                 break;
             }
         }
-        
+
         _penta_add_end_sequence(encoder);
         encoder->transmission_active = false;
 
@@ -547,9 +531,10 @@ uint8_t penta_get_next_tone(penta_encoder_state_t *encoder) {
         if (encoder->stats.blocks_sent > 0) {
             // Rough estimate: bytes * 8 bits/byte, divided by total tones * tone_duration
             uint32_t total_tones = encoder->stats.blocks_sent * 20; // Rough estimate
-            uint32_t total_time_ms = total_tones * encoder->config.tone_duration_ms;
+            // 46 will be the ms when we have clock rate 64 and divisor 3.
+            uint32_t total_time_ms = total_tones * 46;
             if (total_time_ms > 0) {
-                encoder->stats.effective_bitrate = 
+                encoder->stats.effective_bitrate =
                     (encoder->stats.bytes_transmitted * 8000.0f) / total_time_ms;
             }
         }
@@ -582,11 +567,11 @@ uint16_t penta_get_tone_period(uint8_t tone_index) {
     if (tone_index >= 10) {
         return 0; // Silence
     }
-    
+
     if (tone_index == 9) {
         return 0; // Silence
     }
-    
+
     return 1000000 / penta_frequencies_original[tone_index];
 }
 
@@ -596,7 +581,7 @@ uint16_t penta_get_tone_frequency_for_encoder(const penta_encoder_state_t *encod
         return 0; // Silence/error
     }
 
-    const uint16_t *frequencies = encoder->config.use_enhanced_encoding ? 
+    const uint16_t *frequencies = encoder->config.use_enhanced_encoding ?
                                   penta_frequencies_enhanced : penta_frequencies_original;
     return frequencies[tone_index];
 }
@@ -645,13 +630,13 @@ const penta_stats_t* penta_get_stats(const penta_encoder_state_t *encoder) {
  * @return Expected frequency in Hz (what simulator transmits)
  */
 uint16_t penta_get_calibration_frequency(uint8_t tone_index, bool use_enhanced_encoding) {
-    const uint16_t *frequencies = use_enhanced_encoding ? 
+    const uint16_t *frequencies = use_enhanced_encoding ?
                                   penta_frequencies_enhanced : penta_frequencies_original;
-    
+
     if (tone_index >= 10) {
         return 0; // Invalid tone
     }
-    
+
     return frequencies[tone_index];
 }
 
@@ -671,41 +656,41 @@ int penta_detect_calibration_sequence(const uint8_t *tone_buffer, uint8_t buffer
     if (!tone_buffer || buffer_length < CALIBRATION_SEQUENCE_LENGTH) {
         return 0; // Buffer too short
     }
-    
+
     // Check if the buffer starts with our calibration sequence
     for (int i = 0; i < CALIBRATION_SEQUENCE_LENGTH; i++) {
         if (tone_buffer[i] != calibration_sequence[i]) {
             return 0; // Doesn't match calibration sequence
         }
     }
-    
+
     return 1; // Found calibration sequence
 }
 
 /** @brief Calculate frequency multiplier from measured calibration tones
  * @param measured_a4_hz Measured frequency of A4 calibration tone
- * @param measured_a5_hz Measured frequency of A5 calibration tone  
+ * @param measured_a5_hz Measured frequency of A5 calibration tone
  * @param use_enhanced_encoding Whether transmission used enhanced encoding
  * @return Frequency multiplier (actual_clock_rate / 1MHz), or 0.0 if invalid
  */
 float penta_calculate_frequency_multiplier(float measured_a4_hz, float measured_a5_hz, bool use_enhanced_encoding) {
     float expected_a4 = (float)penta_get_calibration_frequency(PENTA_CALIBRATION_TONE_A4, use_enhanced_encoding);
     float expected_a5 = (float)penta_get_calibration_frequency(PENTA_CALIBRATION_TONE_A5, use_enhanced_encoding);
-    
+
     if (expected_a4 == 0.0f || expected_a5 == 0.0f) {
         return 0.0f; // Invalid configuration
     }
-    
+
     // Calculate multiplier from both tones and average them for better accuracy
     float multiplier_a4 = measured_a4_hz / expected_a4;
     float multiplier_a5 = measured_a5_hz / expected_a5;
-    
+
     // Validate that both multipliers are reasonably close (within 5%)
     float ratio = multiplier_a4 / multiplier_a5;
     if (ratio < 0.95f || ratio > 1.05f) {
         return 0.0f; // Multipliers don't match - probably measurement error
     }
-    
+
     // Return average of both measurements
     return (multiplier_a4 + multiplier_a5) / 2.0f;
 }
