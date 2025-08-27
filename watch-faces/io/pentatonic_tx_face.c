@@ -31,6 +31,7 @@
 typedef enum {
     PTX_MODE_SELECT = 0,
     PTX_MODE_CONFIG,
+    PTX_MODE_COUNTDOWN,
     PTX_MODE_TRANSMITTING,
     PTX_MODE_COMPLETE
 } ptx_mode_t;
@@ -64,13 +65,19 @@ typedef struct {
     bool show_stats;
     uint8_t stats_page;
 
+    // Countdown state
+    uint8_t countdown_phase;
+
 } pentatonic_tx_state_t;
 
 // Demo data - a short message
-static const char demo_message[] = "test";
+static const char demo_message[] = "one 2 three";
 
 // Custom file name for user data
 #define PTX_CUSTOM_FILE "ptx_data.bin"
+
+// Forward declarations
+static void ptx_start_transmission(pentatonic_tx_state_t *state);
 
 // Data source functions
 static uint8_t ptx_get_demo_byte(uint8_t *next_byte);
@@ -155,6 +162,20 @@ static void ptx_update_display(pentatonic_tx_state_t *state) {
             }
             break;
 
+        case PTX_MODE_COUNTDOWN:
+            watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "CD", "Count");
+
+            // Show countdown number (3, 2, 1)
+            uint8_t countdown_num = 3 - (state->countdown_phase / 8);
+            if (countdown_num > 0) {
+                char countdown_str[7];
+                snprintf(countdown_str, sizeof(countdown_str), "%d     ", countdown_num);
+                watch_display_text(WATCH_POSITION_BOTTOM, countdown_str);
+            } else {
+                watch_display_text(WATCH_POSITION_BOTTOM, "GO    ");
+            }
+            break;
+
         case PTX_MODE_TRANSMITTING:
             watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "TX", "Xmit");
 
@@ -230,60 +251,59 @@ static void ptx_transmission_complete(bool success, const penta_stats_t *stats) 
     }
 }
 
+// Countdown tick function
+static void ptx_countdown_tick(pentatonic_tx_state_t *state) {
+    // Countdown complete - start transmission
+    if (state->countdown_phase >= 24) { // 3 seconds * 8 ticks per second
+        ptx_start_transmission(state);
+        return;
+    }
+
+    // Play beep every 8 ticks (once per second)
+    if ((state->countdown_phase % 8) == 0) {
+        watch_set_buzzer_period_and_duty_cycle(1136, 25); // A5 note
+        watch_set_buzzer_on();
+    } else if ((state->countdown_phase % 8) == 1) {
+        watch_set_buzzer_off();
+    }
+
+    state->countdown_phase++;
+    ptx_update_display(state);
+}
+
+// Start countdown
+static void ptx_start_countdown(pentatonic_tx_state_t *state) {
+    state->mode = PTX_MODE_COUNTDOWN;
+    state->countdown_phase = 0;
+
+    // Request high frequency ticks
+    movement_request_tick_frequency(64);
+    watch_set_indicator(WATCH_INDICATOR_BELL);
+
+    ptx_update_display(state);
+}
+
 // Start transmission
 static void ptx_start_transmission(pentatonic_tx_state_t *state) {
     penta_config_t config;
+    movement_request_tick_frequency(64);
+    watch_set_buzzer_off(); // Clear any previous buzzer state
     penta_get_next_byte_t data_callback = NULL;
 
     // Prepare data source
     state->data_pos = 0;
 
-                switch (state->data_source) {
-                case PTX_DATA_DEMO:
-                    state->data_length = strlen(demo_message);
-                    data_callback = ptx_get_demo_byte;
-                    break;
+    switch (state->data_source) {
+        case PTX_DATA_DEMO:
+            state->data_length = strlen(demo_message);
+            data_callback = ptx_get_demo_byte;
+            break;
 
-                case PTX_DATA_TIME:
-                    state->data_length = 8; // Unix timestamp + timezone
-                    data_callback = ptx_get_time_byte;
-                    break;
-
-                case PTX_DATA_ACTIVITY:
-                    // Try to read activity data from filesystem
-                    {
-                        int32_t size = filesystem_get_file_size("activity.dat");
-                        if (size > 0) {
-                            state->data_length = size;
-                            state->data_buffer = malloc(size);
-                            if (state->data_buffer) {
-                                filesystem_read_file("activity.dat", (char*)state->data_buffer, size);
-                                data_callback = ptx_get_activity_byte;
-                            }
-                        }
-                    }
-                    break;
-
-                case PTX_DATA_CUSTOM:
-                    // Try to read custom file
-                    {
-                        int32_t size = filesystem_get_file_size(PTX_CUSTOM_FILE);
-                        if (size > 0) {
-                            state->data_length = size;
-                            state->data_buffer = malloc(size);
-                            if (state->data_buffer) {
-                                filesystem_read_file(PTX_CUSTOM_FILE, (char*)state->data_buffer, size);
-                                data_callback = ptx_get_custom_byte;
-                            }
-                        }
-                    }
-                    break;
-
-                case PTX_DATA_COUNT:
-                default:
-                    // Invalid data source
-                    return;
-            }
+        case PTX_DATA_COUNT:
+        default:
+            // Invalid data source
+            return;
+    }
 
     if (!data_callback || state->data_length == 0) {
         // No data to send
@@ -297,13 +317,10 @@ static void ptx_start_transmission(pentatonic_tx_state_t *state) {
     if (penta_init_encoder_with_config(&state->encoder, &config, data_callback, ptx_transmission_complete) == PENTA_SUCCESS) {
         state->mode = PTX_MODE_TRANSMITTING;
         state->tick_count = 0;
-        state->tick_divisor = 64 / (1000 / config.tone_duration_ms); // Convert to tick frequency
-        if (state->tick_divisor == 0) state->tick_divisor = 1;
+        state->tick_divisor = 3;
 
         // Request high frequency ticks and show transmission indicator
-        movement_request_tick_frequency(64);
         watch_set_indicator(WATCH_INDICATOR_BELL);
-        watch_enable_buzzer();
     }
 }
 
@@ -316,30 +333,11 @@ bool pentatonic_tx_face_loop(movement_event_t event, void *context) {
             break;
 
         case EVENT_MODE_BUTTON_UP:
-            if (state->mode == PTX_MODE_TRANSMITTING) {
-                // Don't exit while transmitting
+            if (state->mode == PTX_MODE_TRANSMITTING || state->mode == PTX_MODE_COUNTDOWN) {
+                // Don't exit while transmitting or counting down
                 break;
             }
             movement_move_to_next_face();
-            break;
-
-        case EVENT_LIGHT_BUTTON_UP:
-            if (state->mode == PTX_MODE_SELECT) {
-                // Cycle through data sources
-                state->data_source = (state->data_source + 1) % PTX_DATA_COUNT;
-                ptx_update_display(state);
-            } else if (state->mode == PTX_MODE_CONFIG) {
-                // Cycle through reliability levels
-                state->reliability_level = (state->reliability_level + 1) % 4;
-                ptx_update_display(state);
-            } else if (state->mode == PTX_MODE_COMPLETE) {
-                // Toggle stats display
-                state->show_stats = !state->show_stats;
-                if (state->show_stats) {
-                    state->stats_page = 0;
-                }
-                ptx_update_display(state);
-            }
             break;
 
         case EVENT_ALARM_BUTTON_UP:
@@ -348,8 +346,14 @@ bool pentatonic_tx_face_loop(movement_event_t event, void *context) {
                 state->mode = PTX_MODE_CONFIG;
                 ptx_update_display(state);
             } else if (state->mode == PTX_MODE_CONFIG) {
-                // Start transmission
-                ptx_start_transmission(state);
+                // Start countdown
+                ptx_start_countdown(state);
+            } else if (state->mode == PTX_MODE_COUNTDOWN) {
+                // Abort countdown
+                state->mode = PTX_MODE_SELECT;
+                watch_set_buzzer_off();
+                watch_clear_indicator(WATCH_INDICATOR_BELL);
+                movement_request_tick_frequency(1);
                 ptx_update_display(state);
             } else if (state->mode == PTX_MODE_TRANSMITTING) {
                 // Abort transmission
@@ -376,14 +380,19 @@ bool pentatonic_tx_face_loop(movement_event_t event, void *context) {
 
         case EVENT_ALARM_LONG_PRESS:
             if (state->mode == PTX_MODE_SELECT) {
-                // Start transmission with current settings
-                ptx_start_transmission(state);
-                ptx_update_display(state);
+                // Start countdown directly with current settings
+                ptx_start_countdown(state);
             }
             break;
 
         case EVENT_TICK:
-            if (state->mode == PTX_MODE_TRANSMITTING && penta_is_transmitting(&state->encoder)) {
+            if (state->mode == PTX_MODE_COUNTDOWN) {
+                state->tick_count++;
+                if (state->tick_count >= 8) { // 8 ticks = ~125ms at 64Hz
+                    state->tick_count = 0;
+                    ptx_countdown_tick(state);
+                }
+            } else if (state->mode == PTX_MODE_TRANSMITTING && penta_is_transmitting(&state->encoder)) {
                 state->tick_count++;
                 if (state->tick_count >= state->tick_divisor) {
                     state->tick_count = 0;
@@ -411,7 +420,7 @@ bool pentatonic_tx_face_loop(movement_event_t event, void *context) {
             break;
 
         case EVENT_TIMEOUT:
-            if (state->mode != PTX_MODE_TRANSMITTING) {
+            if (state->mode != PTX_MODE_TRANSMITTING && state->mode != PTX_MODE_COUNTDOWN) {
                 movement_move_to_face(0);
             }
             break;
@@ -420,8 +429,8 @@ bool pentatonic_tx_face_loop(movement_event_t event, void *context) {
             break;
     }
 
-    // Don't sleep while transmitting
-    return (state->mode != PTX_MODE_TRANSMITTING);
+    // Don't sleep while transmitting or counting down
+    return (state->mode != PTX_MODE_TRANSMITTING && state->mode != PTX_MODE_COUNTDOWN);
 }
 
 void pentatonic_tx_face_resign(void *context) {
