@@ -77,4 +77,5 @@
 #include "wordle_face.h"
 #include "endless_runner_face.h"
 #include "uptime_face.h"
+#include "fesk_demo_face.h"
 // New includes go above this line.
