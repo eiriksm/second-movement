@@ -44,11 +44,14 @@
 #define FESK_PILOT_INTERVAL 64         // Insert pilot every N trits
 #define FESK_MAX_PAYLOAD_SIZE 256      // Maximum payload size in bytes
 
+// Safe max number of trits for a full frame (payload+header+CRC)
+#define FESK_MAX_TRITS 600
+
 // Tone frequencies (4:5:6 major triad ratios)
 // Default frequencies centered around 3kHz for good piezo response
 #define FESK_BASE_FREQ 2400            // Base frequency (f0 = 4k)
 #define FESK_F0 2400                   // Low tone  (4k)
-#define FESK_F1 3000                   // Mid tone  (5k) 
+#define FESK_F1 3000                   // Mid tone  (5k)
 #define FESK_F2 3600                   // High tone (6k)
 
 // Alternative frequency set centered at 2.7kHz
@@ -88,47 +91,58 @@ typedef struct {
     // Configuration
     fesk_config_t config;
     fesk_get_next_byte_t get_next_byte;
-    
+
     // Current transmission state
     enum {
         FESK_STATE_PREAMBLE,
-        FESK_STATE_SYNC, 
+        FESK_STATE_SYNC,
         FESK_STATE_HEADER,
         FESK_STATE_PAYLOAD,
         FESK_STATE_CRC,
         FESK_STATE_COMPLETE
     } state;
-    
+
     // Sequence counters
     uint16_t sequence_pos;
     uint16_t bit_pos;
-    
+
     // Data buffers
     uint8_t payload_buffer[FESK_MAX_PAYLOAD_SIZE];
     uint16_t payload_len;
     uint16_t payload_pos;
-    
+
     // Base-3 packing state
     uint32_t trit_accumulator;
     uint8_t trits_in_accumulator;
     uint32_t byte_accumulator;
     uint8_t bytes_in_accumulator;
-    
+
     // Pilot insertion
     uint16_t trit_count;
-    
+
     // CRC calculation
     uint16_t crc16;
-    
+
     // LFSR scrambler state
     uint16_t lfsr_state;
-    
+
     // Transmission status
     bool transmission_active;
-    
+
     // Tone periods for PWM (computed from frequencies)
     uint16_t tone_periods[3];
-    
+
+    // --- for MS-first radix-3 packing ---
+    uint8_t  pack_work[FESK_MAX_PAYLOAD_SIZE + 4]; // bytes accumulated so far
+    uint16_t pack_len;                              // number of valid bytes in pack_work
+
+    uint8_t  pilot_phase;   // 0 or 1
+    // Prebuilt trit stream (canonical MS-first)
+    uint8_t  trit_stream[FESK_MAX_TRITS]; // size ≈ ceil((len+4) * 5.05) ; make it safe
+    uint16_t trit_len;
+    uint16_t trit_pos;
+    uint16_t data_trit_since_pilot; // counts data trits since last pilot (optional)
+
 } fesk_encoder_state_t;
 
 // Core API Functions
@@ -144,7 +158,7 @@ fesk_result_t fesk_init_encoder(fesk_encoder_state_t *encoder,
                                 uint16_t payload_len);
 
 /** @brief Initialize with custom configuration
- * @param encoder Pointer to encoder state structure  
+ * @param encoder Pointer to encoder state structure
  * @param config Pointer to configuration structure
  * @param payload_data Pointer to payload data to transmit
  * @param payload_len Length of payload data in bytes
