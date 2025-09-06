@@ -15,7 +15,7 @@ static const char* state_names[] = {
 
 // Tone names for readability
 static const char* tone_names[] = {"f0", "f1", "f2"};
-static const uint16_t tone_freqs[] = {2400, 2880, 3360};
+static const uint16_t tone_freqs[] = {FESK_F0, FESK_F1, FESK_F2};
 
 static void print_protocol_info() {
     printf("=== HT3 Protocol Info ===\n");
