@@ -35,8 +35,8 @@
 
 /* -------- Default tones (4:5:6 around ~3 kHz) -------- */
 #define FESK_F0 2400
-#define FESK_F1 3000
-#define FESK_F2 3600
+#define FESK_F1 2880
+#define FESK_F2 3360
 
 /* Optional alternative set */
 #define FESK_ALT_F0 2700
