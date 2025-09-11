@@ -14,7 +14,7 @@
  *  - After sync: ternary symbols (0/1/2), MS-trit-first packing
  *  - Header (2 bytes length) + payload bytes are scrambled
  *  - CRC-16/CCITT over original payload; CRC bytes sent unscrumbled (big-endian)
- *  - Optional pilots [0,2] every N trits since sync
+ *  - Uses differential encoding for improved noise resilience
  */
 
 /* -------- Protocol configuration -------- */
@@ -24,7 +24,6 @@
 #define FESK_HEADER_LEN        2     /* bytes: length field */
 #define FESK_CRC_LEN           2     /* bytes */
 #define FESK_SYMBOL_TICKS      6     /* 64Hz ticks per symbol (default) */
-#define FESK_PILOT_INTERVAL    64    /* trits between pilots; 0 = disabled */
 #define FESK_MAX_PAYLOAD_SIZE  256   /* payload bytes */
 
 /* Safe upper bound for prebuilt trit stream.
@@ -33,15 +32,9 @@
  */
 #define FESK_MAX_TRITS         600
 
-/* -------- Default tones (4:5:6 around ~3 kHz) -------- */
 #define FESK_F0 2240
 #define FESK_F1 3200
 #define FESK_F2 4480
-
-/* Optional alternative set */
-#define FESK_ALT_F0 2700
-#define FESK_ALT_F1 3375
-#define FESK_ALT_F2 4050
 
 /* -------- Results -------- */
 typedef enum {
@@ -58,7 +51,6 @@ typedef struct {
     uint8_t  symbol_ticks; /* 64Hz ticks per symbol */
     bool     use_scrambler;
     bool     use_fec;      /* reserved */
-    bool     insert_pilots;
 } fesk_config_t;
 
 /* Optional source callback (unused by current TX path) */
@@ -89,9 +81,11 @@ typedef struct {
     uint16_t payload_len;
     uint16_t payload_pos;   /* not used by canonical build; kept for API symmetry */
 
-    /* Pilot insertion / accounting */
+    /* Trit counting */
     uint32_t trit_count;    /* total data trits since sync (header+payload+CRC) */
-    uint8_t  pilot_phase;   /* 0 or 1 */
+
+    /* Differential encoding state */
+    uint8_t  last_trit;     /* previous trit for differential encoding */
 
     /* CRC / Scrambler */
     uint16_t crc16;         /* CRC-16/CCITT over original payload */

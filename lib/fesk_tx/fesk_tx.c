@@ -25,6 +25,13 @@ static const uint8_t barker13_pattern[FESK_SYNC_LEN] = {
 
 /* ---- Internal helpers ---- */
 
+/* Differential encoding state */
+static uint8_t differential_encode_trit(fesk_encoder_state_t *e, uint8_t trit) {
+    uint8_t encoded = (e->last_trit + trit) % 3;
+    e->last_trit = encoded;
+    return encoded;
+}
+
 /* Precompute tone periods for buzzer (1MHz clock) */
 static void _fesk_init_periods(fesk_encoder_state_t *e) {
     e->tone_periods[0] = 1000000 / e->config.f0;
@@ -77,7 +84,7 @@ static uint16_t pack_bytes_to_trits_msfirst(const uint8_t *bytes, uint16_t n, ui
     return tlen;
 }
 
-/* Build entire ternary stream (header+payload+CRC) */
+/* Build entire ternary stream (header+payload+CRC) with differential encoding */
 static void build_trit_stream(fesk_encoder_state_t *e) {
     if (e->config.use_scrambler) _fesk_init_lfsr(e);
 
@@ -96,7 +103,18 @@ static void build_trit_stream(fesk_encoder_state_t *e) {
     bytes[m++] = (uint8_t)(e->crc16 >> 8);
     bytes[m++] = (uint8_t)(e->crc16 & 0xFF);
 
-    e->trit_len = pack_bytes_to_trits_msfirst(bytes, m, e->trit_stream);
+
+    /* Convert to trits and apply differential encoding */
+    uint8_t raw_trits[FESK_MAX_TRITS];
+    uint16_t raw_trit_len = pack_bytes_to_trits_msfirst(bytes, m, raw_trits);
+    
+    /* Apply differential encoding to each trit */
+    e->last_trit = 0;  /* Initialize differential state to 0 */
+    for (uint16_t i = 0; i < raw_trit_len; i++) {
+        e->trit_stream[i] = differential_encode_trit(e, raw_trits[i]);
+    }
+    
+    e->trit_len = raw_trit_len;
     e->trit_pos = 0;
 }
 
@@ -123,7 +141,6 @@ void fesk_get_default_config(fesk_config_t *c) {
     c->symbol_ticks = FESK_SYMBOL_TICKS;
     c->use_scrambler = true;
     c->use_fec = false;
-    c->insert_pilots = true;
 }
 
 fesk_result_t fesk_validate_config(const fesk_config_t *c) {
@@ -161,8 +178,8 @@ fesk_result_t fesk_init_encoder_with_config(fesk_encoder_state_t *e,
     e->transmission_active = true;
     e->sequence_pos = 0;
     e->bit_pos = 0;
-    e->pilot_phase = 0;
     e->trit_count = 0;
+    e->last_trit = 0;
     return FESK_SUCCESS;
 }
 
@@ -191,14 +208,7 @@ uint8_t fesk_get_next_tone(fesk_encoder_state_t *e) {
 
     case FESK_STATE_HEADER: /* not used anymore */
     case FESK_STATE_PAYLOAD:
-        /* Pilot insertion every FESK_PILOT_INTERVAL trits */
-        if (e->config.insert_pilots &&
-            e->trit_count > 0 &&
-            (e->trit_count % FESK_PILOT_INTERVAL) == 0) {
-            if (e->pilot_phase == 0) { e->pilot_phase = 1; return 0; }
-            else { e->pilot_phase = 0; e->trit_count++; return 2; }
-        }
-
+        /* Direct trit transmission - no pilot insertion */
         if (e->trit_pos < e->trit_len) {
             e->trit_count++;
             return e->trit_stream[e->trit_pos++];
