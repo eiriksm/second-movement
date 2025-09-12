@@ -27,7 +27,7 @@
 #include <inttypes.h>
 #include <stdint.h>
 #include "uptime_face.h"
-#include "chirpy_tx.h"
+#include "fesk_tx.h"
 #include "watch.h"
 #include "watch_utility.h"
 #define U32_DEC_DIGITS 10
