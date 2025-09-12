@@ -13,3 +13,6 @@ jobs:
       - name: Run unit tests
         run: make test
         working-directory: 'watch-faces/test'
+      - name: Fesk TX Unit Tests
+        run: make test
+        working-directory: 'lib/fesk_tx'
