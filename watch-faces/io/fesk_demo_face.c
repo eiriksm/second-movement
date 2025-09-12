@@ -50,11 +50,11 @@ typedef struct {
 
 } fesk_demo_state_t;
 
-static char tone_string[256];
+static char tone_string[1024];
 
 // Test message to transmit
 static const uint8_t test_message[] = "test";
-static const uint16_t test_message_len = 4;
+static const uint16_t test_message_len = sizeof(test_message) - 1;
 
 void fesk_demo_face_setup(uint8_t watch_face_index, void **context_ptr) {
     (void)watch_face_index;
