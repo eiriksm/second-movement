@@ -36,9 +36,6 @@
 // persistent buffer (don't point globals at a local/stack buffer)
 static uint8_t long_data_str[UPTIME_BUFSZ];
 
-static const uint8_t *curr_data_ptr = NULL;
-static size_t curr_data_len = 0;
-static size_t curr_data_ix  = 0;
 
 void uptime_face_setup(uint8_t watch_face_index, void ** context_ptr) {
     (void) watch_face_index;
@@ -65,25 +62,17 @@ static void _uptime_quit_chirping(uptime_state_t *state) {
 static void _uptime_data_tick(void *context) {
     uptime_state_t *state = (uptime_state_t *)context;
 
-    uint8_t tone = chirpy_get_next_tone(&state->encoder_state);
+    uint8_t tone = fesk_get_next_tone(&state->encoder_state);
     // Transmission over?
     if (tone == 255) {
         _uptime_quit_chirping(state);
         return;
     }
-    uint16_t period = chirpy_get_tone_period(tone);
+    uint16_t period = fesk_get_tone_period(&state->encoder_state, tone);
     watch_set_buzzer_period_and_duty_cycle(period, 25);
     watch_set_buzzer_on();
 }
 
-static uint8_t _uptime_get_next_byte(uint8_t *next_byte) {
-    if (curr_data_ix == curr_data_len) {
-        return 0;
-    }
-    *next_byte = curr_data_ptr[curr_data_ix];
-    ++curr_data_ix;
-    return 1;
-}
 
 static inline size_t build_uptime_line(uint32_t seconds_since_boot)
 {
@@ -105,47 +94,51 @@ static uint32_t uptime_get_seconds_since_boot(uptime_state_t *state) {
 
 static void _uptime_countdown_tick(void *context) {
     uptime_state_t *state = (uptime_state_t *)context;
-    chirpy_tick_state_t *tick_state = &state->tick_state;
 
-    // Countdown over: start actual broadcast
-    if (tick_state->seq_pos == 8 * 3) {
-        tick_state->tick_compare = 3;
-        tick_state->tick_count = -1;
-        tick_state->seq_pos = 0;
-        // Set up the encoder
-        chirpy_init_encoder(&state->encoder_state, _uptime_get_next_byte);
-        tick_state->tick_fun = _uptime_data_tick;
-        // Set up the data
-        curr_data_ix = 0;
-        // Create a string based on the template. Uptime xx seconds.
-        // Calculate seconds since we booted.
-        uint32_t seconds_since_boot = uptime_get_seconds_since_boot(state);
-        size_t len = build_uptime_line(seconds_since_boot);
-        curr_data_ptr = long_data_str;
-        curr_data_len = len;
-        curr_data_ix  = 0;
-        return;
-    }
-    // Sound or turn off buzzer
-    if ((tick_state->seq_pos % 8) == 0) {
+    ++state->tick_count;
+
+    // Check for second boundary (64 ticks = 1 second at 64Hz)
+    if (state->tick_count >= 64) {
+        state->tick_count = 0;
+        
+        // After countdown finishes, start transmission
+        if (state->countdown_seconds == 0) {
+            // Create uptime string
+            uint32_t seconds_since_boot = uptime_get_seconds_since_boot(state);
+            size_t len = build_uptime_line(seconds_since_boot);
+            
+            // Initialize fesk encoder with the uptime data
+            fesk_result_t result = fesk_init_encoder(&state->encoder_state, long_data_str, len);
+            if (result != FESK_SUCCESS) {
+                _uptime_quit_chirping(state);
+                return;
+            }
+            
+            // Switch to transmission mode
+            state->tick_compare = state->encoder_state.config.symbol_ticks;
+            state->tick_count = 0;
+            return;
+        }
+        state->countdown_seconds--;
+        
+        // Play countdown beep
         watch_set_buzzer_period_and_duty_cycle(NotePeriods[BUZZER_NOTE_A5], 25);
         watch_set_buzzer_on();
-    } else if ((tick_state->seq_pos % 8) == 1) {
+    } else if (state->tick_count == 8) {
+        // Turn off countdown beep after ~1/8 second
         watch_set_buzzer_off();
     }
-    ++tick_state->seq_pos;
 }
 
 static void _uptime_setup_chirp(uptime_state_t *state) {
     // We want frequent callbacks from now on
-    movement_request_tick_frequency(32);
+    movement_request_tick_frequency(64); // 64Hz for fesk
     watch_set_indicator(WATCH_INDICATOR_BELL);
     state->mode = UT_CHIRPING;
     // Set up tick state; start with countdown.
-    state->tick_state.tick_count = -1;
-    state->tick_state.tick_compare = 8;
-    state->tick_state.seq_pos = 0;
-    state->tick_state.tick_fun = _uptime_countdown_tick;
+    state->tick_count = 0;
+    state->tick_compare = 64; // 64 ticks = 1 second for countdown
+    state->countdown_seconds = 3; // 3 second countdown
 }
 
 bool uptime_face_loop(movement_event_t event, void *context) {
@@ -159,10 +152,16 @@ bool uptime_face_loop(movement_event_t event, void *context) {
             break;
         case EVENT_TICK:
             if (state->mode == UT_CHIRPING) {
-                ++state->tick_state.tick_count;
-                if (state->tick_state.tick_count == state->tick_state.tick_compare) {
-                    state->tick_state.tick_count = 0;
-                    state->tick_state.tick_fun(context);
+                if (fesk_is_transmitting(&state->encoder_state)) {
+                    // Handle transmission ticks
+                    ++state->tick_count;
+                    if (state->tick_count >= state->tick_compare) {
+                        state->tick_count = 0;
+                        _uptime_data_tick(context);
+                    }
+                } else {
+                    // Handle countdown
+                    _uptime_countdown_tick(context);
                 }
             } else {
                 // Update with seconds on the bottom there.

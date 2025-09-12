@@ -42,9 +42,11 @@ typedef enum {
 typedef struct {
     uint32_t boot_time;
     uptime_mode_t mode;
-    chirpy_tick_state_t tick_state;
-    // Used by chirpy encoder during transmission
-    chirpy_encoder_state_t encoder_state;
+    // Used by fesk encoder during transmission
+    fesk_encoder_state_t encoder_state;
+    uint8_t tick_count;
+    uint8_t tick_compare;
+    uint8_t countdown_seconds;
 } uptime_state_t;
 
 void uptime_face_setup(uint8_t watch_face_index, void ** context_ptr);
