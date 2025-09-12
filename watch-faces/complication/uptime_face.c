@@ -50,11 +50,13 @@ void uptime_face_setup(uint8_t watch_face_index, void ** context_ptr) {
 
 void uptime_face_activate(void *context) {
     uptime_state_t *state = (uptime_state_t *)context;
+    state->buzzer_is_on = false;
 }
 
 static void _uptime_quit_chirping(uptime_state_t *state) {
     state->mode = UT_NONE;
     watch_set_buzzer_off();
+    state->buzzer_is_on = false;
     watch_clear_indicator(WATCH_INDICATOR_BELL);
     movement_request_tick_frequency(1);
 }
@@ -70,7 +72,7 @@ static void _uptime_data_tick(void *context) {
     }
     uint16_t period = fesk_get_tone_period(&state->encoder_state, tone);
     watch_set_buzzer_period_and_duty_cycle(period, 25);
-    watch_set_buzzer_on();
+    // Buzzer is already on from start of transmission, no need to call watch_set_buzzer_on()
 }
 
 
@@ -114,9 +116,11 @@ static void _uptime_countdown_tick(void *context) {
                 return;
             }
             
-            // Switch to transmission mode
+            // Switch to transmission mode and turn on buzzer
             state->tick_compare = state->encoder_state.config.symbol_ticks;
             state->tick_count = 0;
+            watch_set_buzzer_on();
+            state->buzzer_is_on = true;
             return;
         }
         state->countdown_seconds--;

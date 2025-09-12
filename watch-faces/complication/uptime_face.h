@@ -47,6 +47,8 @@ typedef struct {
     uint8_t tick_count;
     uint8_t tick_compare;
     uint8_t countdown_seconds;
+    // Buzzer state tracking
+    bool buzzer_is_on;
 } uptime_state_t;
 
 void uptime_face_setup(uint8_t watch_face_index, void ** context_ptr);
