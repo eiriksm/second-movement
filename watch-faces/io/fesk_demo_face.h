@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2025 Eirik S. Morland.
+ * Copyright (c) 2024 Second Movement Project
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,42 +22,39 @@
  * SOFTWARE.
  */
 
-#pragma once
-
-#include "movement.h"
-#include "fesk_tx.h"
+#ifndef FESK_DEMO_FACE_H_
+#define FESK_DEMO_FACE_H_
 
 /*
- * A DESCRIPTION OF YOUR WATCH FACE
- *
- * and a description of how use it
- *
+ * FESK DEMO FACE
+ * 
+ * A simple demonstration of the Harmonic Triad 3-FSK Acoustic Protocol (HT3).
+ * 
+ * This face demonstrates the fesk_tx protocol by transmitting the word "test"
+ * when the alarm button is pressed. Features a countdown before transmission
+ * similar to the chirpy demo.
+ * 
+ * Usage:
+ * - ALARM button: Start transmission of "test"
+ * - MODE button: Exit to next face
+ * 
+ * The transmission uses the HT3 protocol with 4:5:6 major triad frequencies
+ * for pleasant, harmonious acoustic data transmission.
  */
 
-typedef enum {
-    UT_NONE = 0,
-    UT_CHIRPING,
-} uptime_mode_t;
+#include "movement.h"
 
-typedef struct {
-    uint32_t boot_time;
-    uptime_mode_t mode;
-    // Used by fesk encoder during transmission
-    fesk_encoder_state_t encoder_state;
-    uint8_t tick_count;
-    uint8_t tick_compare;
-    uint8_t countdown_seconds;
-} uptime_state_t;
+void fesk_demo_face_setup(uint8_t watch_face_index, void **context_ptr);
+void fesk_demo_face_activate(void *context);
+bool fesk_demo_face_loop(movement_event_t event, void *context);
+void fesk_demo_face_resign(void *context);
 
-void uptime_face_setup(uint8_t watch_face_index, void ** context_ptr);
-void uptime_face_activate(void *context);
-bool uptime_face_loop(movement_event_t event, void *context);
-void uptime_face_resign(void *context);
-
-#define uptime_face ((const watch_face_t){ \
-    uptime_face_setup, \
-    uptime_face_activate, \
-    uptime_face_loop, \
-    uptime_face_resign, \
+#define fesk_demo_face ((watch_face_t){ \
+    fesk_demo_face_setup, \
+    fesk_demo_face_activate, \
+    fesk_demo_face_loop, \
+    fesk_demo_face_resign, \
     NULL, \
 })
+
+#endif // FESK_DEMO_FACE_H_
