@@ -184,54 +184,32 @@ static void _fdf_handle_countdown_tick(fesk_demo_state_t *state) {
 static void _fdf_handle_transmission_tick(fesk_demo_state_t *state) {
     state->tick_count++;
 
+    // Symbol duration is configurable, default is 6 ticks (93.75ms at 64Hz)
     uint8_t symbol_ticks = state->encoder_state.config.symbol_ticks;
 
     if (state->tick_count >= symbol_ticks) {
         state->tick_count = 0;
 
-        // NEXT symbol starts: fetch the next tone
+        // Get next tone from encoder
         uint8_t tone = fesk_get_next_tone(&state->encoder_state);
-        snprintf(tone_string + strlen(tone_string),
-                 sizeof(tone_string) - strlen(tone_string),
-                 ",%d", tone);
+        // Append the variable "tone" to the tone_string
+        snprintf(tone_string + strlen(tone_string), sizeof(tone_string) - strlen(tone_string), ",%d", tone);
 
         if (tone == 255) {
-            // End of frame: leave PWM gracefully
-            watch_set_buzzer_off();
+            // Transmission complete
             _fdf_stop_transmission(state);
             printf("Tones emitted: %s\n", tone_string);
             return;
         }
 
-        // Only change period if the tone actually changed (avoids phase jumps)
-        if (tone != s_last_tone) {
-            uint16_t period = fesk_get_tone_period(&state->encoder_state, tone);
-            if (period > 0) {
-                // NOTE: this may still re-arm internally; avoiding on/off helps a lot.
-                watch_set_buzzer_period_and_duty_cycle(period, FESK_NOMINAL_DUTY);
-            }
-            s_last_tone = tone;
-        }
-
-        // Start a tiny attack ramp to reduce clicks on new symbol
-        s_attack_ticks = 2; // first ~2 ticks of this symbol ramp up
-
-    } else {
-        // Mid-symbol: hold frequency, update duty with a tiny envelope
-        if (s_attack_ticks > 0) {
-            // simple 2-step attack ramp: ~10% then nominal
-            uint8_t duty = (s_attack_ticks == 2) ? 10 : FESK_NOMINAL_DUTY;
-            watch_set_buzzer_period_and_duty_cycle(
-                fesk_get_tone_period(&state->encoder_state, s_last_tone),
-                duty
-            );
-            s_attack_ticks--;
+        // Set buzzer to the tone frequency
+        uint16_t period = fesk_get_tone_period(&state->encoder_state, tone);
+        if (period > 0) {
+            watch_set_buzzer_period_and_duty_cycle(period, 25);
+            watch_set_buzzer_on();
         } else {
-            // steady duty
-            watch_set_buzzer_period_and_duty_cycle(
-                fesk_get_tone_period(&state->encoder_state, s_last_tone),
-                FESK_NOMINAL_DUTY
-            );
+            // Silence or error
+            watch_set_buzzer_off();
         }
     }
 }
