@@ -72,7 +72,7 @@ static void _uptime_data_tick(void *context) {
     }
     uint16_t period = fesk_get_tone_period(&state->encoder_state, tone);
     watch_set_buzzer_period_and_duty_cycle(period, 25);
-    // Buzzer is already on from start of transmission, no need to call watch_set_buzzer_on()
+    watch_set_buzzer_on();
 }
 
 

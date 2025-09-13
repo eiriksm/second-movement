@@ -215,7 +215,7 @@ static void _fdf_handle_transmission_tick(fesk_demo_state_t *state) {
         uint16_t period = fesk_get_tone_period(&state->encoder_state, tone);
         if (period > 0) {
             watch_set_buzzer_period_and_duty_cycle(period, 25);
-            // Buzzer is already on from start of transmission, no need to call watch_set_buzzer_on()
+            watch_set_buzzer_on();
         }
     }
 }
