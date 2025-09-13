@@ -34,7 +34,7 @@ const watch_face_t watch_faces[] = {
     fast_stopwatch_face,
     countdown_face,
     endless_runner_face,
-    uptime_face,
+    chirpy_demo_face,
     fesk_demo_face,
     voltage_face,
     finetune_face,

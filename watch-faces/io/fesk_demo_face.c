@@ -26,6 +26,7 @@
 #include <string.h>
 #include "fesk_demo_face.h"
 #include "fesk_tx.h"
+#include "movement.h"
 
 typedef enum {
     FDM_READY = 0,      // Ready to transmit
@@ -50,6 +51,8 @@ typedef struct {
 
     // Buzzer state tracking
     bool buzzer_is_on;
+
+    bool is_playing_sequence;
 
 } fesk_demo_state_t;
 
@@ -220,6 +223,30 @@ static void _fdf_handle_transmission_tick(fesk_demo_state_t *state) {
     }
 }
 
+static int8_t game_win_melody[] = {
+    BUZZER_NOTE_G6, 6,
+    BUZZER_NOTE_A6, 6,
+    BUZZER_NOTE_B6, 6,
+    BUZZER_NOTE_C7, 6,
+    BUZZER_NOTE_D7, 6,
+    BUZZER_NOTE_E7, 6,
+    BUZZER_NOTE_D7, 6,
+    BUZZER_NOTE_C7, 6,
+    BUZZER_NOTE_B6, 6,
+    BUZZER_NOTE_C7, 6,
+    BUZZER_NOTE_D7, 6,
+    BUZZER_NOTE_G7, 6,
+    0};
+
+static fesk_demo_state_t *melody_callback_state = NULL;
+
+void fesk_demo_face_melody_done(void) {
+    if (melody_callback_state) {
+        melody_callback_state->is_playing_sequence = false;
+        printf("Melody done\n");
+    }
+}
+
 bool fesk_demo_face_loop(movement_event_t event, void *context) {
     fesk_demo_state_t *state = (fesk_demo_state_t *)context;
 
@@ -250,7 +277,15 @@ bool fesk_demo_face_loop(movement_event_t event, void *context) {
             break;
 
         case EVENT_ALARM_LONG_PRESS:
-            // Same behavior as short press for simplicity
+
+            // Play a melody.
+            if (state->is_playing_sequence) {
+                // Already playing a sequence, ignore
+                break;
+            }
+            state->is_playing_sequence = true;
+            melody_callback_state = state;
+            watch_buzzer_play_sequence(game_win_melody, fesk_demo_face_melody_done);
             break;
 
         case EVENT_TICK:
