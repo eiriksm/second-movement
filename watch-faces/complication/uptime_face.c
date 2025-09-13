@@ -88,7 +88,9 @@ static void _uptime_quit_chirping(uptime_state_t *state) {
 static void _uptime_transmission_done(void) {
     if (uptime_callback_state) {
         uptime_callback_state->is_playing_sequence = false;
-        _uptime_quit_chirping(uptime_callback_state);
+        uptime_state_t *state = uptime_callback_state;
+        uptime_callback_state = NULL;  // Clear callback state to prevent re-entry
+        _uptime_quit_chirping(state);
         printf("Uptime transmission complete\n");
     }
 }
@@ -181,6 +183,7 @@ static void _uptime_countdown_tick(void *context) {
 
             // Start playing the sequence
             state->is_playing_sequence = true;
+            state->mode = UT_TRANSMITTING;  // Change mode to transmitting
             uptime_callback_state = state;
             watch_buzzer_play_sequence(state->fesk_sequence, _uptime_transmission_done);
             return;
@@ -220,6 +223,8 @@ bool uptime_face_loop(movement_event_t event, void *context) {
             if (state->mode == UT_CHIRPING) {
                 // Handle countdown (transmission now uses watch_buzzer_play_sequence)
                 _uptime_countdown_tick(context);
+            } else if (state->mode == UT_TRANSMITTING) {
+                // Transmitting - no tick handling needed, sequence player handles it
             } else {
                 // Update with seconds on the bottom there.
                 char buf[16];
@@ -241,8 +246,8 @@ bool uptime_face_loop(movement_event_t event, void *context) {
         default:
             return movement_default_loop_handler(event);
     }
-    // Return true if the watch can enter standby mode. False needed when chirping or playing sequence.
-    if (state->mode == UT_CHIRPING || state->is_playing_sequence) {
+    // Return true if the watch can enter standby mode. False needed when chirping or transmitting.
+    if (state->mode == UT_CHIRPING || state->mode == UT_TRANSMITTING || state->is_playing_sequence) {
         return false;
     }
     return true;
@@ -251,7 +256,7 @@ bool uptime_face_loop(movement_event_t event, void *context) {
 void uptime_face_resign(void *context) {
     uptime_state_t *state = (uptime_state_t *)context;
 
-    if (state && state->mode == UT_CHIRPING) {
+    if (state && (state->mode == UT_CHIRPING || state->mode == UT_TRANSMITTING)) {
         _uptime_quit_chirping(state);
     }
 }

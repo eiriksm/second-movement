@@ -204,7 +204,9 @@ static void _fdf_start_transmission(fesk_demo_state_t *state) {
 static void _fdf_fesk_transmission_done(void) {
     if (melody_callback_state) {
         melody_callback_state->is_playing_sequence = false;
-        _fdf_stop_transmission(melody_callback_state);
+        fesk_demo_state_t *state = melody_callback_state;
+        melody_callback_state = NULL;  // Clear callback state to prevent re-entry
+        _fdf_stop_transmission(state);
         printf("FESK transmission complete\n");
     }
 }

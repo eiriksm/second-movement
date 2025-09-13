@@ -37,6 +37,7 @@
 typedef enum {
     UT_NONE = 0,
     UT_CHIRPING,
+    UT_TRANSMITTING,
 } uptime_mode_t;
 
 typedef struct {
