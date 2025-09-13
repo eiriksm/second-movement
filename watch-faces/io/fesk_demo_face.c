@@ -214,6 +214,7 @@ static void _fdf_handle_transmission_tick(fesk_demo_state_t *state) {
         // Set buzzer to the tone frequency
         uint16_t period = fesk_get_tone_period(&state->encoder_state, tone);
         if (period > 0) {
+            //printf("Tone: %d, Period: %d\n", tone, period);
             watch_set_buzzer_period_and_duty_cycle(period, 25);
             watch_set_buzzer_on();
         }
