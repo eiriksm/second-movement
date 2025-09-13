@@ -5,7 +5,6 @@
 
 #include <string.h>
 #include <stdlib.h>
-#include <stdio.h>
 #include "fesk_tx.h"
 
 /* ---- Constants ---- */
@@ -104,20 +103,16 @@ static void build_trit_stream(fesk_encoder_state_t *e) {
     bytes[m++] = (uint8_t)(e->crc16 >> 8);
     bytes[m++] = (uint8_t)(e->crc16 & 0xFF);
 
-    printf("TX PACKED BYTES:");
-    for (uint16_t i = 0; i < m; i++) printf(" %02X", bytes[i]);
-    printf("\n");
-
     /* Convert to trits and apply differential encoding */
     uint8_t raw_trits[FESK_MAX_TRITS];
     uint16_t raw_trit_len = pack_bytes_to_trits_msfirst(bytes, m, raw_trits);
-    
+
     /* Apply differential encoding to each trit */
     e->last_trit = 0;  /* Initialize differential state to 0 */
     for (uint16_t i = 0; i < raw_trit_len; i++) {
         e->trit_stream[i] = differential_encode_trit(e, raw_trits[i]);
     }
-    
+
     e->trit_len = raw_trit_len;
     e->trit_pos = 0;
 }
