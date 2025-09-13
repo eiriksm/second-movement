@@ -48,6 +48,9 @@ typedef struct {
     // FESK encoder state
     fesk_encoder_state_t encoder_state;
 
+    // Buzzer state tracking
+    bool buzzer_is_on;
+
 } fesk_demo_state_t;
 
 static char tone_string[1024];
@@ -73,6 +76,7 @@ void fesk_demo_face_activate(void *context) {
     state->countdown_seconds = 0;
     state->transmission_ticks = 0;
     state->tick_count = 0;
+    state->buzzer_is_on = false;
 }
 
 static void _fdf_update_display(fesk_demo_state_t *state) {
@@ -133,6 +137,10 @@ static void _fdf_start_transmission(fesk_demo_state_t *state) {
         return;
     }
 
+    // Turn on buzzer at start of transmission
+    watch_set_buzzer_on();
+    state->buzzer_is_on = true;
+
     _fdf_update_display(state);
 }
 
@@ -141,6 +149,7 @@ static void _fdf_stop_transmission(fesk_demo_state_t *state) {
 
     // Stop buzzer and clear indicators
     watch_set_buzzer_off();
+    state->buzzer_is_on = false;
     watch_clear_indicator(WATCH_INDICATOR_BELL);
 
     // Return to 1Hz ticks
@@ -207,9 +216,6 @@ static void _fdf_handle_transmission_tick(fesk_demo_state_t *state) {
         if (period > 0) {
             watch_set_buzzer_period_and_duty_cycle(period, 25);
             watch_set_buzzer_on();
-        } else {
-            // Silence or error
-            watch_set_buzzer_off();
         }
     }
 }
