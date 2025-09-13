@@ -7,7 +7,20 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+
+/* Conditional include for watch library - only when building for watch */
+#ifdef __SAML22J18A__
 #include "watch_tcc.h"
+#define FESK_HAS_WATCH_BUZZER 1
+#else
+#define FESK_HAS_WATCH_BUZZER 0
+/* Define a placeholder buzzer note type for tests */
+typedef int watch_buzzer_note_t;
+#define BUZZER_NOTE_C7SHARP_D7FLAT 0
+#define BUZZER_NOTE_G7 1
+#define BUZZER_NOTE_C8SHARP_D8FLAT 2
+#define BUZZER_NOTE_REST 3
+#endif
 
 /** Harmonic Triad 3-FSK (HT3) acoustic protocol:
  *  - 3-FSK using consonant 4:5:6 tone ratios
@@ -123,7 +136,9 @@ fesk_result_t fesk_init_encoder_with_config(fesk_encoder_state_t *encoder,
 uint8_t  fesk_get_next_tone(fesk_encoder_state_t *encoder);
 uint16_t fesk_get_tone_period(const fesk_encoder_state_t *encoder, uint8_t tone_index);
 uint16_t fesk_get_tone_frequency(const fesk_encoder_state_t *encoder, uint8_t tone_index);
+#if FESK_HAS_WATCH_BUZZER
 watch_buzzer_note_t fesk_get_buzzer_note(uint8_t tone_index);
+#endif
 bool     fesk_is_transmitting(const fesk_encoder_state_t *encoder);
 void     fesk_abort_transmission(fesk_encoder_state_t *encoder);
 

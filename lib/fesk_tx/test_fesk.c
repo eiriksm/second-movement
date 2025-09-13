@@ -84,11 +84,11 @@ static void test_frequency_generation() {
     uint16_t f1 = fesk_get_tone_frequency(&encoder, 1);
     uint16_t f2 = fesk_get_tone_frequency(&encoder, 2);
     
-    // Check default frequencies
-    if (f0 == 2240 && f1 == 3200 && f2 == 4480) {
+    // Check default frequencies using constants
+    if (f0 == FESK_F0 && f1 == FESK_F1 && f2 == FESK_F2) {
         printf("PASS (frequencies: %dHz, %dHz, %dHz)\n", f0, f1, f2);
     } else {
-        printf("FAIL (got %dHz, %dHz, %dHz)\n", f0, f1, f2);
+        printf("FAIL (got %dHz, %dHz, %dHz, expected %d, %d, %d)\n", f0, f1, f2, FESK_F0, FESK_F1, FESK_F2);
     }
 }
 

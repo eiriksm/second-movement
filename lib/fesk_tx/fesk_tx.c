@@ -235,6 +235,7 @@ uint16_t fesk_get_tone_frequency(const fesk_encoder_state_t *e, uint8_t idx) {
     return 0;
 }
 
+#if FESK_HAS_WATCH_BUZZER
 watch_buzzer_note_t fesk_get_buzzer_note(uint8_t tone_index) {
     switch (tone_index) {
         case 0: return FESK_NOTE_0;
@@ -243,6 +244,7 @@ watch_buzzer_note_t fesk_get_buzzer_note(uint8_t tone_index) {
         default: return BUZZER_NOTE_REST;
     }
 }
+#endif
 
 /* Transmission status */
 bool fesk_is_transmitting(const fesk_encoder_state_t *e) {
