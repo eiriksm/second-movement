@@ -24,6 +24,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 #include <inttypes.h>
 #include <stdint.h>
 #include "uptime_face.h"
@@ -35,6 +36,10 @@
 
 // persistent buffer (don't point globals at a local/stack buffer)
 static uint8_t long_data_str[UPTIME_BUFSZ];
+
+// Forward declarations
+static uint32_t uptime_get_seconds_since_boot(uptime_state_t *state);
+static inline size_t build_uptime_line(uint32_t seconds_since_boot);
 
 
 void uptime_face_setup(uint8_t watch_face_index, void ** context_ptr) {
@@ -51,28 +56,90 @@ void uptime_face_setup(uint8_t watch_face_index, void ** context_ptr) {
 void uptime_face_activate(void *context) {
     uptime_state_t *state = (uptime_state_t *)context;
     state->buzzer_is_on = false;
+    state->is_playing_sequence = false;
+    state->fesk_sequence = NULL;
+    state->fesk_sequence_length = 0;
 }
+
+static void _uptime_transmission_done(void);
+static uptime_state_t *uptime_callback_state = NULL;
 
 static void _uptime_quit_chirping(uptime_state_t *state) {
     state->mode = UT_NONE;
+
+    // Stop any playing sequence
+    if (state->is_playing_sequence) {
+        watch_buzzer_abort_sequence();
+        state->is_playing_sequence = false;
+    }
+
+    // Free sequence memory
+    if (state->fesk_sequence) {
+        free(state->fesk_sequence);
+        state->fesk_sequence = NULL;
+    }
+
     watch_set_buzzer_off();
     state->buzzer_is_on = false;
     watch_clear_indicator(WATCH_INDICATOR_BELL);
     movement_request_tick_frequency(1);
 }
 
-static void _uptime_data_tick(void *context) {
-    uptime_state_t *state = (uptime_state_t *)context;
-
-    uint8_t tone = fesk_get_next_tone(&state->encoder_state);
-    // Transmission over?
-    if (tone == 255) {
+static void _uptime_transmission_done(void) {
+    if (uptime_callback_state) {
+        uptime_callback_state->is_playing_sequence = false;
+        uptime_state_t *state = uptime_callback_state;
+        uptime_callback_state = NULL;  // Clear callback state to prevent re-entry
         _uptime_quit_chirping(state);
+        printf("Uptime transmission complete\n");
+    }
+}
+
+static void _uptime_build_fesk_sequence(uptime_state_t *state) {
+    // Build uptime message
+    uint32_t seconds_since_boot = uptime_get_seconds_since_boot(state);
+    size_t len = build_uptime_line(seconds_since_boot);
+
+    // Count total symbols needed
+    size_t total_symbols = 0;
+
+    // Initialize encoder to count symbols
+    fesk_result_t result = fesk_init_encoder(&state->encoder_state, long_data_str, len);
+    if (result != FESK_SUCCESS) {
         return;
     }
-    uint16_t period = fesk_get_tone_period(&state->encoder_state, tone);
-    watch_set_buzzer_period_and_duty_cycle(period, 25);
-    watch_set_buzzer_on();
+
+    // Count symbols
+    uint8_t tone;
+    while ((tone = fesk_get_next_tone(&state->encoder_state)) != 255) {
+        total_symbols++;
+    }
+
+    // Allocate sequence: note, duration pairs + terminator
+    state->fesk_sequence_length = (total_symbols * 2) + 1;
+    state->fesk_sequence = malloc(state->fesk_sequence_length * sizeof(int8_t));
+
+    if (!state->fesk_sequence) {
+        return;
+    }
+
+    // Re-initialize encoder to generate sequence
+    result = fesk_init_encoder(&state->encoder_state, long_data_str, len);
+    if (result != FESK_SUCCESS) {
+        free(state->fesk_sequence);
+        state->fesk_sequence = NULL;
+        return;
+    }
+
+    // Build the sequence
+    size_t seq_index = 0;
+    while ((tone = fesk_get_next_tone(&state->encoder_state)) != 255) {
+        state->fesk_sequence[seq_index++] = fesk_get_buzzer_note(tone);
+        state->fesk_sequence[seq_index++] = state->encoder_state.config.symbol_ticks;  // Duration in 64Hz ticks
+    }
+
+    // Terminator
+    state->fesk_sequence[seq_index] = 0;
 }
 
 
@@ -105,22 +172,20 @@ static void _uptime_countdown_tick(void *context) {
         
         // After countdown finishes, start transmission
         if (state->countdown_seconds == 0) {
-            // Create uptime string
-            uint32_t seconds_since_boot = uptime_get_seconds_since_boot(state);
-            size_t len = build_uptime_line(seconds_since_boot);
-            
-            // Initialize fesk encoder with the uptime data
-            fesk_result_t result = fesk_init_encoder(&state->encoder_state, long_data_str, len);
-            if (result != FESK_SUCCESS) {
+            // Build FESK sequence
+            _uptime_build_fesk_sequence(state);
+
+            if (!state->fesk_sequence) {
+                // Error - quit
                 _uptime_quit_chirping(state);
                 return;
             }
-            
-            // Switch to transmission mode and turn on buzzer
-            state->tick_compare = state->encoder_state.config.symbol_ticks;
-            state->tick_count = 0;
-            watch_set_buzzer_on();
-            state->buzzer_is_on = true;
+
+            // Start playing the sequence
+            state->is_playing_sequence = true;
+            state->mode = UT_TRANSMITTING;  // Change mode to transmitting
+            uptime_callback_state = state;
+            watch_buzzer_play_sequence(state->fesk_sequence, _uptime_transmission_done);
             return;
         }
         state->countdown_seconds--;
@@ -156,17 +221,10 @@ bool uptime_face_loop(movement_event_t event, void *context) {
             break;
         case EVENT_TICK:
             if (state->mode == UT_CHIRPING) {
-                if (fesk_is_transmitting(&state->encoder_state)) {
-                    // Handle transmission ticks
-                    ++state->tick_count;
-                    if (state->tick_count >= state->tick_compare) {
-                        state->tick_count = 0;
-                        _uptime_data_tick(context);
-                    }
-                } else {
-                    // Handle countdown
-                    _uptime_countdown_tick(context);
-                }
+                // Handle countdown (transmission now uses watch_buzzer_play_sequence)
+                _uptime_countdown_tick(context);
+            } else if (state->mode == UT_TRANSMITTING) {
+                // Transmitting - no tick handling needed, sequence player handles it
             } else {
                 // Update with seconds on the bottom there.
                 char buf[16];
@@ -188,14 +246,18 @@ bool uptime_face_loop(movement_event_t event, void *context) {
         default:
             return movement_default_loop_handler(event);
     }
-    // Return true if the watch can enter standby mode. False needed when chirping.
-    if (state->mode == UT_CHIRPING) {
+    // Return true if the watch can enter standby mode. False needed when chirping or transmitting.
+    if (state->mode == UT_CHIRPING || state->mode == UT_TRANSMITTING || state->is_playing_sequence) {
         return false;
     }
     return true;
 }
 
 void uptime_face_resign(void *context) {
-    (void) context;
+    uptime_state_t *state = (uptime_state_t *)context;
+
+    if (state && (state->mode == UT_CHIRPING || state->mode == UT_TRANSMITTING)) {
+        _uptime_quit_chirping(state);
+    }
 }
 
