@@ -49,6 +49,10 @@ typedef struct {
     uint8_t countdown_seconds;
     // Buzzer state tracking
     bool buzzer_is_on;
+    bool is_playing_sequence;
+    // FESK sequence for buzzer playback
+    int8_t *fesk_sequence;
+    size_t fesk_sequence_length;
 } uptime_state_t;
 
 void uptime_face_setup(uint8_t watch_face_index, void ** context_ptr);

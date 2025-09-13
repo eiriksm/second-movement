@@ -24,6 +24,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 #include "fesk_demo_face.h"
 #include "fesk_tx.h"
 #include "movement.h"
@@ -54,6 +55,10 @@ typedef struct {
 
     bool is_playing_sequence;
 
+    // FESK sequence for buzzer playback
+    int8_t *fesk_sequence;
+    size_t fesk_sequence_length;
+
 } fesk_demo_state_t;
 
 static char tone_string[1024];
@@ -61,6 +66,9 @@ static char tone_string[1024];
 // Test message to transmit
 static const uint8_t test_message[] = "test";
 static const uint16_t test_message_len = sizeof(test_message) - 1;
+
+// Global callback state for sequence completion
+static fesk_demo_state_t *melody_callback_state = NULL;
 
 void fesk_demo_face_setup(uint8_t watch_face_index, void **context_ptr) {
     (void)watch_face_index;
@@ -80,6 +88,9 @@ void fesk_demo_face_activate(void *context) {
     state->transmission_ticks = 0;
     state->tick_count = 0;
     state->buzzer_is_on = false;
+    state->is_playing_sequence = false;
+    state->fesk_sequence = NULL;
+    state->fesk_sequence_length = 0;
 }
 
 static void _fdf_update_display(fesk_demo_state_t *state) {
@@ -123,32 +134,95 @@ static void _fdf_start_countdown(fesk_demo_state_t *state) {
 }
 
 static void _fdf_stop_transmission(fesk_demo_state_t *state);
+static void _fdf_fesk_transmission_done(void);
+
+static void _fdf_build_fesk_sequence(fesk_demo_state_t *state) {
+    // Count total symbols needed
+    size_t total_symbols = 0;
+
+    // Initialize encoder to count symbols
+    fesk_result_t result = fesk_init_encoder(&state->encoder_state, test_message, test_message_len);
+    if (result != FESK_SUCCESS) {
+        return;
+    }
+
+    // Count symbols
+    uint8_t tone;
+    while ((tone = fesk_get_next_tone(&state->encoder_state)) != 255) {
+        total_symbols++;
+    }
+
+    // Allocate sequence: note, duration pairs + terminator
+    state->fesk_sequence_length = (total_symbols * 2) + 1;
+    state->fesk_sequence = malloc(state->fesk_sequence_length * sizeof(int8_t));
+
+    if (!state->fesk_sequence) {
+        return;
+    }
+
+    // Re-initialize encoder to generate sequence
+    result = fesk_init_encoder(&state->encoder_state, test_message, test_message_len);
+    if (result != FESK_SUCCESS) {
+        free(state->fesk_sequence);
+        state->fesk_sequence = NULL;
+        return;
+    }
+
+    // Build the sequence
+    size_t seq_index = 0;
+    while ((tone = fesk_get_next_tone(&state->encoder_state)) != 255) {
+        state->fesk_sequence[seq_index++] = fesk_get_buzzer_note(tone);
+        state->fesk_sequence[seq_index++] = state->encoder_state.config.symbol_ticks;  // Duration in 64Hz ticks
+    }
+
+    // Terminator
+    state->fesk_sequence[seq_index] = 0;
+}
 
 static void _fdf_start_transmission(fesk_demo_state_t *state) {
     state->mode = FDM_TRANSMITTING;
     state->transmission_ticks = 0;
     state->tick_count = 0;
 
-    // Initialize FESK encoder with test message
-    fesk_result_t result = fesk_init_encoder(&state->encoder_state,
-                                             test_message,
-                                             test_message_len);
+    // Build FESK sequence
+    _fdf_build_fesk_sequence(state);
 
-    if (result != FESK_SUCCESS) {
+    if (!state->fesk_sequence) {
         // Error - go back to ready
         _fdf_stop_transmission(state);
         return;
     }
 
-    // Turn on buzzer at start of transmission
-    watch_set_buzzer_on();
-    state->buzzer_is_on = true;
+    // Start playing the sequence
+    state->is_playing_sequence = true;
+    melody_callback_state = state;
+    watch_buzzer_play_sequence(state->fesk_sequence, _fdf_fesk_transmission_done);
 
     _fdf_update_display(state);
 }
 
+static void _fdf_fesk_transmission_done(void) {
+    if (melody_callback_state) {
+        melody_callback_state->is_playing_sequence = false;
+        _fdf_stop_transmission(melody_callback_state);
+        printf("FESK transmission complete\n");
+    }
+}
+
 static void _fdf_stop_transmission(fesk_demo_state_t *state) {
     state->mode = FDM_READY;
+
+    // Stop any playing sequence
+    if (state->is_playing_sequence) {
+        watch_buzzer_abort_sequence();
+        state->is_playing_sequence = false;
+    }
+
+    // Free sequence memory
+    if (state->fesk_sequence) {
+        free(state->fesk_sequence);
+        state->fesk_sequence = NULL;
+    }
 
     // Stop buzzer and clear indicators
     watch_set_buzzer_off();
@@ -191,37 +265,6 @@ static void _fdf_handle_countdown_tick(fesk_demo_state_t *state) {
     }
 }
 
-// A global var to hold a comma separated string of the tones we emit.
-
-static void _fdf_handle_transmission_tick(fesk_demo_state_t *state) {
-    state->tick_count++;
-
-    // Symbol duration is configurable, default is 6 ticks (93.75ms at 64Hz)
-    uint8_t symbol_ticks = state->encoder_state.config.symbol_ticks;
-
-    if (state->tick_count >= symbol_ticks) {
-        state->tick_count = 0;
-
-        // Get next tone from encoder
-        uint8_t tone = fesk_get_next_tone(&state->encoder_state);
-        // Append the variable "tone" to the tone_string
-        snprintf(tone_string + strlen(tone_string), sizeof(tone_string) - strlen(tone_string), ",%d", tone);
-
-        if (tone == 255) {
-            // Transmission complete
-            _fdf_stop_transmission(state);
-            printf("Tones emitted: %s\n", tone_string);
-            return;
-        }
-
-        // Set buzzer to the tone frequency
-        uint16_t period = fesk_get_tone_period(&state->encoder_state, tone);
-        if (period > 0) {
-            watch_set_buzzer_period_and_duty_cycle(period, 25);
-            watch_set_buzzer_on();
-        }
-    }
-}
 
 static int8_t game_win_melody[] = {
     BUZZER_NOTE_G6, 6,
@@ -237,8 +280,6 @@ static int8_t game_win_melody[] = {
     BUZZER_NOTE_D7, 6,
     BUZZER_NOTE_G7, 6,
     0};
-
-static fesk_demo_state_t *melody_callback_state = NULL;
 
 void fesk_demo_face_melody_done(void) {
     if (melody_callback_state) {
@@ -291,9 +332,8 @@ bool fesk_demo_face_loop(movement_event_t event, void *context) {
         case EVENT_TICK:
             if (state->mode == FDM_COUNTDOWN) {
                 _fdf_handle_countdown_tick(state);
-            } else if (state->mode == FDM_TRANSMITTING) {
-                _fdf_handle_transmission_tick(state);
             }
+            // Note: FDM_TRANSMITTING now uses watch_buzzer_play_sequence, no tick handling needed
             break;
 
         case EVENT_TIMEOUT:
@@ -308,7 +348,7 @@ bool fesk_demo_face_loop(movement_event_t event, void *context) {
     }
 
     // Return false during active operations to prevent sleep
-    return (state->mode == FDM_READY);
+    return (state->mode == FDM_READY && !state->is_playing_sequence);
 }
 
 void fesk_demo_face_resign(void *context) {

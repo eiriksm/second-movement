@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "watch_tcc.h"
 
 /** Harmonic Triad 3-FSK (HT3) acoustic protocol:
  *  - 3-FSK using consonant 4:5:6 tone ratios
@@ -32,9 +33,15 @@
  */
 #define FESK_MAX_TRITS         600
 
-#define FESK_F0 2240
-#define FESK_F1 3200
-#define FESK_F2 4480
+/* Default FESK frequencies mapped to closest buzzer notes */
+#define FESK_F0 2217  /* BUZZER_NOTE_C7SHARP_D7FLAT */
+#define FESK_F1 3136  /* BUZZER_NOTE_G7 */
+#define FESK_F2 4435  /* BUZZER_NOTE_C8SHARP_D8FLAT */
+
+/* Buzzer note mappings */
+#define FESK_NOTE_0 BUZZER_NOTE_C7SHARP_D7FLAT
+#define FESK_NOTE_1 BUZZER_NOTE_G7
+#define FESK_NOTE_2 BUZZER_NOTE_C8SHARP_D8FLAT
 
 /* -------- Results -------- */
 typedef enum {
@@ -116,6 +123,7 @@ fesk_result_t fesk_init_encoder_with_config(fesk_encoder_state_t *encoder,
 uint8_t  fesk_get_next_tone(fesk_encoder_state_t *encoder);
 uint16_t fesk_get_tone_period(const fesk_encoder_state_t *encoder, uint8_t tone_index);
 uint16_t fesk_get_tone_frequency(const fesk_encoder_state_t *encoder, uint8_t tone_index);
+watch_buzzer_note_t fesk_get_buzzer_note(uint8_t tone_index);
 bool     fesk_is_transmitting(const fesk_encoder_state_t *encoder);
 void     fesk_abort_transmission(fesk_encoder_state_t *encoder);
 
