@@ -16,9 +16,9 @@
 #define FESK_HAS_WATCH_BUZZER 0
 /* Define a placeholder buzzer note type for tests */
 typedef int watch_buzzer_note_t;
-#define BUZZER_NOTE_C7SHARP_D7FLAT 0
-#define BUZZER_NOTE_G7 1
-#define BUZZER_NOTE_C8SHARP_D8FLAT 2
+#define BUZZER_NOTE_F7 0
+#define BUZZER_NOTE_A7 1
+#define BUZZER_NOTE_D8 2
 #define BUZZER_NOTE_REST 3
 #endif
 
@@ -47,14 +47,14 @@ typedef int watch_buzzer_note_t;
 #define FESK_MAX_TRITS         600
 
 /* Default FESK frequencies mapped to closest buzzer notes */
-#define FESK_F0 2217  /* BUZZER_NOTE_C7SHARP_D7FLAT */
-#define FESK_F1 3136  /* BUZZER_NOTE_G7 */
-#define FESK_F2 4435  /* BUZZER_NOTE_C8SHARP_D8FLAT */
+#define FESK_F0 2794  /* F7 = 2793.83 Hz */
+#define FESK_F1 3520  /* A7 = 3520.00 Hz */
+#define FESK_F2 4699  /* D8 = 4698.63 Hz */
 
 /* Buzzer note mappings */
-#define FESK_NOTE_0 BUZZER_NOTE_C7SHARP_D7FLAT
-#define FESK_NOTE_1 BUZZER_NOTE_G7
-#define FESK_NOTE_2 BUZZER_NOTE_C8SHARP_D8FLAT
+#define FESK_NOTE_0 BUZZER_NOTE_F7
+#define FESK_NOTE_1 BUZZER_NOTE_A7
+#define FESK_NOTE_2 BUZZER_NOTE_D8
 
 /* -------- Results -------- */
 typedef enum {
