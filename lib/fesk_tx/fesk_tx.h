@@ -73,33 +73,25 @@ typedef struct {
     bool     use_fec;      /* reserved */
 } fesk_config_t;
 
-/* Optional source callback (unused by current TX path) */
-typedef uint8_t (*fesk_get_next_byte_t)(uint8_t *next_byte);
-
 /* -------- Internal encoder state -------- */
 typedef struct {
     /* Configuration */
     fesk_config_t       config;
-    fesk_get_next_byte_t get_next_byte; /* optional */
 
     /* State machine */
     enum {
         FESK_STATE_PREAMBLE = 0,
         FESK_STATE_SYNC,
-        FESK_STATE_HEADER,   /* retained for compatibility; not emitted separately */
         FESK_STATE_PAYLOAD,  /* unified emission of header+payload+CRC trits */
-        FESK_STATE_CRC,      /* retained; not used in canonical build-once path */
         FESK_STATE_COMPLETE
     } state;
 
     /* Sequence counters for preamble/sync */
     uint16_t sequence_pos;
-    uint16_t bit_pos;
 
     /* Data buffers */
     uint8_t  payload_buffer[FESK_MAX_PAYLOAD_SIZE];
     uint16_t payload_len;
-    uint16_t payload_pos;   /* not used by canonical build; kept for API symmetry */
 
     /* Trit counting */
     uint32_t trit_count;    /* total data trits since sync (header+payload+CRC) */

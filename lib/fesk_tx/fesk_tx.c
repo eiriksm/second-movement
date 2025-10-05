@@ -176,7 +176,6 @@ fesk_result_t fesk_init_encoder_with_config(fesk_encoder_state_t *e,
     e->state = FESK_STATE_PREAMBLE;
     e->transmission_active = true;
     e->sequence_pos = 0;
-    e->bit_pos = 0;
     e->trit_count = 0;
     e->last_trit = 0;
     return FESK_SUCCESS;
@@ -205,7 +204,6 @@ uint8_t fesk_get_next_tone(fesk_encoder_state_t *e) {
         e->state = FESK_STATE_PAYLOAD;
         /* fallthrough */
 
-    case FESK_STATE_HEADER: /* not used anymore */
     case FESK_STATE_PAYLOAD:
         /* Direct trit transmission - no pilot insertion */
         if (e->trit_pos < e->trit_len) {
@@ -216,7 +214,6 @@ uint8_t fesk_get_next_tone(fesk_encoder_state_t *e) {
         e->transmission_active = false;
         return 255;
 
-    case FESK_STATE_CRC: /* obsolete path */
     case FESK_STATE_COMPLETE:
     default:
         e->transmission_active = false;

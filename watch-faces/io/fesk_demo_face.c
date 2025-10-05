@@ -207,7 +207,7 @@ static void _fdf_fesk_transmission_done(void) {
         fesk_demo_state_t *state = melody_callback_state;
         melody_callback_state = NULL;  // Clear callback state to prevent re-entry
         _fdf_stop_transmission(state);
-        printf("FESK transmission complete\n");
+        printf("FESK transmission complete. We transmitted %d symbols and the message was \"%s\".\n", state->fesk_sequence_length, test_message);
     }
 }
 
