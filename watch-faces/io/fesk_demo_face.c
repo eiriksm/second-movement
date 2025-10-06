@@ -61,7 +61,7 @@ typedef struct {
 static char tone_string[1024];
 
 // Test message to transmit
-static const char test_message[] = "a fairly long, and might i say convoluted test message: yes";
+static const char test_message[] = "test";
 static const size_t test_message_len = sizeof(test_message) - 1;
 
 // Global callback state for sequence completion
