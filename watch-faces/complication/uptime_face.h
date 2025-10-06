@@ -43,10 +43,7 @@ typedef enum {
 typedef struct {
     uint32_t boot_time;
     uptime_mode_t mode;
-    // Used by fesk encoder during transmission
-    fesk_encoder_state_t encoder_state;
     uint8_t tick_count;
-    uint8_t tick_compare;
     uint8_t countdown_seconds;
     // Buzzer state tracking
     bool buzzer_is_on;

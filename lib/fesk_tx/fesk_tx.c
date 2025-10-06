@@ -1,257 +1,161 @@
-/*
- * MIT License
- * (c) 2024 Second Movement Project
- */
-
-#include <string.h>
-#include <stdlib.h>
 #include "fesk_tx.h"
 
-/* ---- Constants ---- */
+#include <ctype.h>
+#include <stdint.h>
+#include <stdlib.h>
 
-/* 12-bit alternating preamble (binary, f0/f2) */
-static const uint8_t preamble_pattern[FESK_PREAMBLE_LEN] = {
-    1,0,1,0,1,0,1,0,1,0,1,0
+#include "watch_tcc.h"
+
+#define FESK_TICKS_PER_SYMBOL 4
+
+typedef struct {
+    uint8_t digits[4];
+    uint8_t count;
+} fesk_symbol_t;
+
+static const fesk_symbol_t _letter_table[26] = {
+    {{0, 0, 0, 0}, 2}, // a -> 00
+    {{0, 1, 0, 0}, 2}, // b -> 01
+    {{0, 2, 0, 0}, 2}, // c -> 02
+    {{0, 3, 0, 0}, 2}, // d -> 03
+    {{1, 0, 0, 0}, 2}, // e -> 10
+    {{1, 1, 0, 0}, 2}, // f -> 11
+    {{1, 2, 0, 0}, 2}, // g -> 12
+    {{1, 3, 0, 0}, 2}, // h -> 13
+    {{2, 0, 0, 0}, 2}, // i -> 20
+    {{2, 1, 0, 0}, 2}, // j -> 21
+    {{2, 2, 0, 0}, 2}, // k -> 22
+    {{2, 3, 0, 0}, 2}, // l -> 23
+    {{3, 0, 0, 0}, 3}, // m -> 300
+    {{3, 0, 1, 0}, 3}, // n -> 301
+    {{3, 0, 2, 0}, 3}, // o -> 302
+    {{3, 0, 3, 0}, 3}, // p -> 303
+    {{3, 1, 0, 0}, 4}, // q -> 3100
+    {{3, 1, 1, 0}, 3}, // r -> 311
+    {{3, 1, 2, 0}, 3}, // s -> 312
+    {{3, 1, 3, 0}, 3}, // t -> 313
+    {{3, 2, 0, 0}, 4}, // u -> 3200
+    {{3, 2, 1, 0}, 3}, // v -> 321
+    {{3, 2, 2, 0}, 3}, // w -> 322
+    {{3, 2, 3, 0}, 3}, // x -> 323
+    {{3, 3, 0, 0}, 4}, // y -> 3300
+    {{3, 3, 1, 0}, 4}, // z -> 3310
 };
 
-/* Barker-13 sync sequence */
-static const uint8_t barker13_pattern[FESK_SYNC_LEN] = {
-    1,1,1,1,1,0,0,1,1,0,1,0,1
+static const fesk_symbol_t _digit_table[10] = {
+    {{3, 3, 2, 0}, 3}, // 0 -> 332
+    {{3, 3, 0, 1}, 4}, // 1 -> 3301
+    {{3, 3, 0, 2}, 4}, // 2 -> 3302
+    {{3, 3, 0, 3}, 4}, // 3 -> 3303
+    {{3, 2, 0, 1}, 4}, // 4 -> 3201
+    {{3, 2, 0, 2}, 4}, // 5 -> 3202
+    {{3, 2, 0, 3}, 4}, // 6 -> 3203
+    {{3, 1, 0, 1}, 4}, // 7 -> 3101
+    {{3, 1, 0, 2}, 4}, // 8 -> 3102
+    {{3, 1, 0, 3}, 4}, // 9 -> 3103
 };
 
-/* Scrambler polynomial x^9 + x^5 + 1 */
-#define FESK_LFSR_SEED 0x1FF
-#define FESK_CRC16_POLY 0x1021
+static const fesk_symbol_t _symbol_space = {{3, 3, 1, 1}, 4}; // space -> 3311
+static const fesk_symbol_t _symbol_comma = {{3, 3, 1, 2}, 4}; // comma -> 3312
+static const fesk_symbol_t _symbol_colon = {{3, 3, 1, 3}, 4}; // colon -> 3313
 
-/* ---- Internal helpers ---- */
+static const watch_buzzer_note_t _tone_map[4] = {
+    [0] = BUZZER_NOTE_F7,
+    [1] = BUZZER_NOTE_A7,
+    [2] = BUZZER_NOTE_D8,
+    [3] = BUZZER_NOTE_G6,
+};
 
-/* Differential encoding state */
-static uint8_t differential_encode_trit(fesk_encoder_state_t *e, uint8_t trit) {
-    uint8_t encoded = (e->last_trit + trit) % 3;
-    e->last_trit = encoded;
-    return encoded;
-}
-
-/* Precompute tone periods for buzzer (1MHz clock) */
-static void _fesk_init_periods(fesk_encoder_state_t *e) {
-    e->tone_periods[0] = 1000000 / e->config.f0;
-    e->tone_periods[1] = 1000000 / e->config.f1;
-    e->tone_periods[2] = 1000000 / e->config.f2;
-}
-
-/* Reset LFSR state */
-static void _fesk_init_lfsr(fesk_encoder_state_t *e) {
-    e->lfsr_state = FESK_LFSR_SEED;
-}
-
-/* Scramble one byte with LFSR, advancing state (LSB-first XOR) */
-static uint8_t _fesk_scramble_byte(fesk_encoder_state_t *e, uint8_t b) {
-    if (!e->config.use_scrambler) return b;
-
-    uint8_t out = 0;
-    for (int i = 0; i < 8; i++) {
-        uint8_t lsb = e->lfsr_state & 1;
-        uint8_t bit = ((b >> i) & 1) ^ lsb;
-        out |= bit << i;
-
-        uint8_t fb = ((e->lfsr_state >> 8) ^ (e->lfsr_state >> 4)) & 1;
-        e->lfsr_state = ((e->lfsr_state << 1) | fb) & 0x1FF;
+static const fesk_symbol_t *_lookup_symbol(unsigned char raw) {
+    if (raw >= '0' && raw <= '9') {
+        return &_digit_table[raw - '0'];
     }
-    return out;
+
+    int lower = tolower(raw);
+    if (lower >= 'a' && lower <= 'z') {
+        return &_letter_table[lower - 'a'];
+    }
+
+    switch (raw) {
+        case ' ': return &_symbol_space;
+        case ',': return &_symbol_comma;
+        case ':': return &_symbol_colon;
+        default:  return NULL;
+    }
 }
 
-/* Pack bytes into trits, MS-trit-first, whole-number conversion */
-static uint16_t pack_bytes_to_trits_msfirst(const uint8_t *bytes, uint16_t n, uint8_t *out) {
-    uint8_t work[FESK_MAX_PAYLOAD_SIZE + 4];
-    memcpy(work, bytes, n);
-    uint16_t len = n;
-    uint8_t tmp[FESK_MAX_TRITS];
-    uint16_t tlen = 0;
+static fesk_result_t _encode_internal(const char *text,
+                                      size_t length,
+                                      int8_t **out_sequence,
+                                      size_t *out_entries) {
+    if (!text || !out_sequence || length == 0) {
+        return FESK_ERR_INVALID_ARGUMENT;
+    }
 
-    while (len > 0) {
-        uint16_t newlen = 0, carry = 0;
-        for (uint16_t i = 0; i < len; i++) {
-            uint16_t cur = (carry << 8) | work[i];
-            uint8_t q = (uint8_t)(cur / 3);
-            carry = (uint8_t)(cur % 3);
-            if (newlen || q) work[newlen++] = q;
+    size_t total_digits = 0;
+    for (size_t i = 0; i < length; i++) {
+        unsigned char raw = (unsigned char)text[i];
+        const fesk_symbol_t *symbol = _lookup_symbol(raw);
+        if (symbol == NULL) {
+            return FESK_ERR_UNSUPPORTED_CHARACTER;
         }
-        tmp[tlen++] = carry; /* least-significant trit */
-        len = newlen;
-    }
-    /* Reverse: emit MS-trit-first */
-    for (uint16_t i = 0; i < tlen; i++) out[i] = tmp[tlen - 1 - i];
-    return tlen;
-}
-
-/* Build entire ternary stream (header+payload+CRC) with differential encoding */
-static void build_trit_stream(fesk_encoder_state_t *e) {
-    if (e->config.use_scrambler) _fesk_init_lfsr(e);
-
-    uint8_t bytes[FESK_MAX_PAYLOAD_SIZE + 4];
-    uint16_t m = 0;
-
-    /* Header (len, scrambled) */
-    bytes[m++] = _fesk_scramble_byte(e, (e->payload_len >> 8) & 0xFF);
-    bytes[m++] = _fesk_scramble_byte(e, e->payload_len & 0xFF);
-
-    /* Payload (scrambled) */
-    for (uint16_t i = 0; i < e->payload_len; i++)
-        bytes[m++] = _fesk_scramble_byte(e, e->payload_buffer[i]);
-
-    /* CRC over original payload, UNSCRAMBLED big-endian */
-    bytes[m++] = (uint8_t)(e->crc16 >> 8);
-    bytes[m++] = (uint8_t)(e->crc16 & 0xFF);
-
-    /* Convert to trits and apply differential encoding */
-    uint8_t raw_trits[FESK_MAX_TRITS];
-    uint16_t raw_trit_len = pack_bytes_to_trits_msfirst(bytes, m, raw_trits);
-
-    /* Apply differential encoding to each trit */
-    e->last_trit = 0;  /* Initialize differential state to 0 */
-    for (uint16_t i = 0; i < raw_trit_len; i++) {
-        e->trit_stream[i] = differential_encode_trit(e, raw_trits[i]);
+        total_digits += symbol->count;
     }
 
-    e->trit_len = raw_trit_len;
-    e->trit_pos = 0;
-}
+    size_t total_entries = total_digits * 4; // tone, duration, rest, duration per digit
+    int8_t *sequence = malloc((total_entries + 1) * sizeof(int8_t));
+    if (!sequence) {
+        return FESK_ERR_ALLOCATION_FAILED;
+    }
 
-/* ---- CRC ---- */
-
-uint16_t fesk_update_crc16(uint16_t crc, uint8_t b) {
-    crc ^= (uint16_t)b << 8;
-    for (int i = 0; i < 8; i++)
-        crc = (crc & 0x8000) ? (crc << 1) ^ FESK_CRC16_POLY : (crc << 1);
-    return crc;
-}
-
-uint16_t fesk_crc16(const uint8_t *data, uint16_t len, uint16_t init) {
-    uint16_t crc = init;
-    for (uint16_t i = 0; i < len; i++) crc = fesk_update_crc16(crc, data[i]);
-    return crc;
-}
-
-/* ---- Public API ---- */
-
-void fesk_get_default_config(fesk_config_t *c) {
-    if (!c) return;
-    c->f0 = FESK_F0; c->f1 = FESK_F1; c->f2 = FESK_F2;
-    c->symbol_ticks = FESK_SYMBOL_TICKS;
-    c->use_scrambler = true;
-    c->use_fec = false;
-}
-
-fesk_result_t fesk_validate_config(const fesk_config_t *c) {
-    if (!c) return FESK_ERROR_INVALID_PARAM;
-    if (!c->f0 || !c->f1 || !c->f2) return FESK_ERROR_INVALID_PARAM;
-    if (!c->symbol_ticks || c->symbol_ticks > 16) return FESK_ERROR_INVALID_PARAM;
-    return FESK_SUCCESS;
-}
-
-fesk_result_t fesk_init_encoder(fesk_encoder_state_t *e,
-                                const uint8_t *data,
-                                uint16_t len) {
-    fesk_config_t cfg;
-    fesk_get_default_config(&cfg);
-    return fesk_init_encoder_with_config(e, &cfg, data, len);
-}
-
-fesk_result_t fesk_init_encoder_with_config(fesk_encoder_state_t *e,
-                                            const fesk_config_t *cfg,
-                                            const uint8_t *data,
-                                            uint16_t len) {
-    if (!e || !cfg || !data) return FESK_ERROR_INVALID_PARAM;
-    if (len > FESK_MAX_PAYLOAD_SIZE) return FESK_ERROR_PAYLOAD_TOO_LARGE;
-    if (fesk_validate_config(cfg) != FESK_SUCCESS) return FESK_ERROR_INVALID_PARAM;
-
-    memset(e, 0, sizeof(*e));
-    e->config = *cfg;
-
-    _fesk_init_periods(e);
-    memcpy(e->payload_buffer, data, len);
-    e->payload_len = len;
-
-    e->crc16 = fesk_crc16(data, len, 0xFFFF);
-    e->state = FESK_STATE_PREAMBLE;
-    e->transmission_active = true;
-    e->sequence_pos = 0;
-    e->bit_pos = 0;
-    e->trit_count = 0;
-    e->last_trit = 0;
-    return FESK_SUCCESS;
-}
-
-/* Get next tone: 0=f0, 1=f1, 2=f2; 255=end */
-uint8_t fesk_get_next_tone(fesk_encoder_state_t *e) {
-    if (!e || !e->transmission_active) return 255;
-
-    switch (e->state) {
-    case FESK_STATE_PREAMBLE:
-        if (e->sequence_pos < FESK_PREAMBLE_LEN) {
-            uint8_t bit = preamble_pattern[e->sequence_pos++];
-            return bit ? 2 : 0;
+    size_t pos = 0;
+    for (size_t i = 0; i < length; i++) {
+        unsigned char raw = (unsigned char)text[i];
+        const fesk_symbol_t *symbol = _lookup_symbol(raw);
+        for (uint8_t d = 0; d < symbol->count; d++) {
+            uint8_t digit = symbol->digits[d];
+            watch_buzzer_note_t tone = _tone_map[digit];
+            sequence[pos++] = (int8_t)tone;
+            sequence[pos++] = FESK_TICKS_PER_SYMBOL;
+            sequence[pos++] = (int8_t)BUZZER_NOTE_REST;
+            sequence[pos++] = FESK_TICKS_PER_SYMBOL;
         }
-        e->state = FESK_STATE_SYNC;
-        e->sequence_pos = 0;
-        /* fallthrough */
-
-    case FESK_STATE_SYNC:
-        if (e->sequence_pos < FESK_SYNC_LEN) {
-            uint8_t bit = barker13_pattern[e->sequence_pos++];
-            return bit ? 2 : 0;
-        }
-        build_trit_stream(e);
-        e->state = FESK_STATE_PAYLOAD;
-        /* fallthrough */
-
-    case FESK_STATE_HEADER: /* not used anymore */
-    case FESK_STATE_PAYLOAD:
-        /* Direct trit transmission - no pilot insertion */
-        if (e->trit_pos < e->trit_len) {
-            e->trit_count++;
-            return e->trit_stream[e->trit_pos++];
-        }
-        e->state = FESK_STATE_COMPLETE;
-        e->transmission_active = false;
-        return 255;
-
-    case FESK_STATE_CRC: /* obsolete path */
-    case FESK_STATE_COMPLETE:
-    default:
-        e->transmission_active = false;
-        return 255;
     }
-}
 
-/* Tone helpers */
-uint16_t fesk_get_tone_period(const fesk_encoder_state_t *e, uint8_t idx) {
-    if (!e || idx >= FESK_TONE_COUNT) return 0;
-    return e->tone_periods[idx];
-}
-uint16_t fesk_get_tone_frequency(const fesk_encoder_state_t *e, uint8_t idx) {
-    if (!e || idx >= FESK_TONE_COUNT) return 0;
-    switch (idx) { case 0: return e->config.f0; case 1: return e->config.f1; case 2: return e->config.f2; }
-    return 0;
-}
+    sequence[pos] = 0;
 
-#if FESK_HAS_WATCH_BUZZER
-watch_buzzer_note_t fesk_get_buzzer_note(uint8_t tone_index) {
-    switch (tone_index) {
-        case 0: return FESK_NOTE_0;
-        case 1: return FESK_NOTE_1;
-        case 2: return FESK_NOTE_2;
-        default: return BUZZER_NOTE_REST;
+    if (out_entries) {
+        *out_entries = pos;
     }
-}
-#endif
+    *out_sequence = sequence;
 
-/* Transmission status */
-bool fesk_is_transmitting(const fesk_encoder_state_t *e) {
-    return e && e->transmission_active;
+    return FESK_OK;
 }
-void fesk_abort_transmission(fesk_encoder_state_t *e) {
-    if (!e) return;
-    e->transmission_active = false;
-    e->state = FESK_STATE_COMPLETE;
+
+fesk_result_t fesk_encode_text(const char *text,
+                               size_t length,
+                               int8_t **out_sequence,
+                               size_t *out_entries) {
+    return _encode_internal(text, length, out_sequence, out_entries);
+}
+
+fesk_result_t fesk_encode_cstr(const char *text,
+                               int8_t **out_sequence,
+                               size_t *out_entries) {
+    if (!text) {
+        return FESK_ERR_INVALID_ARGUMENT;
+    }
+
+    size_t length = 0;
+    while (text[length] != '\0') {
+        length++;
+    }
+
+    return _encode_internal(text, length, out_sequence, out_entries);
+}
+
+void fesk_free_sequence(int8_t *sequence) {
+    if (sequence) {
+        free(sequence);
+    }
 }

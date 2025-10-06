@@ -47,9 +47,6 @@ typedef struct {
     uint8_t transmission_ticks;
     uint8_t tick_count;
 
-    // FESK encoder state
-    fesk_encoder_state_t encoder_state;
-
     // Buzzer state tracking
     bool buzzer_is_on;
 
@@ -64,8 +61,8 @@ typedef struct {
 static char tone_string[1024];
 
 // Test message to transmit
-static const uint8_t test_message[] = "test";
-static const uint16_t test_message_len = sizeof(test_message) - 1;
+static const char test_message[] = "a fairly long, and might i say convoluted test message: yes";
+static const size_t test_message_len = sizeof(test_message) - 1;
 
 // Global callback state for sequence completion
 static fesk_demo_state_t *melody_callback_state = NULL;
@@ -136,47 +133,17 @@ static void _fdf_start_countdown(fesk_demo_state_t *state) {
 static void _fdf_stop_transmission(fesk_demo_state_t *state);
 static void _fdf_fesk_transmission_done(void);
 
-static void _fdf_build_fesk_sequence(fesk_demo_state_t *state) {
-    // Count total symbols needed
-    size_t total_symbols = 0;
-
-    // Initialize encoder to count symbols
-    fesk_result_t result = fesk_init_encoder(&state->encoder_state, test_message, test_message_len);
-    if (result != FESK_SUCCESS) {
-        return;
+static bool _fdf_build_fesk_sequence(fesk_demo_state_t *state) {
+    int8_t *sequence = NULL;
+    size_t entries = 0;
+    fesk_result_t result = fesk_encode_text(test_message, test_message_len, &sequence, &entries);
+    if (result != FESK_OK) {
+        return false;
     }
 
-    // Count symbols
-    uint8_t tone;
-    while ((tone = fesk_get_next_tone(&state->encoder_state)) != 255) {
-        total_symbols++;
-    }
-
-    // Allocate sequence: note, duration pairs + terminator
-    state->fesk_sequence_length = (total_symbols * 2) + 1;
-    state->fesk_sequence = malloc(state->fesk_sequence_length * sizeof(int8_t));
-
-    if (!state->fesk_sequence) {
-        return;
-    }
-
-    // Re-initialize encoder to generate sequence
-    result = fesk_init_encoder(&state->encoder_state, test_message, test_message_len);
-    if (result != FESK_SUCCESS) {
-        free(state->fesk_sequence);
-        state->fesk_sequence = NULL;
-        return;
-    }
-
-    // Build the sequence
-    size_t seq_index = 0;
-    while ((tone = fesk_get_next_tone(&state->encoder_state)) != 255) {
-        state->fesk_sequence[seq_index++] = fesk_get_buzzer_note(tone);
-        state->fesk_sequence[seq_index++] = state->encoder_state.config.symbol_ticks;  // Duration in 64Hz ticks
-    }
-
-    // Terminator
-    state->fesk_sequence[seq_index] = 0;
+    state->fesk_sequence = sequence;
+    state->fesk_sequence_length = entries;
+    return true;
 }
 
 static void _fdf_start_transmission(fesk_demo_state_t *state) {
@@ -185,9 +152,12 @@ static void _fdf_start_transmission(fesk_demo_state_t *state) {
     state->tick_count = 0;
 
     // Build FESK sequence
-    _fdf_build_fesk_sequence(state);
+    if (state->fesk_sequence) {
+        fesk_free_sequence(state->fesk_sequence);
+        state->fesk_sequence = NULL;
+    }
 
-    if (!state->fesk_sequence) {
+    if (!_fdf_build_fesk_sequence(state)) {
         // Error - go back to ready
         _fdf_stop_transmission(state);
         return;
@@ -222,8 +192,9 @@ static void _fdf_stop_transmission(fesk_demo_state_t *state) {
 
     // Free sequence memory
     if (state->fesk_sequence) {
-        free(state->fesk_sequence);
+        fesk_free_sequence(state->fesk_sequence);
         state->fesk_sequence = NULL;
+        state->fesk_sequence_length = 0;
     }
 
     // Stop buzzer and clear indicators
