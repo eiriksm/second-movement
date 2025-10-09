@@ -7,6 +7,10 @@
 #include "watch_tcc.h"
 
 #define FESK_TICKS_PER_SYMBOL 4
+#define FESK_PREAMBLE_TONE_TICKS 20
+#define FESK_FRAME_SYMBOL_DIGITS 3
+#define FESK_CRC_DIGITS 3
+#define FESK_CRC_MASK 0x1F
 
 typedef struct {
     uint8_t digits[4];
@@ -58,6 +62,7 @@ static const fesk_symbol_t _digit_table[10] = {
 static const fesk_symbol_t _symbol_space = {{3, 3, 1, 1}, 4}; // space -> 3311
 static const fesk_symbol_t _symbol_comma = {{3, 3, 1, 2}, 4}; // comma -> 3312
 static const fesk_symbol_t _symbol_colon = {{3, 3, 1, 3}, 4}; // colon -> 3313
+static const fesk_symbol_t _symbol_frame_marker = {{3, 3, 3, 0}, FESK_FRAME_SYMBOL_DIGITS}; // frame marker -> 333
 
 static const watch_buzzer_note_t _tone_map[4] = {
     [0] = BUZZER_NOTE_F7,
@@ -65,6 +70,25 @@ static const watch_buzzer_note_t _tone_map[4] = {
     [2] = BUZZER_NOTE_D8,
     [3] = BUZZER_NOTE_G6,
 };
+
+static inline void _append_note(int8_t *sequence,
+                                size_t *pos,
+                                watch_buzzer_note_t tone,
+                                int8_t tone_ticks) {
+    sequence[(*pos)++] = (int8_t)tone;
+    sequence[(*pos)++] = tone_ticks;
+    sequence[(*pos)++] = (int8_t)BUZZER_NOTE_REST;
+    sequence[(*pos)++] = FESK_TICKS_PER_SYMBOL;
+}
+
+static inline void _append_symbol_digits(const fesk_symbol_t *symbol,
+                                         int8_t *sequence,
+                                         size_t *pos) {
+    for (uint8_t d = 0; d < symbol->count; d++) {
+        uint8_t digit = symbol->digits[d];
+        _append_note(sequence, pos, _tone_map[digit], FESK_TICKS_PER_SYMBOL);
+    }
+}
 
 static const fesk_symbol_t *_lookup_symbol(unsigned char raw) {
     if (raw >= '0' && raw <= '9') {
@@ -93,6 +117,7 @@ static fesk_result_t _encode_internal(const char *text,
     }
 
     size_t total_digits = 0;
+    uint8_t crc = 0;
     for (size_t i = 0; i < length; i++) {
         unsigned char raw = (unsigned char)text[i];
         const fesk_symbol_t *symbol = _lookup_symbol(raw);
@@ -100,27 +125,42 @@ static fesk_result_t _encode_internal(const char *text,
             return FESK_ERR_UNSUPPORTED_CHARACTER;
         }
         total_digits += symbol->count;
+        for (uint8_t d = 0; d < symbol->count; d++) {
+            uint8_t digit = symbol->digits[d];
+            crc = (uint8_t)((crc + digit) & FESK_CRC_MASK);
+        }
     }
 
-    size_t total_entries = total_digits * 4; // tone, duration, rest, duration per digit
+    uint8_t crc_digits[FESK_CRC_DIGITS] = {
+        (uint8_t)(crc & 0x03),
+        (uint8_t)((crc >> 2) & 0x03),
+        (uint8_t)((crc >> 4) & 0x03),
+    };
+
+    size_t framing_digits = (2 * FESK_FRAME_SYMBOL_DIGITS) + FESK_CRC_DIGITS;
+    size_t total_digits_with_framing = total_digits + framing_digits;
+    size_t total_entries = (total_digits_with_framing * 4) + 4;
     int8_t *sequence = malloc((total_entries + 1) * sizeof(int8_t));
     if (!sequence) {
         return FESK_ERR_ALLOCATION_FAILED;
     }
 
     size_t pos = 0;
+    _append_note(sequence, &pos, _tone_map[0], FESK_PREAMBLE_TONE_TICKS);
+    _append_symbol_digits(&_symbol_frame_marker, sequence, &pos);
+
     for (size_t i = 0; i < length; i++) {
         unsigned char raw = (unsigned char)text[i];
         const fesk_symbol_t *symbol = _lookup_symbol(raw);
-        for (uint8_t d = 0; d < symbol->count; d++) {
-            uint8_t digit = symbol->digits[d];
-            watch_buzzer_note_t tone = _tone_map[digit];
-            sequence[pos++] = (int8_t)tone;
-            sequence[pos++] = FESK_TICKS_PER_SYMBOL;
-            sequence[pos++] = (int8_t)BUZZER_NOTE_REST;
-            sequence[pos++] = FESK_TICKS_PER_SYMBOL;
-        }
+        _append_symbol_digits(symbol, sequence, &pos);
     }
+
+    for (uint8_t d = 0; d < FESK_CRC_DIGITS; d++) {
+        uint8_t digit = crc_digits[d];
+        _append_note(sequence, &pos, _tone_map[digit], FESK_TICKS_PER_SYMBOL);
+    }
+
+    _append_symbol_digits(&_symbol_frame_marker, sequence, &pos);
 
     sequence[pos] = 0;
 

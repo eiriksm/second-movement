@@ -28,6 +28,7 @@
 #include "fesk_demo_face.h"
 #include "fesk_tx.h"
 #include "movement.h"
+#include "watch_tcc.h"
 
 typedef enum {
     FDM_READY = 0,      // Ready to transmit
@@ -133,6 +134,49 @@ static void _fdf_start_countdown(fesk_demo_state_t *state) {
 static void _fdf_stop_transmission(fesk_demo_state_t *state);
 static void _fdf_fesk_transmission_done(void);
 
+static void _fdf_log_transmitted_frequencies(const fesk_demo_state_t *state) {
+    if (!state->fesk_sequence || state->fesk_sequence_length == 0) {
+        tone_string[0] = '\0';
+        printf("FESK frequencies: (sequence empty)\n");
+        return;
+    }
+
+    tone_string[0] = '\0';
+    size_t offset = 0;
+    size_t remaining = sizeof(tone_string);
+    size_t freq_count = 0;
+
+    for (size_t i = 0; i + 1 < state->fesk_sequence_length; i += 4) {
+        int8_t note = state->fesk_sequence[i];
+        if (note < 0 || note >= BUZZER_NOTE_REST) {
+            continue;
+        }
+
+        float freq = 1000000.0f / (float)NotePeriods[(uint8_t)note];
+        int written = snprintf(tone_string + offset,
+                               remaining,
+                               freq_count == 0 ? "%.2f Hz" : ", %.2f Hz",
+                               freq);
+
+        if (written < 0 || (size_t)written >= remaining) {
+            // Buffer full or encoding error; ensure termination and stop logging
+            offset = sizeof(tone_string) - 1;
+            tone_string[offset] = '\0';
+            break;
+        }
+
+        offset += (size_t)written;
+        remaining = sizeof(tone_string) - offset;
+        freq_count++;
+    }
+
+    if (freq_count > 0) {
+        printf("FESK frequencies: %s\n", tone_string);
+    } else {
+        printf("FESK frequencies: (no tones)\n");
+    }
+}
+
 static bool _fdf_build_fesk_sequence(fesk_demo_state_t *state) {
     int8_t *sequence = NULL;
     size_t entries = 0;
@@ -163,6 +207,8 @@ static void _fdf_start_transmission(fesk_demo_state_t *state) {
         return;
     }
 
+    _fdf_log_transmitted_frequencies(state);
+
     // Start playing the sequence
     state->is_playing_sequence = true;
     melody_callback_state = state;
@@ -177,7 +223,11 @@ static void _fdf_fesk_transmission_done(void) {
         fesk_demo_state_t *state = melody_callback_state;
         melody_callback_state = NULL;  // Clear callback state to prevent re-entry
         _fdf_stop_transmission(state);
-        printf("FESK transmission complete\n");
+        if (tone_string[0] != '\0') {
+            printf("FESK transmission complete (tones: %s)\n", tone_string);
+        } else {
+            printf("FESK transmission complete\n");
+        }
     }
 }
 
