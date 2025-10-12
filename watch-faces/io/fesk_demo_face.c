@@ -62,7 +62,7 @@ typedef struct {
 static char tone_string[1024];
 
 // Test message to transmit
-static const char test_message[] = "test";
+static const char test_message[] = "abc 123";
 static const size_t test_message_len = sizeof(test_message) - 1;
 
 // Global callback state for sequence completion
@@ -290,18 +290,10 @@ static void _fdf_handle_countdown_tick(fesk_demo_state_t *state) {
 
 
 static int8_t game_win_melody[] = {
-    BUZZER_NOTE_G6, 6,
-    BUZZER_NOTE_A6, 6,
-    BUZZER_NOTE_B6, 6,
-    BUZZER_NOTE_C7, 6,
-    BUZZER_NOTE_D7, 6,
-    BUZZER_NOTE_E7, 6,
-    BUZZER_NOTE_D7, 6,
-    BUZZER_NOTE_C7, 6,
-    BUZZER_NOTE_B6, 6,
-    BUZZER_NOTE_C7, 6,
-    BUZZER_NOTE_D7, 6,
-    BUZZER_NOTE_G7, 6,
+    BUZZER_NOTE_F7, 40,
+    BUZZER_NOTE_A7, 40,
+    BUZZER_NOTE_D8, 40,
+    BUZZER_NOTE_G6, 40,
     0};
 
 void fesk_demo_face_melody_done(void) {

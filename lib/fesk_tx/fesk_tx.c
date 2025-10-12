@@ -9,6 +9,7 @@
 #include "watch_tcc.h"
 
 #define FESK_TICKS_PER_SYMBOL 4
+#define FESK_TICKS_PER_REST 4
 #define FESK_PREAMBLE_TONE_TICKS 20
 #define FESK_FRAME_SYMBOL_DIGITS 3
 #define FESK_CRC_DIGITS 3
@@ -124,7 +125,7 @@ static inline void _append_digit(uint8_t digit,
     sequence[(*pos)++] = (int8_t)tone;
     sequence[(*pos)++] = FESK_TICKS_PER_SYMBOL;
     sequence[(*pos)++] = (int8_t)BUZZER_NOTE_REST;
-    sequence[(*pos)++] = FESK_TICKS_PER_SYMBOL;
+    sequence[(*pos)++] = FESK_TICKS_PER_REST;
 
     if (tone_log) {
         _append_digit_to_log(tone_log, tone_offset, tone_capacity, digit);
