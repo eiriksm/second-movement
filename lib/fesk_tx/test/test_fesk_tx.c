@@ -8,77 +8,84 @@
 #include "unity.h"
 
 #define ARRAY_LENGTH(arr) (sizeof(arr) / sizeof((arr)[0]))
-#define FESK_TICKS_PER_SYMBOL 4
-#define FESK_PREAMBLE_TONE_TICKS 20
-#define FESK_CRC_MASK 0x1F
+#define FESK_TICKS_PER_BIT 4
+#define FESK_TICKS_PER_REST 4
+#define FESK_BITS_PER_CODE 6
+#define FESK_START_MARKER 62u
+#define FESK_END_MARKER 63u
 
-static int8_t note_for_digit(uint8_t digit) {
-    switch (digit) {
-        case 0: return (int8_t)BUZZER_NOTE_F7;
-        case 1: return (int8_t)BUZZER_NOTE_A7;
-        case 2: return (int8_t)BUZZER_NOTE_D8;
-        case 3: return (int8_t)BUZZER_NOTE_G6;
-        default:
-            TEST_FAIL_MESSAGE("Digit outside supported range");
-            return 0;
-    }
+static int8_t note_for_bit(uint8_t bit) {
+    return bit ? (int8_t)BUZZER_NOTE_G7 : (int8_t)BUZZER_NOTE_D7SHARP_E7FLAT;
 }
 
-static uint8_t compute_crc_from_digits(const uint8_t *digits, size_t count) {
-    uint8_t crc = 0;
-    for (size_t i = 0; i < count; ++i) {
-        crc = (uint8_t)((crc + digits[i]) & FESK_CRC_MASK);
+static uint8_t crc8_update_bit(uint8_t crc, uint8_t bit) {
+    uint8_t mix = ((crc >> 7) & 0x01u) ^ (bit & 0x01u);
+    crc <<= 1;
+    if (mix) {
+        crc ^= 0x07u;
     }
     return crc;
 }
 
-static void value_to_base4_digits(uint8_t value, uint8_t out[3]) {
-    out[0] = (uint8_t)(value & 0x03);
-    out[1] = (uint8_t)((value >> 2) & 0x03);
-    out[2] = (uint8_t)((value >> 4) & 0x03);
-}
-
-static size_t assert_digit_block(const int8_t *sequence,
-                                 size_t start,
-                                 const uint8_t *digits,
-                                 size_t digit_count) {
-    for (size_t i = 0; i < digit_count; ++i) {
-        size_t base = start + (i * 4);
-        TEST_ASSERT_EQUAL_INT8(note_for_digit(digits[i]), sequence[base]);
-        TEST_ASSERT_EQUAL_INT8(FESK_TICKS_PER_SYMBOL, sequence[base + 1]);
-        TEST_ASSERT_EQUAL_INT8((int8_t)BUZZER_NOTE_REST, sequence[base + 2]);
-        TEST_ASSERT_EQUAL_INT8(FESK_TICKS_PER_SYMBOL, sequence[base + 3]);
+static uint8_t crc8_update_code(uint8_t crc, uint8_t code) {
+    for (int shift = FESK_BITS_PER_CODE - 1; shift >= 0; --shift) {
+        uint8_t bit = (uint8_t)((code >> shift) & 0x01u);
+        crc = crc8_update_bit(crc, bit);
     }
-    return start + (digit_count * 4);
+    return crc;
 }
 
-static size_t assert_sequence_matches_digits(const int8_t *sequence,
-                                             size_t entries,
-                                             const uint8_t *payload_digits,
-                                             size_t payload_digit_count) {
-    static const uint8_t frame_marker_digits[] = {3, 3, 3};
+static size_t bit_capacity_for_payload(size_t payload_count) {
+    return FESK_BITS_PER_CODE                  // start
+         + (payload_count * FESK_BITS_PER_CODE)
+         + 8                                   // CRC
+         + FESK_BITS_PER_CODE;                 // end
+}
 
-    uint8_t crc_value = compute_crc_from_digits(payload_digits, payload_digit_count);
-    uint8_t crc_digits[3];
-    value_to_base4_digits(crc_value, crc_digits);
+static void append_code_bits(uint8_t code, uint8_t *bits, size_t *bit_index) {
+    for (int shift = FESK_BITS_PER_CODE - 1; shift >= 0; --shift) {
+        bits[(*bit_index)++] = (uint8_t)((code >> shift) & 0x01u);
+    }
+}
 
-    size_t total_digit_count = ARRAY_LENGTH(frame_marker_digits)        // start marker
-                             + payload_digit_count
-                             + ARRAY_LENGTH(crc_digits)
-                             + ARRAY_LENGTH(frame_marker_digits);       // end marker
-    size_t expected_entries = 4 + (total_digit_count * 4);
+static size_t build_expected_bits(const uint8_t *payload_codes,
+                                  size_t payload_count,
+                                  uint8_t *out_bits,
+                                  size_t capacity) {
+    size_t required = bit_capacity_for_payload(payload_count);
+    TEST_ASSERT_TRUE(required <= capacity);
+
+    size_t bit_index = 0;
+    append_code_bits(FESK_START_MARKER, out_bits, &bit_index);
+
+    uint8_t crc = 0;
+    for (size_t i = 0; i < payload_count; ++i) {
+        append_code_bits(payload_codes[i], out_bits, &bit_index);
+        crc = crc8_update_code(crc, payload_codes[i]);
+    }
+
+    for (int shift = 7; shift >= 0; --shift) {
+        out_bits[bit_index++] = (uint8_t)((crc >> shift) & 0x01u);
+    }
+
+    append_code_bits(FESK_END_MARKER, out_bits, &bit_index);
+    return bit_index;
+}
+
+static size_t assert_sequence_matches_bits(const int8_t *sequence,
+                                           size_t entries,
+                                           const uint8_t *bits,
+                                           size_t bit_count) {
+    size_t expected_entries = bit_count * 4;
     TEST_ASSERT_EQUAL_UINT32((uint32_t)expected_entries, (uint32_t)entries);
 
-    TEST_ASSERT_EQUAL_INT8(note_for_digit(0), sequence[0]);
-    TEST_ASSERT_EQUAL_INT8(FESK_PREAMBLE_TONE_TICKS, sequence[1]);
-    TEST_ASSERT_EQUAL_INT8((int8_t)BUZZER_NOTE_REST, sequence[2]);
-    TEST_ASSERT_EQUAL_INT8(FESK_TICKS_PER_SYMBOL, sequence[3]);
-
-    size_t pos = 4;
-    pos = assert_digit_block(sequence, pos, frame_marker_digits, ARRAY_LENGTH(frame_marker_digits));
-    pos = assert_digit_block(sequence, pos, payload_digits, payload_digit_count);
-    pos = assert_digit_block(sequence, pos, crc_digits, ARRAY_LENGTH(crc_digits));
-    pos = assert_digit_block(sequence, pos, frame_marker_digits, ARRAY_LENGTH(frame_marker_digits));
+    for (size_t i = 0; i < bit_count; ++i) {
+        size_t base = i * 4;
+        TEST_ASSERT_EQUAL_INT8(note_for_bit(bits[i]), sequence[base]);
+        TEST_ASSERT_EQUAL_INT8(FESK_TICKS_PER_BIT, sequence[base + 1]);
+        TEST_ASSERT_EQUAL_INT8((int8_t)BUZZER_NOTE_REST, sequence[base + 2]);
+        TEST_ASSERT_EQUAL_INT8(FESK_TICKS_PER_REST, sequence[base + 3]);
+    }
 
     return expected_entries;
 }
@@ -91,15 +98,20 @@ void tearDown(void) {
 
 static void test_encode_text_basic(void) {
     const char input[] = "A1";
-    const uint8_t expected_digits[] = {0, 0, 3, 3, 0, 1};
+    const uint8_t payload_codes[] = {0, 26};
+    uint8_t expected_bits[bit_capacity_for_payload(ARRAY_LENGTH(payload_codes))];
+    size_t bit_count = build_expected_bits(payload_codes,
+                                           ARRAY_LENGTH(payload_codes),
+                                           expected_bits,
+                                           ARRAY_LENGTH(expected_bits));
+
     int8_t *sequence = NULL;
     size_t entries = 0;
-
     fesk_result_t result = fesk_encode_text(input, sizeof(input) - 1, &sequence, &entries);
 
     TEST_ASSERT_EQUAL(FESK_OK, result);
     TEST_ASSERT_NOT_NULL(sequence);
-    size_t expected_entries = assert_sequence_matches_digits(sequence, entries, expected_digits, ARRAY_LENGTH(expected_digits));
+    size_t expected_entries = assert_sequence_matches_bits(sequence, entries, expected_bits, bit_count);
     TEST_ASSERT_EQUAL_INT8(0, sequence[expected_entries]);
 
     fesk_free_sequence(sequence);
@@ -107,14 +119,19 @@ static void test_encode_text_basic(void) {
 
 static void test_encode_text_is_case_insensitive(void) {
     const char input[] = "Az";
-    const uint8_t expected_digits[] = {0, 0, 3, 3, 1, 0};
+    const uint8_t payload_codes[] = {0, 25};
+    uint8_t expected_bits[bit_capacity_for_payload(ARRAY_LENGTH(payload_codes))];
+    size_t bit_count = build_expected_bits(payload_codes,
+                                           ARRAY_LENGTH(payload_codes),
+                                           expected_bits,
+                                           ARRAY_LENGTH(expected_bits));
+
     int8_t *sequence = NULL;
     size_t entries = 0;
-
     fesk_result_t result = fesk_encode_text(input, sizeof(input) - 1, &sequence, &entries);
 
     TEST_ASSERT_EQUAL(FESK_OK, result);
-    size_t expected_entries = assert_sequence_matches_digits(sequence, entries, expected_digits, ARRAY_LENGTH(expected_digits));
+    size_t expected_entries = assert_sequence_matches_bits(sequence, entries, expected_bits, bit_count);
     TEST_ASSERT_EQUAL_INT8(0, sequence[expected_entries]);
 
     fesk_free_sequence(sequence);
@@ -122,14 +139,19 @@ static void test_encode_text_is_case_insensitive(void) {
 
 static void test_encode_text_handles_symbols(void) {
     const char input[] = " ,:";
-    const uint8_t expected_digits[] = {3, 3, 1, 1, 3, 3, 1, 2, 3, 3, 1, 3};
+    const uint8_t payload_codes[] = {35, 36, 37};
+    uint8_t expected_bits[bit_capacity_for_payload(ARRAY_LENGTH(payload_codes))];
+    size_t bit_count = build_expected_bits(payload_codes,
+                                           ARRAY_LENGTH(payload_codes),
+                                           expected_bits,
+                                           ARRAY_LENGTH(expected_bits));
+
     int8_t *sequence = NULL;
     size_t entries = 0;
-
     fesk_result_t result = fesk_encode_text(input, sizeof(input) - 1, &sequence, &entries);
 
     TEST_ASSERT_EQUAL(FESK_OK, result);
-    size_t expected_entries = assert_sequence_matches_digits(sequence, entries, expected_digits, ARRAY_LENGTH(expected_digits));
+    size_t expected_entries = assert_sequence_matches_bits(sequence, entries, expected_bits, bit_count);
     TEST_ASSERT_EQUAL_INT8(0, sequence[expected_entries]);
 
     fesk_free_sequence(sequence);
@@ -137,17 +159,20 @@ static void test_encode_text_handles_symbols(void) {
 
 static void test_encode_text_optional_out_entries(void) {
     const char input[] = "hi";
-    const uint8_t expected_digits[] = {1, 3, 2, 0};
-    int8_t *sequence = NULL;
+    const uint8_t payload_codes[] = {7, 8};
+    uint8_t expected_bits[bit_capacity_for_payload(ARRAY_LENGTH(payload_codes))];
+    size_t bit_count = build_expected_bits(payload_codes,
+                                           ARRAY_LENGTH(payload_codes),
+                                           expected_bits,
+                                           ARRAY_LENGTH(expected_bits));
+    size_t expected_entries = bit_count * 4;
 
+    int8_t *sequence = NULL;
     fesk_result_t result = fesk_encode_text(input, sizeof(input) - 1, &sequence, NULL);
 
     TEST_ASSERT_EQUAL(FESK_OK, result);
     TEST_ASSERT_NOT_NULL(sequence);
-    size_t expected_entries = assert_sequence_matches_digits(sequence,
-                                                             4 + (ARRAY_LENGTH(expected_digits) + 9) * 4,
-                                                             expected_digits,
-                                                             ARRAY_LENGTH(expected_digits));
+    assert_sequence_matches_bits(sequence, expected_entries, expected_bits, bit_count);
     TEST_ASSERT_EQUAL_INT8(0, sequence[expected_entries]);
 
     fesk_free_sequence(sequence);
@@ -186,14 +211,19 @@ static void test_encode_text_argument_validation(void) {
 
 static void test_encode_cstr_success(void) {
     const char *input = "fEsk";
-    const uint8_t expected_digits[] = {1, 1, 1, 0, 3, 1, 2, 2, 2};
+    const uint8_t payload_codes[] = {5, 4, 18, 10};
+    uint8_t expected_bits[bit_capacity_for_payload(ARRAY_LENGTH(payload_codes))];
+    size_t bit_count = build_expected_bits(payload_codes,
+                                           ARRAY_LENGTH(payload_codes),
+                                           expected_bits,
+                                           ARRAY_LENGTH(expected_bits));
+
     int8_t *sequence = NULL;
     size_t entries = 0;
-
     fesk_result_t result = fesk_encode_cstr(input, &sequence, &entries);
 
     TEST_ASSERT_EQUAL(FESK_OK, result);
-    size_t expected_entries = assert_sequence_matches_digits(sequence, entries, expected_digits, ARRAY_LENGTH(expected_digits));
+    size_t expected_entries = assert_sequence_matches_bits(sequence, entries, expected_bits, bit_count);
     TEST_ASSERT_EQUAL_INT8(0, sequence[expected_entries]);
 
     fesk_free_sequence(sequence);

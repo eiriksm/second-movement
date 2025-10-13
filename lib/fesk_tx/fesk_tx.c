@@ -1,79 +1,38 @@
 #include "fesk_tx.h"
 
 #include <ctype.h>
+#include <stdbool.h>
+#include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <stdarg.h>
 #include <stdlib.h>
 
 #include "watch_tcc.h"
 
-#define FESK_TICKS_PER_SYMBOL 4
+#define FESK_TICKS_PER_BIT 4
 #define FESK_TICKS_PER_REST 4
-#define FESK_PREAMBLE_TONE_TICKS 20
-#define FESK_FRAME_SYMBOL_DIGITS 3
-#define FESK_CRC_DIGITS 3
-#define FESK_CRC_MASK 0x1F
-#define FESK_TONE_LOG_CAP 1024
-#define FESK_SYMBOL_LOG_CAP 1024
+#define FESK_BITS_PER_CODE 6
+#define FESK_START_MARKER 62u
+#define FESK_END_MARKER 63u
+#define FESK_BIT_LOG_CAP 2048
+#define FESK_CODE_LOG_CAP 2048
 
 typedef struct {
-    uint8_t digits[4];
-    uint8_t count;
-} fesk_symbol_t;
+    unsigned char character;
+    uint8_t code;
+} fesk_code_entry_t;
 
-static const fesk_symbol_t _letter_table[26] = {
-    {{0, 0, 0, 0}, 2}, // a -> 00
-    {{0, 1, 0, 0}, 2}, // b -> 01
-    {{0, 2, 0, 0}, 2}, // c -> 02
-    {{0, 3, 0, 0}, 2}, // d -> 03
-    {{1, 0, 0, 0}, 2}, // e -> 10
-    {{1, 1, 0, 0}, 2}, // f -> 11
-    {{1, 2, 0, 0}, 2}, // g -> 12
-    {{1, 3, 0, 0}, 2}, // h -> 13
-    {{2, 0, 0, 0}, 2}, // i -> 20
-    {{2, 1, 0, 0}, 2}, // j -> 21
-    {{2, 2, 0, 0}, 2}, // k -> 22
-    {{2, 3, 0, 0}, 2}, // l -> 23
-    {{3, 0, 0, 0}, 3}, // m -> 300
-    {{3, 0, 1, 0}, 3}, // n -> 301
-    {{3, 0, 2, 0}, 3}, // o -> 302
-    {{3, 0, 3, 0}, 3}, // p -> 303
-    {{3, 1, 0, 0}, 4}, // q -> 3100
-    {{3, 1, 1, 0}, 3}, // r -> 311
-    {{3, 1, 2, 0}, 3}, // s -> 312
-    {{3, 1, 3, 0}, 3}, // t -> 313
-    {{3, 2, 0, 0}, 4}, // u -> 3200
-    {{3, 2, 1, 0}, 3}, // v -> 321
-    {{3, 2, 2, 0}, 3}, // w -> 322
-    {{3, 2, 3, 0}, 3}, // x -> 323
-    {{3, 3, 0, 0}, 4}, // y -> 3300
-    {{3, 3, 1, 0}, 4}, // z -> 3310
+static const fesk_code_entry_t _code_table[] = {
+    {'a', 0},  {'b', 1},  {'c', 2},  {'d', 3},  {'e', 4},  {'f', 5},  {'g', 6},  {'h', 7},
+    {'i', 8},  {'j', 9},  {'k', 10}, {'l', 11}, {'m', 12}, {'n', 13}, {'o', 14}, {'p', 15},
+    {'q', 16}, {'r', 17}, {'s', 18}, {'t', 19}, {'u', 20}, {'v', 21}, {'w', 22}, {'x', 23},
+    {'y', 24}, {'z', 25}, {'1', 26}, {'2', 27}, {'3', 28}, {'4', 29}, {'5', 30}, {'6', 31},
+    {'7', 32}, {'8', 33}, {'9', 34}, {' ', 35}, {',', 36}, {':', 37}, {'\'', 38}, {'"', 39},
 };
 
-static const fesk_symbol_t _digit_table[10] = {
-    {{3, 3, 2, 0}, 3}, // 0 -> 332
-    {{3, 3, 0, 1}, 4}, // 1 -> 3301
-    {{3, 3, 0, 2}, 4}, // 2 -> 3302
-    {{3, 3, 0, 3}, 4}, // 3 -> 3303
-    {{3, 2, 0, 1}, 4}, // 4 -> 3201
-    {{3, 2, 0, 2}, 4}, // 5 -> 3202
-    {{3, 2, 0, 3}, 4}, // 6 -> 3203
-    {{3, 1, 0, 1}, 4}, // 7 -> 3101
-    {{3, 1, 0, 2}, 4}, // 8 -> 3102
-    {{3, 1, 0, 3}, 4}, // 9 -> 3103
-};
-
-static const fesk_symbol_t _symbol_space = {{3, 3, 1, 1}, 4}; // space -> 3311
-static const fesk_symbol_t _symbol_comma = {{3, 3, 1, 2}, 4}; // comma -> 3312
-static const fesk_symbol_t _symbol_colon = {{3, 3, 1, 3}, 4}; // colon -> 3313
-static const fesk_symbol_t _symbol_frame_marker = {{3, 3, 3, 0}, FESK_FRAME_SYMBOL_DIGITS}; // frame marker -> 333
-
-static const watch_buzzer_note_t _tone_map[4] = {
-    [0] = BUZZER_NOTE_F7,
-    [1] = BUZZER_NOTE_A7,
-    [2] = BUZZER_NOTE_D8,
-    [3] = BUZZER_NOTE_G6,
+static const watch_buzzer_note_t _tone_map[2] = {
+    [0] = BUZZER_NOTE_D7SHARP_E7FLAT, // ≈ 2489 Hz (closest to 2560 Hz)
+    [1] = BUZZER_NOTE_G7,             // ≈ 3136 Hz (closest to 3072 Hz)
 };
 
 static void _append_to_log(char *buffer,
@@ -104,114 +63,98 @@ static void _append_to_log(char *buffer,
     }
 }
 
-static void _append_digit_to_log(char *buffer,
-                                 size_t *offset,
-                                 size_t capacity,
-                                 uint8_t digit) {
-    _append_to_log(buffer,
-                   offset,
-                   capacity,
-                   *offset == 0 ? "%u" : " %u",
-                   digit);
+static bool _lookup_code(unsigned char raw, uint8_t *out_code) {
+    if (!out_code) {
+        return false;
+    }
+
+    unsigned char normalized = raw;
+    if (isalpha(raw)) {
+        normalized = (unsigned char)tolower(raw);
+    }
+
+    for (size_t i = 0; i < sizeof(_code_table) / sizeof(_code_table[0]); i++) {
+        if (_code_table[i].character == normalized) {
+            *out_code = _code_table[i].code;
+            return true;
+        }
+    }
+
+    return false;
 }
 
-static inline void _append_digit(uint8_t digit,
-                                 int8_t *sequence,
-                                 size_t *pos,
-                                 char *tone_log,
-                                 size_t *tone_offset,
-                                 size_t tone_capacity) {
-    watch_buzzer_note_t tone = _tone_map[digit];
+static inline uint8_t _crc8_update_bit(uint8_t crc, uint8_t bit) {
+    uint8_t mix = ((crc >> 7) & 0x01u) ^ (bit & 0x01u);
+    crc <<= 1;
+    if (mix) {
+        crc ^= 0x07u;
+    }
+    return crc;
+}
+
+static uint8_t _crc8_update_code(uint8_t crc, uint8_t code) {
+    for (int shift = FESK_BITS_PER_CODE - 1; shift >= 0; --shift) {
+        uint8_t bit = (uint8_t)((code >> shift) & 0x01u);
+        crc = _crc8_update_bit(crc, bit);
+    }
+    return crc;
+}
+
+static inline void _append_bit(uint8_t bit,
+                               int8_t *sequence,
+                               size_t *pos,
+                               char *bit_log,
+                               size_t *bit_offset,
+                               size_t bit_capacity) {
+    watch_buzzer_note_t tone = _tone_map[bit];
     sequence[(*pos)++] = (int8_t)tone;
-    sequence[(*pos)++] = FESK_TICKS_PER_SYMBOL;
+    sequence[(*pos)++] = FESK_TICKS_PER_BIT;
     sequence[(*pos)++] = (int8_t)BUZZER_NOTE_REST;
     sequence[(*pos)++] = FESK_TICKS_PER_REST;
 
-    if (tone_log) {
-        _append_digit_to_log(tone_log, tone_offset, tone_capacity, digit);
+    if (bit_log) {
+        _append_to_log(bit_log,
+                       bit_offset,
+                       bit_capacity,
+                       *bit_offset == 0 ? "%u" : " %u",
+                       bit);
     }
 }
 
-static void _append_symbol_entry(char *buffer,
-                                 size_t *offset,
-                                 size_t capacity,
-                                 const char *label,
-                                 const uint8_t *digits,
-                                 size_t digit_count) {
-    if (!buffer || !label || !digits) {
-        return;
-    }
-
+static void _append_code_to_log(char *buffer,
+                                size_t *offset,
+                                size_t capacity,
+                                const char *label,
+                                uint32_t value) {
     _append_to_log(buffer,
                    offset,
                    capacity,
-                   *offset == 0 ? "%s:[" : " %s:[",
-                   label);
-
-    for (size_t i = 0; i < digit_count; ++i) {
-        _append_to_log(buffer,
-                       offset,
-                       capacity,
-                       i == 0 ? "%u" : " %u",
-                       digits[i]);
-    }
-
-    _append_to_log(buffer, offset, capacity, "]");
+                   *offset == 0 ? "%s(%u)" : " %s(%u)",
+                   label,
+                   value);
 }
 
-static void _format_symbol_name(unsigned char raw,
-                                char *out,
-                                size_t capacity) {
-    if (!out || capacity == 0) {
-        return;
-    }
-
-    if (raw == ' ') {
-        snprintf(out, capacity, "' '");
-    } else if (raw >= 32 && raw <= 126 && raw != '\'' && raw != '\\') {
-        snprintf(out, capacity, "'%c'", raw);
-    } else {
-        snprintf(out, capacity, "0x%02X", raw);
+static void _append_bits_from_code(uint8_t code,
+                                   int8_t *sequence,
+                                   size_t *pos,
+                                   char *bit_log,
+                                   size_t *bit_offset,
+                                   size_t bit_capacity) {
+    for (int shift = FESK_BITS_PER_CODE - 1; shift >= 0; --shift) {
+        uint8_t bit = (uint8_t)((code >> shift) & 0x01u);
+        _append_bit(bit, sequence, pos, bit_log, bit_offset, bit_capacity);
     }
 }
 
-static inline void _append_note(int8_t *sequence,
-                                size_t *pos,
-                                watch_buzzer_note_t tone,
-                                int8_t tone_ticks) {
-    sequence[(*pos)++] = (int8_t)tone;
-    sequence[(*pos)++] = tone_ticks;
-    sequence[(*pos)++] = (int8_t)BUZZER_NOTE_REST;
-    sequence[(*pos)++] = FESK_TICKS_PER_SYMBOL;
-}
-
-static inline void _append_symbol_digits(const fesk_symbol_t *symbol,
-                                         int8_t *sequence,
-                                         size_t *pos,
-                                         char *tone_log,
-                                         size_t *tone_offset,
-                                         size_t tone_capacity) {
-    for (uint8_t d = 0; d < symbol->count; d++) {
-        uint8_t digit = symbol->digits[d];
-        _append_digit(digit, sequence, pos, tone_log, tone_offset, tone_capacity);
-    }
-}
-
-static const fesk_symbol_t *_lookup_symbol(unsigned char raw) {
-    if (raw >= '0' && raw <= '9') {
-        return &_digit_table[raw - '0'];
-    }
-
-    int lower = tolower(raw);
-    if (lower >= 'a' && lower <= 'z') {
-        return &_letter_table[lower - 'a'];
-    }
-
-    switch (raw) {
-        case ' ': return &_symbol_space;
-        case ',': return &_symbol_comma;
-        case ':': return &_symbol_colon;
-        default:  return NULL;
+static void _append_crc_bits(uint8_t crc,
+                             int8_t *sequence,
+                             size_t *pos,
+                             char *bit_log,
+                             size_t *bit_offset,
+                             size_t bit_capacity) {
+    for (int shift = 7; shift >= 0; --shift) {
+        uint8_t bit = (uint8_t)((crc >> shift) & 0x01u);
+        _append_bit(bit, sequence, pos, bit_log, bit_offset, bit_capacity);
     }
 }
 
@@ -223,125 +166,94 @@ static fesk_result_t _encode_internal(const char *text,
         return FESK_ERR_INVALID_ARGUMENT;
     }
 
-    size_t total_digits = 0;
-    uint8_t crc = 0;
-    for (size_t i = 0; i < length; i++) {
-        unsigned char raw = (unsigned char)text[i];
-        const fesk_symbol_t *symbol = _lookup_symbol(raw);
-        if (symbol == NULL) {
-            return FESK_ERR_UNSUPPORTED_CHARACTER;
-        }
-        total_digits += symbol->count;
-        for (uint8_t d = 0; d < symbol->count; d++) {
-            uint8_t digit = symbol->digits[d];
-            crc = (uint8_t)((crc + digit) & FESK_CRC_MASK);
-        }
-    }
-
-    uint8_t crc_digits[FESK_CRC_DIGITS] = {
-        (uint8_t)(crc & 0x03),
-        (uint8_t)((crc >> 2) & 0x03),
-        (uint8_t)((crc >> 4) & 0x03),
-    };
-
-    size_t framing_digits = (2 * FESK_FRAME_SYMBOL_DIGITS) + FESK_CRC_DIGITS;
-    size_t total_digits_with_framing = total_digits + framing_digits;
-    size_t total_entries = (total_digits_with_framing * 4) + 4;
-    int8_t *sequence = malloc((total_entries + 1) * sizeof(int8_t));
-    if (!sequence) {
+    uint8_t *payload_codes = malloc(length);
+    if (!payload_codes) {
         return FESK_ERR_ALLOCATION_FAILED;
     }
 
-    char tone_log[FESK_TONE_LOG_CAP];
-    char symbol_log[FESK_SYMBOL_LOG_CAP];
-    size_t tone_log_offset = 0;
-    size_t symbol_log_offset = 0;
-    tone_log[0] = '\0';
-    symbol_log[0] = '\0';
-
-    uint8_t preamble_digit = 0;
-    _append_symbol_entry(symbol_log,
-                         &symbol_log_offset,
-                         FESK_SYMBOL_LOG_CAP,
-                         "PRE",
-                         &preamble_digit,
-                         1);
-
-    size_t pos = 0;
-    _append_note(sequence, &pos, _tone_map[0], FESK_PREAMBLE_TONE_TICKS);
-    _append_digit_to_log(tone_log, &tone_log_offset, FESK_TONE_LOG_CAP, preamble_digit);
-
-    _append_symbol_entry(symbol_log,
-                         &symbol_log_offset,
-                         FESK_SYMBOL_LOG_CAP,
-                         "FRAME",
-                         _symbol_frame_marker.digits,
-                         _symbol_frame_marker.count);
-    _append_symbol_digits(&_symbol_frame_marker,
-                          sequence,
-                          &pos,
-                          tone_log,
-                          &tone_log_offset,
-                          FESK_TONE_LOG_CAP);
-
+    uint8_t crc = 0;
+    size_t payload_count = 0;
     for (size_t i = 0; i < length; i++) {
         unsigned char raw = (unsigned char)text[i];
-        const fesk_symbol_t *symbol = _lookup_symbol(raw);
-        char name[16];
-        _format_symbol_name(raw, name, sizeof(name));
-        _append_symbol_entry(symbol_log,
-                             &symbol_log_offset,
-                             FESK_SYMBOL_LOG_CAP,
-                             name,
-                             symbol->digits,
-                             symbol->count);
-        _append_symbol_digits(symbol,
-                              sequence,
-                              &pos,
-                              tone_log,
-                              &tone_log_offset,
-                              FESK_TONE_LOG_CAP);
+        uint8_t code = 0;
+        if (!_lookup_code(raw, &code)) {
+            free(payload_codes);
+            return FESK_ERR_UNSUPPORTED_CHARACTER;
+        }
+
+        payload_codes[payload_count++] = code;
+        crc = _crc8_update_code(crc, code);
     }
 
-    char crc_label[16];
-    snprintf(crc_label, sizeof(crc_label), "CRC(0x%02X)", crc);
-    _append_symbol_entry(symbol_log,
-                         &symbol_log_offset,
-                         FESK_SYMBOL_LOG_CAP,
-                         crc_label,
-                         crc_digits,
-                         FESK_CRC_DIGITS);
+    size_t total_bits = FESK_BITS_PER_CODE                                 // start marker
+                      + (payload_count * FESK_BITS_PER_CODE)               // payload
+                      + 8                                                  // CRC
+                      + FESK_BITS_PER_CODE;                                // end marker
+    size_t total_entries = total_bits * 4;
 
-    for (uint8_t d = 0; d < FESK_CRC_DIGITS; d++) {
-        uint8_t digit = crc_digits[d];
-        _append_digit(digit,
-                      sequence,
-                      &pos,
-                      tone_log,
-                      &tone_log_offset,
-                      FESK_TONE_LOG_CAP);
+    int8_t *sequence = malloc((total_entries + 1) * sizeof(int8_t));
+    if (!sequence) {
+        free(payload_codes);
+        return FESK_ERR_ALLOCATION_FAILED;
     }
 
-    _append_symbol_entry(symbol_log,
-                         &symbol_log_offset,
-                         FESK_SYMBOL_LOG_CAP,
-                         "FRAME",
-                         _symbol_frame_marker.digits,
-                         _symbol_frame_marker.count);
-    _append_symbol_digits(&_symbol_frame_marker,
-                          sequence,
-                          &pos,
-                          tone_log,
-                          &tone_log_offset,
-                          FESK_TONE_LOG_CAP);
+    char bit_log[FESK_BIT_LOG_CAP];
+    char code_log[FESK_CODE_LOG_CAP];
+    size_t bit_log_offset = 0;
+    size_t code_log_offset = 0;
+    bit_log[0] = '\0';
+    code_log[0] = '\0';
+
+    size_t pos = 0;
+
+    _append_code_to_log(code_log, &code_log_offset, FESK_CODE_LOG_CAP, "START", FESK_START_MARKER);
+    _append_bits_from_code(FESK_START_MARKER,
+                           sequence,
+                           &pos,
+                           bit_log,
+                           &bit_log_offset,
+                           FESK_BIT_LOG_CAP);
+
+    for (size_t i = 0; i < payload_count; ++i) {
+        unsigned char display_char = (unsigned char)text[i];
+        if (isalpha(display_char)) {
+            display_char = (unsigned char)tolower(display_char);
+        }
+
+        char label[8];
+        if (display_char >= 32 && display_char <= 126) {
+            snprintf(label, sizeof(label), "%c", display_char);
+        } else {
+            snprintf(label, sizeof(label), "0x%02X", display_char);
+        }
+
+        _append_code_to_log(code_log, &code_log_offset, FESK_CODE_LOG_CAP, label, payload_codes[i]);
+        _append_bits_from_code(payload_codes[i],
+                               sequence,
+                               &pos,
+                               bit_log,
+                               &bit_log_offset,
+                               FESK_BIT_LOG_CAP);
+    }
+
+    _append_code_to_log(code_log, &code_log_offset, FESK_CODE_LOG_CAP, "CRC", crc);
+    _append_crc_bits(crc, sequence, &pos, bit_log, &bit_log_offset, FESK_BIT_LOG_CAP);
+
+    _append_code_to_log(code_log, &code_log_offset, FESK_CODE_LOG_CAP, "END", FESK_END_MARKER);
+    _append_bits_from_code(FESK_END_MARKER,
+                           sequence,
+                           &pos,
+                           bit_log,
+                           &bit_log_offset,
+                           FESK_BIT_LOG_CAP);
 
     sequence[pos] = 0;
 
-    if (tone_log[0] != '\0') {
-        printf("FESK tones: %s\n", tone_log);
+    if (bit_log[0] != '\0') {
+        printf("FESK bits: %s\n", bit_log);
     }
-    if (symbol_log[0] != '\0') {
-        printf("FESK symbols: %s\n", symbol_log);
+    if (code_log[0] != '\0') {
+        printf("FESK codes: %s\n", code_log);
     }
 
     if (out_entries) {
@@ -349,6 +261,7 @@ static fesk_result_t _encode_internal(const char *text,
     }
     *out_sequence = sequence;
 
+    free(payload_codes);
     return FESK_OK;
 }
 
