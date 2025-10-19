@@ -359,7 +359,7 @@ bool fesk_demo_face_loop(movement_event_t event, void *context) {
             break;
 
         default:
-            break;
+            return movement_default_loop_handler(event);
     }
 
     // Return false during active operations to prevent sleep
