@@ -98,7 +98,7 @@ void tearDown(void) {
 
 static void test_encode_text_basic(void) {
     const char input[] = "A1";
-    const uint8_t payload_codes[] = {0, 26};
+    const uint8_t payload_codes[] = {0, 27};
     uint8_t expected_bits[bit_capacity_for_payload(ARRAY_LENGTH(payload_codes))];
     size_t bit_count = build_expected_bits(payload_codes,
                                            ARRAY_LENGTH(payload_codes),
@@ -139,7 +139,7 @@ static void test_encode_text_is_case_insensitive(void) {
 
 static void test_encode_text_handles_symbols(void) {
     const char input[] = " ,:";
-    const uint8_t payload_codes[] = {35, 36, 37};
+    const uint8_t payload_codes[] = {36, 37, 38};
     uint8_t expected_bits[bit_capacity_for_payload(ARRAY_LENGTH(payload_codes))];
     size_t bit_count = build_expected_bits(payload_codes,
                                            ARRAY_LENGTH(payload_codes),
