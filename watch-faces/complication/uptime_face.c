@@ -139,7 +139,7 @@ static void _uptime_countdown_tick(void *context) {
     // Check for second boundary (64 ticks = 1 second at 64Hz)
     if (state->tick_count >= 64) {
         state->tick_count = 0;
-        
+
         // After countdown finishes, start transmission
         if (state->countdown_seconds == 0) {
             // Build FESK sequence
@@ -157,7 +157,7 @@ static void _uptime_countdown_tick(void *context) {
             return;
         }
         state->countdown_seconds--;
-        
+
         // Play countdown beep
         watch_set_buzzer_period_and_duty_cycle(NotePeriods[BUZZER_NOTE_A5], 25);
         watch_set_buzzer_on();
@@ -197,6 +197,23 @@ bool uptime_face_loop(movement_event_t event, void *context) {
                 char buf[16];
                 uint32_t seconds_since_boot = uptime_get_seconds_since_boot(state);
                 snprintf(buf, sizeof(buf), "%d", seconds_since_boot);
+                // Append "s" for seconds
+                strncat(buf, "s", sizeof(buf) - strlen(buf) - 1);
+                // If its more than a minute, we use minutes.
+                if (seconds_since_boot >= 60) {
+                    uint32_t mins = seconds_since_boot / 60;
+                    snprintf(buf, sizeof(buf), "%dm", mins);
+                }
+                // If its more than an hour, we use hours.
+                if (seconds_since_boot >= 3600) {
+                    uint32_t hours = seconds_since_boot / 3600;
+                    snprintf(buf, sizeof(buf), "%dh", hours);
+                }
+                // If its more than a day, we use days.
+                if (seconds_since_boot >= 86400) {
+                    uint32_t days = seconds_since_boot / 86400;
+                    snprintf(buf, sizeof(buf), "%dd", days);
+                }
                 watch_display_text_with_fallback(WATCH_POSITION_BOTTOM, buf, "0");
             }
             break;

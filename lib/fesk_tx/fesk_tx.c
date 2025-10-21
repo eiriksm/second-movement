@@ -9,8 +9,8 @@
 
 #include "watch_tcc.h"
 
-#define FESK_TICKS_PER_BIT 4
-#define FESK_TICKS_PER_REST 4
+#define FESK_TICKS_PER_BIT 1
+#define FESK_TICKS_PER_REST 2
 #define FESK_BITS_PER_CODE 6
 #define FESK_START_MARKER 62u
 #define FESK_END_MARKER 63u
