@@ -3,10 +3,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef enum {
     FESK_OK = 0,
     FESK_ERR_INVALID_ARGUMENT,
@@ -30,7 +26,3 @@ fesk_result_t fesk_encode_cstr(const char *text,
                                size_t *out_entries);
 
 void fesk_free_sequence(int8_t *sequence);
-
-#ifdef __cplusplus
-}
-#endif
