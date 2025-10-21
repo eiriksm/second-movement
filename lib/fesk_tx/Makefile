@@ -1,30 +1,25 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c99 -g
-TARGET = test_fesk
-DEMO_TARGET = fesk_demo
-SOURCES = fesk_tx.c test_fesk.c
-DEMO_SOURCES = fesk_tx.c fesk_demo.c
+CFLAGS = -Wall -Wextra -std=c99 -g \
+    -Itest/stubs \
+    -I../chirpy_tx/test
 
-all: $(TARGET) $(DEMO_TARGET)
+TEST_BIN = test_fesk_tx
+TEST_SOURCES = \
+    test/test_fesk_tx.c \
+    fesk_tx.c \
+    ../chirpy_tx/test/unity.c
 
-$(TARGET): $(SOURCES)
-	$(CC) $(CFLAGS) -o $(TARGET) $(SOURCES)
+all: $(TEST_BIN)
 
-$(DEMO_TARGET): $(DEMO_SOURCES)
-	$(CC) $(CFLAGS) -o $(DEMO_TARGET) $(DEMO_SOURCES)
+$(TEST_BIN): $(TEST_SOURCES)
+	$(CC) $(CFLAGS) $(TEST_SOURCES) -o $(TEST_BIN)
 
-test: $(TARGET)
-	./$(TARGET)
+.PHONY: test
 
-# Usage: make demo TEXT="hello"
-demo: $(DEMO_TARGET)
-	./$(DEMO_TARGET) "$(TEXT)"
+test: $(TEST_BIN)
+	./$(TEST_BIN)
 
-# Shortcut for "test"
-demo-test: $(DEMO_TARGET)
-	./$(DEMO_TARGET) "test"
+.PHONY: clean
 
 clean:
-	rm -f $(TARGET) $(DEMO_TARGET)
-
-.PHONY: all test demo demo-test clean
+	rm -f $(TEST_BIN)

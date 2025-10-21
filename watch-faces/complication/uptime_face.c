@@ -25,7 +25,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <inttypes.h>
 #include <stdint.h>
 #include "uptime_face.h"
 #include "fesk_tx.h"
@@ -75,8 +74,9 @@ static void _uptime_quit_chirping(uptime_state_t *state) {
 
     // Free sequence memory
     if (state->fesk_sequence) {
-        free(state->fesk_sequence);
+        fesk_free_sequence(state->fesk_sequence);
         state->fesk_sequence = NULL;
+        state->fesk_sequence_length = 0;
     }
 
     watch_set_buzzer_off();
@@ -95,64 +95,34 @@ static void _uptime_transmission_done(void) {
     }
 }
 
-static void _uptime_build_fesk_sequence(uptime_state_t *state) {
+static bool _uptime_build_fesk_sequence(uptime_state_t *state) {
     // Build uptime message
     uint32_t seconds_since_boot = uptime_get_seconds_since_boot(state);
     size_t len = build_uptime_line(seconds_since_boot);
-
-    // Count total symbols needed
-    size_t total_symbols = 0;
-
-    // Initialize encoder to count symbols
-    fesk_result_t result = fesk_init_encoder(&state->encoder_state, long_data_str, len);
-    if (result != FESK_SUCCESS) {
-        return;
+    int8_t *sequence = NULL;
+    size_t entries = 0;
+    fesk_result_t result = fesk_encode_text((const char *)long_data_str, len, &sequence, &entries);
+    if (result != FESK_OK) {
+        return false;
     }
 
-    // Count symbols
-    uint8_t tone;
-    while ((tone = fesk_get_next_tone(&state->encoder_state)) != 255) {
-        total_symbols++;
-    }
-
-    // Allocate sequence: note, duration pairs + terminator
-    state->fesk_sequence_length = (total_symbols * 2) + 1;
-    state->fesk_sequence = malloc(state->fesk_sequence_length * sizeof(int8_t));
-
-    if (!state->fesk_sequence) {
-        return;
-    }
-
-    // Re-initialize encoder to generate sequence
-    result = fesk_init_encoder(&state->encoder_state, long_data_str, len);
-    if (result != FESK_SUCCESS) {
-        free(state->fesk_sequence);
-        state->fesk_sequence = NULL;
-        return;
-    }
-
-    // Build the sequence
-    size_t seq_index = 0;
-    while ((tone = fesk_get_next_tone(&state->encoder_state)) != 255) {
-        state->fesk_sequence[seq_index++] = fesk_get_buzzer_note(tone);
-        state->fesk_sequence[seq_index++] = state->encoder_state.config.symbol_ticks;  // Duration in 64Hz ticks
-    }
-
-    // Terminator
-    state->fesk_sequence[seq_index] = 0;
+    state->fesk_sequence = sequence;
+    state->fesk_sequence_length = entries;
+    return true;
 }
 
 
 static inline size_t build_uptime_line(uint32_t seconds_since_boot)
 {
-    // no newline at the end -> avoids the blank console line
-    int n = snprintf((char *)long_data_str, sizeof long_data_str,
-                     "uptime %" PRIu32 " seconds", seconds_since_boot);
-
-    // normalize/clamp
-    if (n < 0) return 0;
-    if ((size_t)n >= sizeof long_data_str) n = (int)sizeof long_data_str - 1;
-    return (size_t)n; // number of meaningful bytes (excludes NUL)
+    int written = snprintf((char *)long_data_str, UPTIME_BUFSZ, "uptime %u seconds", (unsigned int)seconds_since_boot);
+    if (written < 0) {
+        long_data_str[0] = '\0';
+        return 0;
+    }
+    if (written >= (int)UPTIME_BUFSZ) {
+        written = UPTIME_BUFSZ - 1;
+    }
+    return (size_t)written;
 }
 
 static uint32_t uptime_get_seconds_since_boot(uptime_state_t *state) {
@@ -169,13 +139,11 @@ static void _uptime_countdown_tick(void *context) {
     // Check for second boundary (64 ticks = 1 second at 64Hz)
     if (state->tick_count >= 64) {
         state->tick_count = 0;
-        
+
         // After countdown finishes, start transmission
         if (state->countdown_seconds == 0) {
             // Build FESK sequence
-            _uptime_build_fesk_sequence(state);
-
-            if (!state->fesk_sequence) {
+            if (!_uptime_build_fesk_sequence(state)) {
                 // Error - quit
                 _uptime_quit_chirping(state);
                 return;
@@ -189,7 +157,7 @@ static void _uptime_countdown_tick(void *context) {
             return;
         }
         state->countdown_seconds--;
-        
+
         // Play countdown beep
         watch_set_buzzer_period_and_duty_cycle(NotePeriods[BUZZER_NOTE_A5], 25);
         watch_set_buzzer_on();
@@ -206,7 +174,6 @@ static void _uptime_setup_chirp(uptime_state_t *state) {
     state->mode = UT_CHIRPING;
     // Set up tick state; start with countdown.
     state->tick_count = 0;
-    state->tick_compare = 64; // 64 ticks = 1 second for countdown
     state->countdown_seconds = 3; // 3 second countdown
 }
 
@@ -230,6 +197,23 @@ bool uptime_face_loop(movement_event_t event, void *context) {
                 char buf[16];
                 uint32_t seconds_since_boot = uptime_get_seconds_since_boot(state);
                 snprintf(buf, sizeof(buf), "%d", seconds_since_boot);
+                // Append "s" for seconds
+                strncat(buf, "s", sizeof(buf) - strlen(buf) - 1);
+                // If its more than a minute, we use minutes.
+                if (seconds_since_boot >= 60) {
+                    uint32_t mins = seconds_since_boot / 60;
+                    snprintf(buf, sizeof(buf), "%dm", mins);
+                }
+                // If its more than an hour, we use hours.
+                if (seconds_since_boot >= 3600) {
+                    uint32_t hours = seconds_since_boot / 3600;
+                    snprintf(buf, sizeof(buf), "%dh", hours);
+                }
+                // If its more than a day, we use days.
+                if (seconds_since_boot >= 86400) {
+                    uint32_t days = seconds_since_boot / 86400;
+                    snprintf(buf, sizeof(buf), "%dd", days);
+                }
                 watch_display_text_with_fallback(WATCH_POSITION_BOTTOM, buf, "0");
             }
             break;
@@ -260,4 +244,3 @@ void uptime_face_resign(void *context) {
         _uptime_quit_chirping(state);
     }
 }
-

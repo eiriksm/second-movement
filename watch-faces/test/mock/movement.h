@@ -42,3 +42,7 @@ void movement_move_to_face(uint8_t watch_face_index);
 watch_date_time_t movement_get_local_date_time(void);
 int32_t movement_get_current_timezone_offset_for_zone(uint8_t zone_index);
 int32_t movement_get_current_timezone_offset(void);
+void movement_request_tick_frequency(uint8_t freq);
+
+void movement_mock_set_local_date_time(watch_date_time_t date_time);
+void movement_mock_clear_local_date_time(void);

@@ -26,7 +26,7 @@ static void print_unit_count(unit_counter_state_t *state) {
     char buf[4];
     // We actually do not want to pad with 0 but with space.
     sprintf(buf, "%2d", state->unit_count);
-    watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "UC", "UC");
+    watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "UC", "Uts");
     watch_display_text(WATCH_POSITION_TOP_RIGHT, buf);
     // Let's also get the BAC.
     float bac = unit_counter_calculate_bac(state);
@@ -117,7 +117,7 @@ void unit_counter_print_time_to_sober_screen(unit_counter_state_t *state) {
     char buf[10];
     // We actually do not want to pad with 0 but with space.
     sprintf(buf, "%2d", state->unit_count);
-    watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "UC", "Uts");
+    watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "TS", "TTS");
     watch_display_text(WATCH_POSITION_TOP_RIGHT, buf);
     // First calculate the number of seconds.
     float bac = unit_counter_calculate_bac(state);

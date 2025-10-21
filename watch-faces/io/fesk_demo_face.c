@@ -28,6 +28,7 @@
 #include "fesk_demo_face.h"
 #include "fesk_tx.h"
 #include "movement.h"
+#include "watch_tcc.h"
 
 typedef enum {
     FDM_READY = 0,      // Ready to transmit
@@ -47,9 +48,6 @@ typedef struct {
     uint8_t transmission_ticks;
     uint8_t tick_count;
 
-    // FESK encoder state
-    fesk_encoder_state_t encoder_state;
-
     // Buzzer state tracking
     bool buzzer_is_on;
 
@@ -64,8 +62,8 @@ typedef struct {
 static char tone_string[1024];
 
 // Test message to transmit
-static const uint8_t test_message[] = "test";
-static const uint16_t test_message_len = sizeof(test_message) - 1;
+static const char test_message[] = "hello from fesk";
+static const size_t test_message_len = sizeof(test_message) - 1;
 
 // Global callback state for sequence completion
 static fesk_demo_state_t *melody_callback_state = NULL;
@@ -136,47 +134,60 @@ static void _fdf_start_countdown(fesk_demo_state_t *state) {
 static void _fdf_stop_transmission(fesk_demo_state_t *state);
 static void _fdf_fesk_transmission_done(void);
 
-static void _fdf_build_fesk_sequence(fesk_demo_state_t *state) {
-    // Count total symbols needed
-    size_t total_symbols = 0;
-
-    // Initialize encoder to count symbols
-    fesk_result_t result = fesk_init_encoder(&state->encoder_state, test_message, test_message_len);
-    if (result != FESK_SUCCESS) {
+static void _fdf_log_transmitted_frequencies(const fesk_demo_state_t *state) {
+    if (!state->fesk_sequence || state->fesk_sequence_length == 0) {
+        tone_string[0] = '\0';
+        printf("FESK frequencies: (sequence empty)\n");
         return;
     }
 
-    // Count symbols
-    uint8_t tone;
-    while ((tone = fesk_get_next_tone(&state->encoder_state)) != 255) {
-        total_symbols++;
+    tone_string[0] = '\0';
+    size_t offset = 0;
+    size_t remaining = sizeof(tone_string);
+    size_t freq_count = 0;
+
+    for (size_t i = 0; i + 1 < state->fesk_sequence_length; i += 4) {
+        int8_t note = state->fesk_sequence[i];
+        if (note < 0 || note >= BUZZER_NOTE_REST) {
+            continue;
+        }
+
+        float freq = 1000000.0f / (float)NotePeriods[(uint8_t)note];
+        int written = snprintf(tone_string + offset,
+                               remaining,
+                               freq_count == 0 ? "%.2f Hz" : ", %.2f Hz",
+                               freq);
+
+        if (written < 0 || (size_t)written >= remaining) {
+            // Buffer full or encoding error; ensure termination and stop logging
+            offset = sizeof(tone_string) - 1;
+            tone_string[offset] = '\0';
+            break;
+        }
+
+        offset += (size_t)written;
+        remaining = sizeof(tone_string) - offset;
+        freq_count++;
     }
 
-    // Allocate sequence: note, duration pairs + terminator
-    state->fesk_sequence_length = (total_symbols * 2) + 1;
-    state->fesk_sequence = malloc(state->fesk_sequence_length * sizeof(int8_t));
+    if (freq_count > 0) {
+        printf("FESK frequencies: %s\n", tone_string);
+    } else {
+        printf("FESK frequencies: (no tones)\n");
+    }
+}
 
-    if (!state->fesk_sequence) {
-        return;
+static bool _fdf_build_fesk_sequence(fesk_demo_state_t *state) {
+    int8_t *sequence = NULL;
+    size_t entries = 0;
+    fesk_result_t result = fesk_encode_text(test_message, test_message_len, &sequence, &entries);
+    if (result != FESK_OK) {
+        return false;
     }
 
-    // Re-initialize encoder to generate sequence
-    result = fesk_init_encoder(&state->encoder_state, test_message, test_message_len);
-    if (result != FESK_SUCCESS) {
-        free(state->fesk_sequence);
-        state->fesk_sequence = NULL;
-        return;
-    }
-
-    // Build the sequence
-    size_t seq_index = 0;
-    while ((tone = fesk_get_next_tone(&state->encoder_state)) != 255) {
-        state->fesk_sequence[seq_index++] = fesk_get_buzzer_note(tone);
-        state->fesk_sequence[seq_index++] = state->encoder_state.config.symbol_ticks;  // Duration in 64Hz ticks
-    }
-
-    // Terminator
-    state->fesk_sequence[seq_index] = 0;
+    state->fesk_sequence = sequence;
+    state->fesk_sequence_length = entries;
+    return true;
 }
 
 static void _fdf_start_transmission(fesk_demo_state_t *state) {
@@ -185,13 +196,18 @@ static void _fdf_start_transmission(fesk_demo_state_t *state) {
     state->tick_count = 0;
 
     // Build FESK sequence
-    _fdf_build_fesk_sequence(state);
+    if (state->fesk_sequence) {
+        fesk_free_sequence(state->fesk_sequence);
+        state->fesk_sequence = NULL;
+    }
 
-    if (!state->fesk_sequence) {
+    if (!_fdf_build_fesk_sequence(state)) {
         // Error - go back to ready
         _fdf_stop_transmission(state);
         return;
     }
+
+    _fdf_log_transmitted_frequencies(state);
 
     // Start playing the sequence
     state->is_playing_sequence = true;
@@ -207,7 +223,11 @@ static void _fdf_fesk_transmission_done(void) {
         fesk_demo_state_t *state = melody_callback_state;
         melody_callback_state = NULL;  // Clear callback state to prevent re-entry
         _fdf_stop_transmission(state);
-        printf("FESK transmission complete\n");
+        if (tone_string[0] != '\0') {
+            printf("FESK transmission complete (tones: %s)\n", tone_string);
+        } else {
+            printf("FESK transmission complete\n");
+        }
     }
 }
 
@@ -222,8 +242,9 @@ static void _fdf_stop_transmission(fesk_demo_state_t *state) {
 
     // Free sequence memory
     if (state->fesk_sequence) {
-        free(state->fesk_sequence);
+        fesk_free_sequence(state->fesk_sequence);
         state->fesk_sequence = NULL;
+        state->fesk_sequence_length = 0;
     }
 
     // Stop buzzer and clear indicators
@@ -269,18 +290,10 @@ static void _fdf_handle_countdown_tick(fesk_demo_state_t *state) {
 
 
 static int8_t game_win_melody[] = {
-    BUZZER_NOTE_G6, 6,
-    BUZZER_NOTE_A6, 6,
-    BUZZER_NOTE_B6, 6,
-    BUZZER_NOTE_C7, 6,
-    BUZZER_NOTE_D7, 6,
-    BUZZER_NOTE_E7, 6,
-    BUZZER_NOTE_D7, 6,
-    BUZZER_NOTE_C7, 6,
-    BUZZER_NOTE_B6, 6,
-    BUZZER_NOTE_C7, 6,
-    BUZZER_NOTE_D7, 6,
-    BUZZER_NOTE_G7, 6,
+    BUZZER_NOTE_F7, 40,
+    BUZZER_NOTE_A7, 40,
+    BUZZER_NOTE_D8, 40,
+    BUZZER_NOTE_G6, 40,
     0};
 
 void fesk_demo_face_melody_done(void) {
@@ -346,7 +359,7 @@ bool fesk_demo_face_loop(movement_event_t event, void *context) {
             break;
 
         default:
-            break;
+            return movement_default_loop_handler(event);
     }
 
     // Return false during active operations to prevent sleep
