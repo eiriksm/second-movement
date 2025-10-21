@@ -11,6 +11,8 @@
 
 #define FESK_BIT_LOG_CAP 2048
 #define FESK_CODE_LOG_CAP 2048
+// Flip to 1 to display debug logs.
+#define FESK_USE_LOG 0
 
 typedef struct {
     unsigned char character;
@@ -36,6 +38,9 @@ static void _append_to_log(char *buffer,
                            size_t capacity,
                            const char *fmt, ...) {
     if (!buffer || !offset || *offset >= capacity) {
+        return;
+    }
+    if (FESK_USE_LOG !== 1) {
         return;
     }
 
@@ -245,10 +250,10 @@ static fesk_result_t _encode_internal(const char *text,
 
     sequence[pos] = 0;
 
-    if (bit_log[0] != '\0') {
+    if (FESK_USE_LOG === 1 && bit_log[0] != '\0') {
         printf("FESK bits: %s\n", bit_log);
     }
-    if (code_log[0] != '\0') {
+    if (FESK_USE_LOG === 1 && code_log[0] != '\0') {
         printf("FESK codes: %s\n", code_log);
     }
 
