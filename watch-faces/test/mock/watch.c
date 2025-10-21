@@ -6,41 +6,33 @@
 void watch_set_led_off(void) {}
 
 // Create a struct to hold the current display text. It should be indexed by the different positions.
-static char display_text[2][8];
+static char display_text[WATCH_POSITION_SECONDS + 1][16];
 
 void watch_display_text(watch_position_t location, const char *string) {
-    // Copy the string into the display_text array.
-    // So convert the location to an index.
-    int delta = 0;
-    switch (location) {
-        case WATCH_POSITION_FULL:
-            delta = 0;
-            break;
-        case WATCH_POSITION_BOTTOM:
-            delta = 1;
-            break;
-
+    if (location > WATCH_POSITION_SECONDS || !string) {
+        return;
     }
-    // Now place that string into the display text array, at the given location.
-    strcpy(display_text[delta], string);
+    strncpy(display_text[location], string, sizeof(display_text[location]) - 1);
+    display_text[location][sizeof(display_text[location]) - 1] = '\0';
 }
 
 char *watch_get_display_text(watch_position_t location) {
-    // Convert the location to an index.
-    int delta = 0;
-    switch (location) {
-        case WATCH_POSITION_FULL:
-            delta = 0;
-            break;
-        case WATCH_POSITION_BOTTOM:
-            delta = 1;
-            break;
+    if (location > WATCH_POSITION_SECONDS) {
+        return NULL;
     }
     // Now return the string at that location.
-    return display_text[delta];
+    return display_text[location];
 }
 
-void watch_display_text_with_fallback(watch_position_t location, const char *string, const char *fallback) {}
+void watch_display_text_with_fallback(watch_position_t location,
+                                      const char *string,
+                                      const char *fallback) {
+    const char *selected = (string && string[0] != '\0') ? string : fallback;
+    if (!selected) {
+        selected = "";
+    }
+    watch_display_text(location, selected);
+}
 
 uint32_t watch_utility_date_time_to_unix_time(watch_date_time_t date_time, int32_t utc_offset) {
     // Convert from watch_date_time_t to tm.
@@ -56,4 +48,40 @@ uint32_t watch_utility_date_time_to_unix_time(watch_date_time_t date_time, int32
     // Now convert to unix time.
     time_t unix_time = mktime(&time_info);
     return unix_time - (utc_offset * 3600);
+}
+
+const uint16_t NotePeriods[] = {
+    [BUZZER_NOTE_A5] = 1136,
+    [BUZZER_NOTE_D7SHARP_E7FLAT] = 402,
+    [BUZZER_NOTE_G7] = 319,
+    [BUZZER_NOTE_REST] = 0,
+};
+
+void watch_set_indicator(watch_indicator_t indicator) {
+    (void)indicator;
+}
+
+void watch_clear_indicator(watch_indicator_t indicator) {
+    (void)indicator;
+}
+
+void watch_set_buzzer_period_and_duty_cycle(uint32_t period, uint8_t duty) {
+    (void)period;
+    (void)duty;
+}
+
+void watch_set_buzzer_on(void) {
+}
+
+void watch_set_buzzer_off(void) {
+}
+
+void watch_buzzer_abort_sequence(void) {
+}
+
+void watch_buzzer_play_sequence(int8_t *note_sequence, void (*callback_on_end)(void)) {
+    (void)note_sequence;
+    if (callback_on_end) {
+        callback_on_end();
+    }
 }

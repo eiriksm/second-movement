@@ -2,6 +2,7 @@
 #define WATCH_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 typedef union {
     struct {
@@ -37,5 +38,25 @@ void watch_display_text_with_fallback(watch_position_t location, const char *str
 
 uint32_t watch_utility_date_time_to_unix_time(watch_date_time_t date_time, int32_t utc_offset);
 
+typedef enum {
+    WATCH_INDICATOR_BELL = 0,
+} watch_indicator_t;
+
+typedef enum {
+    BUZZER_NOTE_A5 = 0,
+    BUZZER_NOTE_D7SHARP_E7FLAT,
+    BUZZER_NOTE_G7,
+    BUZZER_NOTE_REST,
+} watch_buzzer_note_t;
+
+extern const uint16_t NotePeriods[];
+
+void watch_set_indicator(watch_indicator_t indicator);
+void watch_clear_indicator(watch_indicator_t indicator);
+void watch_set_buzzer_period_and_duty_cycle(uint32_t period, uint8_t duty);
+void watch_set_buzzer_on(void);
+void watch_set_buzzer_off(void);
+void watch_buzzer_abort_sequence(void);
+void watch_buzzer_play_sequence(int8_t *note_sequence, void (*callback_on_end)(void));
 
 #endif // WATCH_H
