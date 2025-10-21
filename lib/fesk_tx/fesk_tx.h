@@ -14,6 +14,12 @@ typedef enum {
     FESK_ERR_ALLOCATION_FAILED,
 } fesk_result_t;
 
+#define FESK_TICKS_PER_BIT 1
+#define FESK_TICKS_PER_REST 2
+#define FESK_BITS_PER_CODE 6
+#define FESK_START_MARKER 62u
+#define FESK_END_MARKER 63u
+
 fesk_result_t fesk_encode_text(const char *text,
                                size_t length,
                                int8_t **out_sequence,
@@ -28,4 +34,3 @@ void fesk_free_sequence(int8_t *sequence);
 #ifdef __cplusplus
 }
 #endif
-

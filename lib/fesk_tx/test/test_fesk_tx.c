@@ -8,11 +8,6 @@
 #include "unity.h"
 
 #define ARRAY_LENGTH(arr) (sizeof(arr) / sizeof((arr)[0]))
-#define FESK_TICKS_PER_BIT 4
-#define FESK_TICKS_PER_REST 4
-#define FESK_BITS_PER_CODE 6
-#define FESK_START_MARKER 62u
-#define FESK_END_MARKER 63u
 
 static int8_t note_for_bit(uint8_t bit) {
     return bit ? (int8_t)BUZZER_NOTE_G7 : (int8_t)BUZZER_NOTE_D7SHARP_E7FLAT;
