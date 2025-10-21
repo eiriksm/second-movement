@@ -40,7 +40,7 @@ static void _append_to_log(char *buffer,
     if (!buffer || !offset || *offset >= capacity) {
         return;
     }
-    if (FESK_USE_LOG !== 1) {
+    if (FESK_USE_LOG != 1) {
         return;
     }
 
@@ -250,10 +250,10 @@ static fesk_result_t _encode_internal(const char *text,
 
     sequence[pos] = 0;
 
-    if (FESK_USE_LOG === 1 && bit_log[0] != '\0') {
+    if (FESK_USE_LOG == 1 && bit_log[0] != '\0') {
         printf("FESK bits: %s\n", bit_log);
     }
-    if (FESK_USE_LOG === 1 && code_log[0] != '\0') {
+    if (FESK_USE_LOG == 1 && code_log[0] != '\0') {
         printf("FESK codes: %s\n", code_log);
     }
 
