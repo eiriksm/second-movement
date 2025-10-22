@@ -1,14 +1,12 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -std=c99 -g \
     -Itest/stubs \
-    # We use unity from chirpy.
     -I../chirpy_tx/test
 
 TEST_BIN = test_fesk_tx
 TEST_SOURCES = \
     test/test_fesk_tx.c \
     fesk_tx.c \
-    # Unity is here.
     ../chirpy_tx/test/unity.c
 
 all: $(TEST_BIN)
