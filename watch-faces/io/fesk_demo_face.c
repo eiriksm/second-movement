@@ -289,17 +289,16 @@ static void _fdf_handle_countdown_tick(fesk_demo_state_t *state) {
 }
 
 
-static int8_t game_win_melody[] = {
-    BUZZER_NOTE_F7, 40,
-    BUZZER_NOTE_A7, 40,
-    BUZZER_NOTE_D8, 40,
-    BUZZER_NOTE_G6, 40,
+static int8_t debug_sequence[] = {
+    BUZZER_NOTE_D7SHARP_E7FLAT, 40,
+    BUZZER_NOTE_G7, 40,
+    BUZZER_NOTE_D7SHARP_E7FLAT, 40,
+    BUZZER_NOTE_G7, 40,
     0};
 
-void fesk_demo_face_melody_done(void) {
+void fesk_demo_face_debug_done(void) {
     if (melody_callback_state) {
         melody_callback_state->is_playing_sequence = false;
-        printf("Melody done\n");
     }
 }
 
@@ -341,7 +340,7 @@ bool fesk_demo_face_loop(movement_event_t event, void *context) {
             }
             state->is_playing_sequence = true;
             melody_callback_state = state;
-            watch_buzzer_play_sequence(game_win_melody, fesk_demo_face_melody_done);
+            watch_buzzer_play_sequence(debug_sequence, fesk_demo_face_debug_done);
             break;
 
         case EVENT_TICK:
