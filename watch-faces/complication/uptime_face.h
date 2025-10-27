@@ -25,7 +25,7 @@
 #pragma once
 
 #include "movement.h"
-#include "fesk_tx.h"
+#include "fesk_session.h"
 
 /*
  * A DESCRIPTION OF YOUR WATCH FACE
@@ -43,14 +43,8 @@ typedef enum {
 typedef struct {
     uint32_t boot_time;
     uptime_mode_t mode;
-    uint8_t tick_count;
-    uint8_t countdown_seconds;
-    // Buzzer state tracking
-    bool buzzer_is_on;
-    bool is_playing_sequence;
-    // FESK sequence for buzzer playback
-    int8_t *fesk_sequence;
-    size_t fesk_sequence_length;
+    fesk_session_t session;
+    fesk_session_config_t config;
 } uptime_state_t;
 
 void uptime_face_setup(uint8_t watch_face_index, void ** context_ptr);

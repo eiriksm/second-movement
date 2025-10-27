@@ -30,7 +30,7 @@
  * 
  * A simple demonstration of the Harmonic Triad 3-FSK Acoustic Protocol (HT3).
  * 
- * This face demonstrates the fesk_tx protocol by transmitting the word "test"
+ * This face demonstrates the fesk_tx protocol by transmitting the phrase "hello from fesk"
  * when the alarm button is pressed. Features a countdown before transmission
  * similar to the chirpy demo.
  * 

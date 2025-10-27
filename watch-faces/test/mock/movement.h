@@ -38,6 +38,7 @@ typedef struct {
 
 bool movement_default_loop_handler(movement_event_t event);
 void movement_move_to_face(uint8_t watch_face_index);
+void movement_move_to_next_face(void);
 
 watch_date_time_t movement_get_local_date_time(void);
 int32_t movement_get_current_timezone_offset_for_zone(uint8_t zone_index);
