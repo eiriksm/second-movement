@@ -67,7 +67,7 @@ static void _fesk_demo_on_ready(void *user_data) {
     if (!state) return;
     state->is_countdown = false;
     state->is_transmitting = false;
-    _demo_display_ready(state);
+    _fesk_demo_display_ready(state);
 }
 
 static void _fesk_demo_on_countdown_begin(void *user_data) {
