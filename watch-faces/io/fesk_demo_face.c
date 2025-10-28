@@ -38,10 +38,9 @@ typedef struct {
     bool is_countdown;
     bool is_transmitting;
     bool is_debug_playing;
-    char tone_log[1024];
 } fesk_demo_state_t;
 
-static const char test_message[] = "hello from fesk";
+static const char test_message[] = "test";
 static const size_t test_message_len = sizeof(test_message) - 1;
 
 static fesk_demo_state_t *melody_callback_state = NULL;
@@ -63,10 +62,6 @@ static void _demo_update_countdown_display(uint8_t seconds_remaining) {
     watch_display_text(WATCH_POSITION_BOTTOM, buffer);
 }
 
-static void _demo_reset_tone_log(fesk_demo_state_t *state) {
-    if (state) state->tone_log[0] = '\0';
-}
-
 static void _demo_on_ready(void *user_data) {
     fesk_demo_state_t *state = (fesk_demo_state_t *)user_data;
     if (!state) return;
@@ -80,7 +75,6 @@ static void _demo_on_countdown_begin(void *user_data) {
     if (!state) return;
     state->is_debug_playing = false;
     state->is_countdown = true;
-    _demo_reset_tone_log(state);
 }
 
 static void _demo_on_countdown_tick(uint8_t seconds_remaining, void *user_data) {
@@ -96,50 +90,11 @@ static void _demo_on_countdown_complete(void *user_data) {
     state->is_countdown = false;
 }
 
-static void _demo_on_sequence_ready(const int8_t *sequence, size_t entries, void *user_data) {
-    fesk_demo_state_t *state = (fesk_demo_state_t *)user_data;
-    if (!state || !sequence || entries == 0) return;
-
-    _demo_reset_tone_log(state);
-
-    size_t offset = 0;
-    size_t remaining = sizeof(state->tone_log);
-    size_t freq_count = 0;
-
-    for (size_t i = 0; i + 1 < entries; i += 4) {
-        int8_t note = sequence[i];
-        if (note < 0 || note >= BUZZER_NOTE_REST) {
-            continue;
-        }
-
-        float freq = 1000000.0f / (float)NotePeriods[(uint8_t)note];
-        int written = snprintf(state->tone_log + offset,
-                               remaining,
-                               freq_count == 0 ? "%.2f Hz" : ", %.2f Hz",
-                               freq);
-
-        if (written < 0 || (size_t)written >= remaining) {
-            offset = sizeof(state->tone_log) - 1;
-            state->tone_log[offset] = '\0';
-            break;
-        }
-
-        offset += (size_t)written;
-        remaining = sizeof(state->tone_log) - offset;
-        freq_count++;
-    }
-}
-
 static void _demo_on_transmission_start(void *user_data) {
     fesk_demo_state_t *state = (fesk_demo_state_t *)user_data;
     if (!state) return;
     state->is_transmitting = true;
     watch_display_text(WATCH_POSITION_BOTTOM, "  TX  ");
-    if (state->tone_log[0] != '\0') {
-        printf("FESK frequencies: %s\n", state->tone_log);
-    } else {
-        printf("FESK frequencies: (no tones)\n");
-    }
 }
 
 static void _demo_on_transmission_end(void *user_data) {
@@ -147,11 +102,6 @@ static void _demo_on_transmission_end(void *user_data) {
     if (!state) return;
     state->is_transmitting = false;
     _demo_display_ready(state);
-    if (state->tone_log[0] != '\0') {
-        printf("FESK transmission complete (tones: %s)\n", state->tone_log);
-    } else {
-        printf("FESK transmission complete\n");
-    }
 }
 
 static void _demo_on_cancelled(void *user_data) {
@@ -193,7 +143,6 @@ void fesk_demo_face_setup(uint8_t watch_face_index, void **context_ptr) {
         return;
     }
     memset(state, 0, sizeof(*state));
-    state->tone_log[0] = '\0';
 
     state->config.enable_countdown = true;
     state->config.countdown_seconds = 3;
@@ -206,7 +155,6 @@ void fesk_demo_face_setup(uint8_t watch_face_index, void **context_ptr) {
     state->config.on_countdown_tick = _demo_on_countdown_tick;
     state->config.on_countdown_complete = _demo_on_countdown_complete;
     state->config.on_transmission_start = _demo_on_transmission_start;
-    state->config.on_sequence_ready = _demo_on_sequence_ready;
     state->config.on_transmission_end = _demo_on_transmission_end;
     state->config.on_cancelled = _demo_on_cancelled;
     state->config.on_error = _demo_on_error;
@@ -219,7 +167,6 @@ void fesk_demo_face_setup(uint8_t watch_face_index, void **context_ptr) {
 void fesk_demo_face_activate(void *context) {
     fesk_demo_state_t *state = (fesk_demo_state_t *)context;
     if (!state) return;
-    state->tone_log[0] = '\0';
     state->is_debug_playing = false;
     fesk_session_prepare(&state->session);
 }
