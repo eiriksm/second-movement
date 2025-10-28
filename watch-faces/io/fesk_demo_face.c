@@ -204,7 +204,7 @@ bool fesk_demo_face_loop(movement_event_t event, void *context) {
             if (!state->is_debug_playing && !state->is_countdown && !state->is_transmitting) {
                 state->is_debug_playing = true;
                 melody_callback_state = state;
-                watch_buzzer_play_sequence(debug_sequence, _demo_debug_done);
+                watch_buzzer_play_sequence(debug_sequence, _fesk_demo_debug_done);
             }
             handled = true;
             break;
