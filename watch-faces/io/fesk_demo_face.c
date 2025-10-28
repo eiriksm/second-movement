@@ -51,17 +51,6 @@ static void _fesk_demo_display_ready(fesk_demo_state_t *state) {
     watch_display_text(WATCH_POSITION_BOTTOM, " TEST ");
 }
 
-static void _fesk_demo_update_countdown_display(uint8_t seconds_remaining) {
-    char buffer[7] = "      ";
-    if (seconds_remaining > 0) {
-        snprintf(buffer, sizeof(buffer), "     %u", (unsigned int)seconds_remaining);
-    } else {
-        strncpy(buffer, "    GO", sizeof(buffer));
-    }
-    buffer[6] = '\0';
-    watch_display_text(WATCH_POSITION_BOTTOM, buffer);
-}
-
 static void _fesk_demo_on_ready(void *user_data) {
     fesk_demo_state_t *state = (fesk_demo_state_t *)user_data;
     if (!state) return;
@@ -77,22 +66,10 @@ static void _fesk_demo_on_countdown_begin(void *user_data) {
     state->is_countdown = true;
 }
 
-static void _fesk_demo_on_countdown_tick(uint8_t seconds_remaining, void *user_data) {
-    fesk_demo_state_t *state = (fesk_demo_state_t *)user_data;
-    if (!state) return;
-    state->is_countdown = true;
-    _fesk_demo_update_countdown_display(seconds_remaining);
-}
-
-static void _fesk_demo_on_countdown_complete(void *user_data) {
-    fesk_demo_state_t *state = (fesk_demo_state_t *)user_data;
-    if (!state) return;
-    state->is_countdown = false;
-}
-
 static void _fesk_demo_on_transmission_start(void *user_data) {
     fesk_demo_state_t *state = (fesk_demo_state_t *)user_data;
     if (!state) return;
+    state->is_countdown = false;
     state->is_transmitting = true;
     watch_display_text(WATCH_POSITION_BOTTOM, "  TX  ");
 }
@@ -144,16 +121,12 @@ void fesk_demo_face_setup(uint8_t watch_face_index, void **context_ptr) {
     }
     memset(state, 0, sizeof(*state));
 
-    state->config.enable_countdown = true;
-    state->config.countdown_seconds = 3;
-    state->config.countdown_beep = true;
-    state->config.show_bell_indicator = true;
+    fesk_session_config_t config = fesk_session_config_defaults();
+    state->config = config;
     state->config.static_message = test_message;
     state->config.static_message_length = test_message_len;
     state->config.on_ready = _fesk_demo_on_ready;
     state->config.on_countdown_begin = _fesk_demo_on_countdown_begin;
-    state->config.on_countdown_tick = _fesk_demo_on_countdown_tick;
-    state->config.on_countdown_complete = _fesk_demo_on_countdown_complete;
     state->config.on_transmission_start = _fesk_demo_on_transmission_start;
     state->config.on_transmission_end = _fesk_demo_on_transmission_end;
     state->config.on_cancelled = _fesk_demo_on_cancelled;
