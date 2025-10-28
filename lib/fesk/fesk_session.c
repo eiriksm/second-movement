@@ -29,13 +29,13 @@ static void _fesk_default_display(const char *text) {
 }
 
 static void _fesk_default_show_countdown(uint8_t seconds) {
-    char buffer[7];
     if (seconds > 0) {
-        snprintf(buffer, sizeof(buffer), "  %u  ", (unsigned int)seconds);
+        char buffer[6];
+        snprintf(buffer, sizeof(buffer), "%5u", (unsigned int)seconds);
+        _fesk_default_display(buffer);
     } else {
-        snprintf(buffer, sizeof(buffer), "  GO  ");
+        _fesk_default_display("  GO  ");
     }
-    _fesk_default_display(buffer);
 }
 
 static void _fesk_default_on_ready(void *user_data) {
