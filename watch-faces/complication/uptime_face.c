@@ -211,10 +211,10 @@ void uptime_face_setup(uint8_t watch_face_index, void **context_ptr) {
         now,
         movement_get_current_timezone_offset());
 
-    state->config.enable_countdown = true;
-    state->config.countdown_seconds = 3;
+    fesk_session_config_t config = fesk_session_config_defaults();
+    state->config = config;
+
     state->config.countdown_beep = true;
-    state->config.show_bell_indicator = true;
     state->config.provide_payload = uptime_payload_provider;
     state->config.on_ready = uptime_on_ready;
     state->config.on_countdown_begin = uptime_on_countdown_begin;
