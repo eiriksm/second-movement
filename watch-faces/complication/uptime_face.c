@@ -104,7 +104,16 @@ static void uptime_display_elapsed(uint32_t seconds_since_boot) {
 static void uptime_display_countdown(uint8_t seconds_remaining) {
     char buffer[7] = "      ";
     if (seconds_remaining > 0) {
-        snprintf(buffer, sizeof(buffer), "     %u", (unsigned int)seconds_remaining);
+        char temp[4];
+        snprintf(temp, sizeof(temp), "%u", (unsigned int)seconds_remaining);
+        size_t len = 0;
+        while (len < sizeof(temp) && temp[len] != '\0') {
+            len++;
+        }
+        if (len > sizeof(buffer) - 1) {
+            len = sizeof(buffer) - 1;
+        }
+        memcpy(buffer + (sizeof(buffer) - 1 - len), temp, len);
     } else {
         strncpy(buffer, "    GO", sizeof(buffer));
     }
