@@ -27,6 +27,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "watch_tcc.h"
+
 typedef enum {
     FESK_OK = 0,
     FESK_ERR_INVALID_ARGUMENT,
@@ -39,6 +41,17 @@ typedef enum {
 #define FESK_BITS_PER_CODE 6
 #define FESK_START_MARKER 62u
 #define FESK_END_MARKER 63u
+
+enum {
+    FESK_TONE_ZERO = 0,
+    FESK_TONE_ONE = 1,
+    FESK_TONE_COUNT = 2,
+};
+
+#define FESK_TONE_LOW_NOTE  BUZZER_NOTE_D7SHARP_E7FLAT
+#define FESK_TONE_HIGH_NOTE BUZZER_NOTE_G7
+
+extern const watch_buzzer_note_t fesk_tone_map[FESK_TONE_COUNT];
 
 fesk_result_t fesk_encode_text(const char *text,
                                size_t length,

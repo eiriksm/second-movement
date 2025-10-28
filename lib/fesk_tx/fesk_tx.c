@@ -55,9 +55,9 @@ static const fesk_code_entry_t _code_table[] = {
     {'"', 40},
 };
 
-static const watch_buzzer_note_t _tone_map[2] = {
-    [0] = BUZZER_NOTE_D7SHARP_E7FLAT, // ≈ 2489 Hz (closest to 2560 Hz)
-    [1] = BUZZER_NOTE_G7,             // ≈ 3136 Hz (closest to 3072 Hz)
+const watch_buzzer_note_t fesk_tone_map[FESK_TONE_COUNT] = {
+    [FESK_TONE_ZERO] = FESK_TONE_LOW_NOTE,
+    [FESK_TONE_ONE] = FESK_TONE_HIGH_NOTE,
 };
 
 #if FESK_USE_LOG
@@ -143,7 +143,7 @@ static inline void _append_bit(uint8_t bit,
                                char *bit_log,
                                size_t *bit_offset,
                                size_t bit_capacity) {
-    watch_buzzer_note_t tone = _tone_map[bit];
+    watch_buzzer_note_t tone = fesk_tone_map[bit];
     sequence[(*pos)++] = (int8_t)tone;
     sequence[(*pos)++] = FESK_TICKS_PER_BIT;
     sequence[(*pos)++] = (int8_t)BUZZER_NOTE_REST;

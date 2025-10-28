@@ -52,6 +52,7 @@ typedef struct fesk_session_s {
     size_t sequence_entries;
 } fesk_session_t;
 
+fesk_session_config_t fesk_session_config_defaults(void);
 void fesk_session_init(fesk_session_t *session, const fesk_session_config_t *config);
 void fesk_session_dispose(fesk_session_t *session);
 bool fesk_session_start(fesk_session_t *session);

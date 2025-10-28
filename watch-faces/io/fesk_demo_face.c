@@ -118,10 +118,10 @@ static void _fesk_demo_on_error(fesk_result_t error, void *user_data) {
 }
 
 static int8_t debug_sequence[] = {
-    BUZZER_NOTE_D7SHARP_E7FLAT, 40,
-    BUZZER_NOTE_G7, 40,
-    BUZZER_NOTE_D7SHARP_E7FLAT, 40,
-    BUZZER_NOTE_G7, 40,
+    FESK_TONE_LOW_NOTE, 40,
+    FESK_TONE_HIGH_NOTE, 40,
+    FESK_TONE_LOW_NOTE, 40,
+    FESK_TONE_HIGH_NOTE, 40,
     0
 };
 

@@ -1,5 +1,6 @@
 #include "fesk_session.h"
 
+#include <stdio.h>
 #include <string.h>
 
 #include "movement.h"
@@ -22,6 +23,76 @@ static const int8_t _fesk_countdown_silence_sequence[] = {
     BUZZER_NOTE_REST, FESK_SESSION_TICKS_PER_SECOND,
     0
 };
+
+static void _fesk_default_display(const char *text) {
+    watch_display_text(WATCH_POSITION_BOTTOM, text);
+}
+
+static void _fesk_default_show_countdown(uint8_t seconds) {
+    char buffer[7];
+    if (seconds > 0) {
+        snprintf(buffer, sizeof(buffer), "  %u  ", (unsigned int)seconds);
+    } else {
+        snprintf(buffer, sizeof(buffer), "  GO  ");
+    }
+    _fesk_default_display(buffer);
+}
+
+static void _fesk_default_on_ready(void *user_data) {
+    (void)user_data;
+    _fesk_default_display(" READY");
+}
+
+static void _fesk_default_on_transmission_start(void *user_data) {
+    (void)user_data;
+    _fesk_default_display("  TX  ");
+}
+
+static void _fesk_default_on_transmission_end(void *user_data) {
+    (void)user_data;
+    _fesk_default_display(" DONE ");
+}
+
+static void _fesk_default_on_cancelled(void *user_data) {
+    (void)user_data;
+    _fesk_default_display(" STOP ");
+}
+
+static void _fesk_default_on_error(fesk_result_t error, void *user_data) {
+    (void)error;
+    (void)user_data;
+    _fesk_default_display(" ERR  ");
+}
+
+static void _fesk_default_on_countdown_tick(uint8_t seconds_remaining, void *user_data) {
+    (void)user_data;
+    _fesk_default_show_countdown(seconds_remaining);
+}
+
+static void _fesk_default_on_countdown_complete(void *user_data) {
+    (void)user_data;
+    _fesk_default_show_countdown(0);
+}
+
+fesk_session_config_t fesk_session_config_defaults(void) {
+    fesk_session_config_t config;
+    memset(&config, 0, sizeof(config));
+    config.enable_countdown = true;
+    config.countdown_seconds = FESK_SESSION_DEFAULT_COUNTDOWN_SECONDS;
+    config.countdown_beep = true;
+    config.show_bell_indicator = true;
+    config.on_ready = _fesk_default_on_ready;
+    config.on_countdown_begin = NULL;
+    config.on_countdown_tick = _fesk_default_on_countdown_tick;
+    config.on_countdown_complete = _fesk_default_on_countdown_complete;
+    config.on_transmission_start = _fesk_default_on_transmission_start;
+    config.on_sequence_ready = NULL;
+    config.on_transmission_end = _fesk_default_on_transmission_end;
+    config.on_cancelled = _fesk_default_on_cancelled;
+    config.on_error = _fesk_default_on_error;
+    config.user_data = NULL;
+    return config;
+}
 
 static inline uint8_t _get_countdown_seconds(const fesk_session_config_t *config) {
     uint8_t value = config->countdown_seconds;
@@ -256,6 +327,8 @@ void fesk_session_init(fesk_session_t *session, const fesk_session_config_t *con
     memset(session, 0, sizeof(*session));
     if (config) {
         session->config = *config;
+    } else {
+        session->config = fesk_session_config_defaults();
     }
 
     if (session->config.countdown_seconds == 0 && session->config.enable_countdown) {
