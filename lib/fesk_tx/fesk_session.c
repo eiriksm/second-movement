@@ -230,7 +230,6 @@ static bool _start_transmission(fesk_session_t *session) {
 }
 
 static void _start_countdown(fesk_session_t *session) {
-    printf("starting countdown\n");
     session->phase = FESK_SESSION_COUNTDOWN;
     session->seconds_remaining = _get_countdown_seconds(&session->config);
 

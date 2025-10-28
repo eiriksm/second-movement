@@ -214,12 +214,9 @@ void uptime_face_setup(uint8_t watch_face_index, void **context_ptr) {
     fesk_session_config_t config = fesk_session_config_defaults();
     state->config = config;
 
-    state->config.countdown_beep = true;
+    state->config.enable_countdown = false;
     state->config.provide_payload = uptime_payload_provider;
     state->config.on_ready = uptime_on_ready;
-    state->config.on_countdown_begin = uptime_on_countdown_begin;
-    state->config.on_countdown_tick = uptime_on_countdown_tick;
-    state->config.on_countdown_complete = uptime_on_countdown_complete;
     state->config.on_transmission_start = uptime_on_transmission_start;
     state->config.on_transmission_end = uptime_on_transmission_end;
     state->config.on_cancelled = uptime_on_cancelled;
