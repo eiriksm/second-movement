@@ -70,7 +70,7 @@ static void _fesk_demo_on_ready(void *user_data) {
     _demo_display_ready(state);
 }
 
-static void _demo_on_countdown_begin(void *user_data) {
+static void _fesk_demo_on_countdown_begin(void *user_data) {
     fesk_demo_state_t *state = (fesk_demo_state_t *)user_data;
     if (!state) return;
     state->is_debug_playing = false;
