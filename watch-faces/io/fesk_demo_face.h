@@ -27,19 +27,17 @@
 
 /*
  * FESK DEMO FACE
- * 
- * A simple demonstration of the Harmonic Triad 3-FSK Acoustic Protocol (HT3).
- * 
- * This face demonstrates the fesk_tx protocol by transmitting the word "test"
- * when the alarm button is pressed. Features a countdown before transmission
- * similar to the chirpy demo.
- * 
- * Usage:
- * - ALARM button: Start transmission of "test"
- * - MODE button: Exit to next face
- * 
- * The transmission uses the HT3 protocol with 4:5:6 major triad frequencies
- * for pleasant, harmonious acoustic data transmission.
+ *
+ * A simple demonstration watch face for sending FESK messages.
+ *
+ * Controls:
+ * - ALARM button: Start transmission when idle, cancel when transmitting.
+ *
+ * - ALARM long press: Play debug melody. This can be used to see if your
+ *   receiver is getting similar frequencies as we are expecting it to be.
+ *
+ * To decode FESK messages, you can use the fesk_rt webapp which is available
+ * at https://github.com/eiriksm/fesk-rt.
  */
 
 #include "movement.h"

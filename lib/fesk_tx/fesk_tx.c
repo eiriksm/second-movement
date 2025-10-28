@@ -1,3 +1,27 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2025 Eirik S. Morland
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include "fesk_tx.h"
 
 #include <ctype.h>
@@ -11,6 +35,11 @@
 
 #define FESK_BIT_LOG_CAP 2048
 #define FESK_CODE_LOG_CAP 2048
+
+#ifndef FESK_USE_LOG
+// Flip to 1 at build time (e.g. -DFESK_USE_LOG=1) to display debug logs.
+#define FESK_USE_LOG 0
+#endif
 
 typedef struct {
     unsigned char character;
@@ -26,11 +55,12 @@ static const fesk_code_entry_t _code_table[] = {
     {'"', 40},
 };
 
-static const watch_buzzer_note_t _tone_map[2] = {
-    [0] = BUZZER_NOTE_D7SHARP_E7FLAT, // ≈ 2489 Hz (closest to 2560 Hz)
-    [1] = BUZZER_NOTE_G7,             // ≈ 3136 Hz (closest to 3072 Hz)
+const watch_buzzer_note_t fesk_tone_map[FESK_TONE_COUNT] = {
+    [FESK_TONE_ZERO] = FESK_TONE_LOW_NOTE,
+    [FESK_TONE_ONE] = FESK_TONE_HIGH_NOTE,
 };
 
+#if FESK_USE_LOG
 static void _append_to_log(char *buffer,
                            size_t *offset,
                            size_t capacity,
@@ -58,6 +88,17 @@ static void _append_to_log(char *buffer,
         *offset += added;
     }
 }
+#else
+static inline void _append_to_log(char *buffer,
+                                  size_t *offset,
+                                  size_t capacity,
+                                  const char *fmt, ...) {
+    (void)buffer;
+    (void)offset;
+    (void)capacity;
+    (void)fmt;
+}
+#endif
 
 static bool _lookup_code(unsigned char raw, uint8_t *out_code) {
     if (!out_code) {
@@ -102,7 +143,7 @@ static inline void _append_bit(uint8_t bit,
                                char *bit_log,
                                size_t *bit_offset,
                                size_t bit_capacity) {
-    watch_buzzer_note_t tone = _tone_map[bit];
+    watch_buzzer_note_t tone = fesk_tone_map[bit];
     sequence[(*pos)++] = (int8_t)tone;
     sequence[(*pos)++] = FESK_TICKS_PER_BIT;
     sequence[(*pos)++] = (int8_t)BUZZER_NOTE_REST;
@@ -122,6 +163,10 @@ static void _append_code_to_log(char *buffer,
                                 size_t capacity,
                                 const char *label,
                                 uint32_t value) {
+    if (!buffer || !offset) {
+        return;
+    }
+
     _append_to_log(buffer,
                    offset,
                    capacity,
@@ -193,22 +238,35 @@ static fesk_result_t _encode_internal(const char *text,
         return FESK_ERR_ALLOCATION_FAILED;
     }
 
-    char bit_log[FESK_BIT_LOG_CAP];
-    char code_log[FESK_CODE_LOG_CAP];
     size_t bit_log_offset = 0;
     size_t code_log_offset = 0;
+#if FESK_USE_LOG
+    char bit_log_storage[FESK_BIT_LOG_CAP];
+    char code_log_storage[FESK_CODE_LOG_CAP];
+    char *bit_log = bit_log_storage;
+    char *code_log = code_log_storage;
     bit_log[0] = '\0';
     code_log[0] = '\0';
+#else
+    char *bit_log = NULL;
+    char *code_log = NULL;
+#endif
+    size_t *bit_log_offset_ptr = bit_log ? &bit_log_offset : NULL;
+    size_t *code_log_offset_ptr = code_log ? &code_log_offset : NULL;
+    size_t bit_log_capacity = bit_log ? FESK_BIT_LOG_CAP : 0;
+    size_t code_log_capacity = code_log ? FESK_CODE_LOG_CAP : 0;
 
     size_t pos = 0;
 
-    _append_code_to_log(code_log, &code_log_offset, FESK_CODE_LOG_CAP, "START", FESK_START_MARKER);
+    if (code_log) {
+        _append_code_to_log(code_log, code_log_offset_ptr, code_log_capacity, "START", FESK_START_MARKER);
+    }
     _append_bits_from_code(FESK_START_MARKER,
                            sequence,
                            &pos,
                            bit_log,
-                           &bit_log_offset,
-                           FESK_BIT_LOG_CAP);
+                           bit_log_offset_ptr,
+                           bit_log_capacity);
 
     for (size_t i = 0; i < payload_count; ++i) {
         unsigned char display_char = (unsigned char)text[i];
@@ -216,39 +274,50 @@ static fesk_result_t _encode_internal(const char *text,
             display_char = (unsigned char)tolower(display_char);
         }
 
-        char label[8];
-        if (display_char >= 32 && display_char <= 126) {
-            snprintf(label, sizeof(label), "%c", display_char);
-        } else {
-            snprintf(label, sizeof(label), "0x%02X", display_char);
+        if (code_log) {
+            char label[8];
+            if (display_char >= 32 && display_char <= 126) {
+                snprintf(label, sizeof(label), "%c", display_char);
+            } else {
+                snprintf(label, sizeof(label), "0x%02X", display_char);
+            }
+
+            _append_code_to_log(code_log,
+                                code_log_offset_ptr,
+                                code_log_capacity,
+                                label,
+                                payload_codes[i]);
         }
 
-        _append_code_to_log(code_log, &code_log_offset, FESK_CODE_LOG_CAP, label, payload_codes[i]);
         _append_bits_from_code(payload_codes[i],
                                sequence,
                                &pos,
                                bit_log,
-                               &bit_log_offset,
-                               FESK_BIT_LOG_CAP);
+                               bit_log_offset_ptr,
+                               bit_log_capacity);
     }
 
-    _append_code_to_log(code_log, &code_log_offset, FESK_CODE_LOG_CAP, "CRC", crc);
-    _append_crc_bits(crc, sequence, &pos, bit_log, &bit_log_offset, FESK_BIT_LOG_CAP);
+    if (code_log) {
+        _append_code_to_log(code_log, code_log_offset_ptr, code_log_capacity, "CRC", crc);
+    }
+    _append_crc_bits(crc, sequence, &pos, bit_log, bit_log_offset_ptr, bit_log_capacity);
 
-    _append_code_to_log(code_log, &code_log_offset, FESK_CODE_LOG_CAP, "END", FESK_END_MARKER);
+    if (code_log) {
+        _append_code_to_log(code_log, code_log_offset_ptr, code_log_capacity, "END", FESK_END_MARKER);
+    }
     _append_bits_from_code(FESK_END_MARKER,
                            sequence,
                            &pos,
                            bit_log,
-                           &bit_log_offset,
-                           FESK_BIT_LOG_CAP);
+                           bit_log_offset_ptr,
+                           bit_log_capacity);
 
     sequence[pos] = 0;
 
-    if (bit_log[0] != '\0') {
+    if (bit_log && bit_log[0] != '\0') {
         printf("FESK bits: %s\n", bit_log);
     }
-    if (code_log[0] != '\0') {
+    if (code_log && code_log[0] != '\0') {
         printf("FESK codes: %s\n", code_log);
     }
 

@@ -13,6 +13,9 @@ void movement_move_to_face(uint8_t watch_face_index) {
     (void) watch_face_index;
 }
 
+void movement_move_to_next_face(void) {
+}
+
 watch_date_time_t movement_get_local_date_time(void) {
     if (movement_time_override_active) {
         return movement_time_override;
