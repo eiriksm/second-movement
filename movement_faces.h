@@ -78,4 +78,5 @@
 #include "endless_runner_face.h"
 #include "uptime_face.h"
 #include "fesk_demo_face.h"
+#include "fesk_lite_demo_face.h"
 // New includes go above this line.
