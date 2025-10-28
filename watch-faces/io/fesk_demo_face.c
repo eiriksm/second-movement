@@ -43,7 +43,7 @@ typedef struct {
 static const char test_message[] = "test";
 static const size_t test_message_len = sizeof(test_message) - 1;
 
-static fesk_demo_state_t *melody_callback_state = NULL;
+static fesk_demo_state_t *sequence_callback_state = NULL;
 
 static void _fesk_demo_display_ready(fesk_demo_state_t *state) {
     (void)state;
@@ -103,9 +103,9 @@ static int8_t debug_sequence[] = {
 };
 
 static void _fesk_demo_debug_done(void) {
-    if (melody_callback_state) {
-        melody_callback_state->is_debug_playing = false;
-        melody_callback_state = NULL;
+    if (sequence_callback_state) {
+        sequence_callback_state->is_debug_playing = false;
+        sequence_callback_state = NULL;
     }
 }
 
@@ -176,7 +176,7 @@ bool fesk_demo_face_loop(movement_event_t event, void *context) {
         case EVENT_ALARM_LONG_PRESS:
             if (!state->is_debug_playing && !state->is_countdown && !state->is_transmitting) {
                 state->is_debug_playing = true;
-                melody_callback_state = state;
+                sequence_callback_state = state;
                 watch_buzzer_play_sequence(debug_sequence, _fesk_demo_debug_done);
             }
             handled = true;
@@ -201,6 +201,7 @@ bool fesk_demo_face_loop(movement_event_t event, void *context) {
         return false;
     }
 
+    // We can not sleep if we are transmitting or counting down.
     return fesk_session_is_idle(&state->session);
 }
 
@@ -211,7 +212,7 @@ void fesk_demo_face_resign(void *context) {
     if (state->is_debug_playing) {
         watch_buzzer_abort_sequence();
         state->is_debug_playing = false;
-        melody_callback_state = NULL;
+        sequence_callback_state = NULL;
     }
 
     fesk_session_cancel(&state->session);
