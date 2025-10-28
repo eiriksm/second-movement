@@ -82,15 +82,12 @@ fesk_session_config_t fesk_session_config_defaults(void) {
     config.countdown_beep = true;
     config.show_bell_indicator = true;
     config.on_ready = _fesk_default_on_ready;
-    config.on_countdown_begin = NULL;
     config.on_countdown_tick = _fesk_default_on_countdown_tick;
     config.on_countdown_complete = _fesk_default_on_countdown_complete;
     config.on_transmission_start = _fesk_default_on_transmission_start;
-    config.on_sequence_ready = NULL;
     config.on_transmission_end = _fesk_default_on_transmission_end;
     config.on_cancelled = _fesk_default_on_cancelled;
     config.on_error = _fesk_default_on_error;
-    config.user_data = NULL;
     return config;
 }
 

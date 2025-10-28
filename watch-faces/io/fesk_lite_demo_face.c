@@ -34,7 +34,8 @@ typedef struct {
 
 static const char _fesk_lite_message[] = "test";
 
-static void _fesk_lite_show_ready(void) {
+static void _fesk_lite_on_ready(void *user_data) {
+    (void)user_data;
     watch_display_text(WATCH_POSITION_BOTTOM, " TEST ");
 }
 
@@ -52,6 +53,9 @@ void fesk_lite_demo_face_setup(uint8_t watch_face_index, void **context_ptr) {
     fesk_session_config_t config = fesk_session_config_defaults();
     config.static_message = _fesk_lite_message;
     config.static_message_length = sizeof(_fesk_lite_message) - 1;
+    config.on_ready = _fesk_lite_on_ready;
+    config.on_cancelled = _fesk_lite_on_ready;
+    config.user_data = state;
 
     fesk_session_init(&state->session, &config);
     *context_ptr = state;
@@ -64,7 +68,6 @@ void fesk_lite_demo_face_activate(void *context) {
     }
 
     fesk_session_prepare(&state->session);
-    _fesk_lite_show_ready();
 }
 
 bool fesk_lite_demo_face_loop(movement_event_t event, void *context) {
@@ -75,7 +78,6 @@ bool fesk_lite_demo_face_loop(movement_event_t event, void *context) {
 
     switch (event.event_type) {
         case EVENT_ACTIVATE:
-            _fesk_lite_show_ready();
             break;
 
         case EVENT_ALARM_BUTTON_UP:
