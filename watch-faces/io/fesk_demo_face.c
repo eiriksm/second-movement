@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2024 Second Movement Project
+ * Copyright (c) 2025 Eirik S. Morland
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -45,13 +45,13 @@ static const size_t test_message_len = sizeof(test_message) - 1;
 
 static fesk_demo_state_t *melody_callback_state = NULL;
 
-static void _demo_display_ready(fesk_demo_state_t *state) {
+static void _fesk_demo_display_ready(fesk_demo_state_t *state) {
     (void)state;
     watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "FK", "FESK");
     watch_display_text(WATCH_POSITION_BOTTOM, " TEST ");
 }
 
-static void _demo_update_countdown_display(uint8_t seconds_remaining) {
+static void _fesk_demo_update_countdown_display(uint8_t seconds_remaining) {
     char buffer[7] = "      ";
     if (seconds_remaining > 0) {
         snprintf(buffer, sizeof(buffer), "     %u", (unsigned int)seconds_remaining);
@@ -62,7 +62,7 @@ static void _demo_update_countdown_display(uint8_t seconds_remaining) {
     watch_display_text(WATCH_POSITION_BOTTOM, buffer);
 }
 
-static void _demo_on_ready(void *user_data) {
+static void _fesk_demo_on_ready(void *user_data) {
     fesk_demo_state_t *state = (fesk_demo_state_t *)user_data;
     if (!state) return;
     state->is_countdown = false;
@@ -77,42 +77,42 @@ static void _demo_on_countdown_begin(void *user_data) {
     state->is_countdown = true;
 }
 
-static void _demo_on_countdown_tick(uint8_t seconds_remaining, void *user_data) {
+static void _fesk_demo_on_countdown_tick(uint8_t seconds_remaining, void *user_data) {
     fesk_demo_state_t *state = (fesk_demo_state_t *)user_data;
     if (!state) return;
     state->is_countdown = true;
-    _demo_update_countdown_display(seconds_remaining);
+    _fesk_demo_update_countdown_display(seconds_remaining);
 }
 
-static void _demo_on_countdown_complete(void *user_data) {
+static void _fesk_demo_on_countdown_complete(void *user_data) {
     fesk_demo_state_t *state = (fesk_demo_state_t *)user_data;
     if (!state) return;
     state->is_countdown = false;
 }
 
-static void _demo_on_transmission_start(void *user_data) {
+static void _fesk_demo_on_transmission_start(void *user_data) {
     fesk_demo_state_t *state = (fesk_demo_state_t *)user_data;
     if (!state) return;
     state->is_transmitting = true;
     watch_display_text(WATCH_POSITION_BOTTOM, "  TX  ");
 }
 
-static void _demo_on_transmission_end(void *user_data) {
+static void _fesk_demo_on_transmission_end(void *user_data) {
     fesk_demo_state_t *state = (fesk_demo_state_t *)user_data;
     if (!state) return;
     state->is_transmitting = false;
-    _demo_display_ready(state);
+    _fesk_demo_display_ready(state);
 }
 
-static void _demo_on_cancelled(void *user_data) {
+static void _fesk_demo_on_cancelled(void *user_data) {
     fesk_demo_state_t *state = (fesk_demo_state_t *)user_data;
     if (!state) return;
     state->is_countdown = false;
     state->is_transmitting = false;
-    _demo_display_ready(state);
+    _fesk_demo_display_ready(state);
 }
 
-static void _demo_on_error(fesk_result_t error, void *user_data) {
+static void _fesk_demo_on_error(fesk_result_t error, void *user_data) {
     (void)user_data;
     printf("FESK error: %d\n", (int)error);
 }
@@ -125,7 +125,7 @@ static int8_t debug_sequence[] = {
     0
 };
 
-static void _demo_debug_done(void) {
+static void _fesk_demo_debug_done(void) {
     if (melody_callback_state) {
         melody_callback_state->is_debug_playing = false;
         melody_callback_state = NULL;
@@ -150,14 +150,14 @@ void fesk_demo_face_setup(uint8_t watch_face_index, void **context_ptr) {
     state->config.show_bell_indicator = true;
     state->config.static_message = test_message;
     state->config.static_message_length = test_message_len;
-    state->config.on_ready = _demo_on_ready;
-    state->config.on_countdown_begin = _demo_on_countdown_begin;
-    state->config.on_countdown_tick = _demo_on_countdown_tick;
-    state->config.on_countdown_complete = _demo_on_countdown_complete;
-    state->config.on_transmission_start = _demo_on_transmission_start;
-    state->config.on_transmission_end = _demo_on_transmission_end;
-    state->config.on_cancelled = _demo_on_cancelled;
-    state->config.on_error = _demo_on_error;
+    state->config.on_ready = _fesk_demo_on_ready;
+    state->config.on_countdown_begin = _fesk_demo_on_countdown_begin;
+    state->config.on_countdown_tick = _fesk_demo_on_countdown_tick;
+    state->config.on_countdown_complete = _fesk_demo_on_countdown_complete;
+    state->config.on_transmission_start = _fesk_demo_on_transmission_start;
+    state->config.on_transmission_end = _fesk_demo_on_transmission_end;
+    state->config.on_cancelled = _fesk_demo_on_cancelled;
+    state->config.on_error = _fesk_demo_on_error;
     state->config.user_data = state;
 
     fesk_session_init(&state->session, &state->config);
