@@ -30,11 +30,13 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "watch_tcc.h"
 
 #define FESK_BIT_LOG_CAP 2048
 #define FESK_CODE_LOG_CAP 2048
+#define FESK_MAX_MESSAGE_LENGTH 1024
 
 #ifndef FESK_USE_LOG
 // Flip to 1 at build time (e.g. -DFESK_USE_LOG=1) to display debug logs.
@@ -207,6 +209,11 @@ static fesk_result_t _encode_internal(const char *text,
         return FESK_ERR_INVALID_ARGUMENT;
     }
 
+    // Check for maximum message length to prevent excessive allocations
+    if (length > FESK_MAX_MESSAGE_LENGTH) {
+        return FESK_ERR_INVALID_ARGUMENT;
+    }
+
     uint8_t *payload_codes = malloc(length);
     if (!payload_codes) {
         return FESK_ERR_ALLOCATION_FAILED;
@@ -230,7 +237,19 @@ static fesk_result_t _encode_internal(const char *text,
                       + (payload_count * FESK_BITS_PER_CODE)               // payload
                       + 8                                                  // CRC
                       + FESK_BITS_PER_CODE;                                // end marker
+
+    // Check for overflow before multiplication
+    if (total_bits > SIZE_MAX / 4) {
+        free(payload_codes);
+        return FESK_ERR_ALLOCATION_FAILED;
+    }
     size_t total_entries = total_bits * 4;
+
+    // Check for overflow before final allocation
+    if (total_entries > SIZE_MAX - 1 || (total_entries + 1) > SIZE_MAX / sizeof(int8_t)) {
+        free(payload_codes);
+        return FESK_ERR_ALLOCATION_FAILED;
+    }
 
     int8_t *sequence = malloc((total_entries + 1) * sizeof(int8_t));
     if (!sequence) {
@@ -344,9 +363,9 @@ fesk_result_t fesk_encode_cstr(const char *text,
         return FESK_ERR_INVALID_ARGUMENT;
     }
 
-    size_t length = 0;
-    while (text[length] != '\0') {
-        length++;
+    size_t length = strlen(text);
+    if (length == 0) {
+        return FESK_ERR_INVALID_ARGUMENT;
     }
 
     return _encode_internal(text, length, out_sequence, out_entries);

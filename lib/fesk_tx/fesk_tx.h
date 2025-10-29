@@ -22,7 +22,8 @@
  * SOFTWARE.
  */
 
-#pragma once
+#ifndef FESK_TX_H
+#define FESK_TX_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -63,3 +64,5 @@ fesk_result_t fesk_encode_cstr(const char *text,
                                size_t *out_entries);
 
 void fesk_free_sequence(int8_t *sequence);
+
+#endif
