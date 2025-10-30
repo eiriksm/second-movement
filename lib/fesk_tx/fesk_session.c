@@ -35,6 +35,11 @@
 #define FESK_SESSION_TICKS_PER_SECOND 64
 #define FESK_COUNTDOWN_BEEP_TICKS 8
 
+/**
+ * Global singleton: Only one session can be active at a time due to hardware
+ * limitations (single piezo buzzer). Starting a new session will abort any
+ * currently active transmission.
+ */
 static fesk_session_t *_fesk_active_session = NULL;
 
 static const int8_t _fesk_countdown_sequence[] = {

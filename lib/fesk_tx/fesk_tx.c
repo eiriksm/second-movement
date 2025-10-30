@@ -122,11 +122,15 @@ static bool _lookup_code(unsigned char raw, uint8_t *out_code) {
     return false;
 }
 
+/**
+ * CRC-8 with polynomial x^3 + x^2 + x + 1 (0x07)
+ * Common in embedded systems, provides good error detection for short messages.
+ */
 static inline uint8_t _crc8_update_bit(uint8_t crc, uint8_t bit) {
     uint8_t mix = ((crc >> 7) & 0x01u) ^ (bit & 0x01u);
     crc <<= 1;
     if (mix) {
-        crc ^= 0x07u;
+        crc ^= 0x07u;  /* Polynomial: x^3 + x^2 + x + 1 */
     }
     return crc;
 }
