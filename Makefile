@@ -1,63 +1,77 @@
 # Keep this first line.
 GOSSAMER_PATH=gossamer
 
-# Which board are we building for?
+# Which board are we building for? Commented out to force a choice when building.
 # Options are:
 # - sensorwatch_pro
 # - sensorwatch_green
 # - sensorwatch_red (also known as Sensor Watch Lite)
 BOARD=sensorwatch_red
 
-# Sensor Watch will detect the display, unless you are debugging over USB.
-# If you need to force a specific display, set this to the type you want, CLASSIC or CUSTOM
-# FORCE_DISPLAY_TYPE=CUSTOM
+# Set this to the type of display in your watch: classic or custom. Commented out to force a choice when building.
+# DISPLAY=classic
 
-# Which sensor board?
-SENSOR=NONE
+# End of user configurable options.
 
 # Support USB features?
 TINYUSB_CDC=1
 
-# Leave this line here.
+# Now we're all set to include gossamer's make rules.
 include $(GOSSAMER_PATH)/make.mk
 
-ifeq ($(SENSOR), MOTION)
-  DEFINES += -DHAS_ACCELEROMETER
-endif
+CFLAGS+=-D_POSIX_C_SOURCE=200112L
 
-ifeq ($(SENSOR), TEMPERATURE)
-  DEFINES += -DTEMPERATURE_BOARD_INSTALLED
-endif
+define n
 
-ifdef FORCE_DISPLAY_TYPE
-  ifeq ($(FORCE_DISPLAY_TYPE), CUSTOM)
-    DEFINES += -DFORCE_CUSTOM_LCD_TYPE
+
+endef
+
+# Don't require BOARD or DISPLAY for `make clean` or `make install`
+ifeq (,$(filter clean,$(MAKECMDGOALS)))
+  ifeq (,$(filter install,$(MAKECMDGOALS)))
+    ifndef BOARD
+      $(error Build failed: BOARD not defined. Use one of the four options below, depending on your hardware:$n$n    make BOARD=sensorwatch_red DISPLAY=display_type$n    make BOARD=sensorwatch_blue DISPLAY=display_type$n    make BOARD=sensorwatch_pro DISPLAY=display_type$n$n)
+    endif
   endif
-  ifeq ($(FORCE_DISPLAY_TYPE), CLASSIC)
-    DEFINES += -DFORCE_CLASSIC_LCD_TYPE
+
+  ifeq (,$(filter install,$(MAKECMDGOALS)))
+    ifndef DISPLAY
+      $(error Build failed: DISPLAY not defined. Use one of the options below, depending on your hardware:$n$n    make BOARD=board_type DISPLAY=classic$n    make BOARD=board_type DISPLAY=custom$n$n)
+    else
+      ifeq ($(DISPLAY), custom)
+        DEFINES += -DFORCE_CUSTOM_LCD_TYPE
+      else ifeq ($(DISPLAY), classic)
+        DEFINES += -DFORCE_CLASSIC_LCD_TYPE
+      else ifeq ($(DISPLAY), autodetect)
+        $(warning WARNING: LCD autodetection is experimental and not reliable! We suggest specifying DISPLAY=classic or DISPLAY=custom for reliable operation.)
+      else
+        $(error Build failed: invalid DISPLAY type. Use one of the options below, depending on your hardware:$n$n    make BOARD=board_type DISPLAY=classic$n    make BOARD=board_type DISPLAY=custom$n$n)
+      endif
+    endif
   endif
 endif
 
-ifdef EMSCRIPTEN
-all: $(BUILD)/$(BIN).elf $(BUILD)/$(BIN).html
-$(BUILD)/$(BIN).html: $(OBJS)
-	@echo HTML $@
-	@$(CC) $(LDFLAGS) $(OBJS) $(LIBS) -o $@ \
-		-s ASYNCIFY=1 \
-		-s EXPORTED_RUNTIME_METHODS=lengthBytesUTF8,printErr \
-		-s EXPORTED_FUNCTIONS=_main \
-		--shell-file=./watch-library/simulator/shell.html
+ifdef NOSLEEP
+    DEFINES += -DMOVEMENT_LOW_ENERGY_MODE_FORBIDDEN
 endif
+
+# Emscripten targets are now handled in rules.mk in gossamer
 
 # Add your include directories here.
 INCLUDES += \
   -I./ \
+  -I. \
   -I./tinyusb/src \
   -I./littlefs \
   -I./utz \
   -I./filesystem \
   -I./shell \
   -I./lib/sunriset \
+  -I./lib/sha1 \
+  -I./lib/sha256 \
+  -I./lib/sha512 \
+  -I./lib/base32 \
+  -I./lib/TOTP \
   -I./lib/chirpy_tx \
   -I./lib/base64 \
   -I./watch-library/shared/watch \
@@ -80,6 +94,11 @@ SRCS += \
   ./shell/shell.c \
   ./shell/shell_cmd_list.c \
   ./lib/sunriset/sunriset.c \
+  ./lib/base32/base32.c \
+  ./lib/TOTP/sha1.c \
+  ./lib/TOTP/sha256.c \
+  ./lib/TOTP/sha512.c \
+  ./lib/TOTP/TOTP.c \
   ./lib/chirpy_tx/chirpy_tx.c \
   ./lib/base64/base64.c \
   ./watch-library/shared/driver/thermistor_driver.c \
@@ -88,9 +107,7 @@ SRCS += \
   ./watch-library/shared/watch/watch_utility.c \
 
 
-ifeq ($(SENSOR), MOTION)
 SRCS += ./watch-library/shared/driver/lis2dw.c
-endif
 
 ifdef EMSCRIPTEN
 
@@ -140,7 +157,6 @@ include watch-faces.mk
 
 SRCS += \
   ./movement.c \
-  ./movement_activity.c \
 
 # Finally, leave this line at the bottom of the file.
 include $(GOSSAMER_PATH)/rules.mk

@@ -56,6 +56,32 @@ rtc_date_time_t watch_rtc_get_date_time(void) {
     return rtc_get_date_time();
 }
 
+rtc_date_time_t watch_get_init_date_time(void) {
+    rtc_date_time_t date_time;
+#ifdef BUILD_YEAR
+    date_time.unit.year = BUILD_YEAR;
+#else
+    date_time.unit.year = 5;
+#endif
+#ifdef BUILD_MONTH
+    date_time.unit.month = BUILD_MONTH;
+#else
+    date_time.unit.month = 1;
+#endif
+#ifdef BUILD_DAY
+    date_time.unit.day = BUILD_DAY;
+#else
+    date_time.unit.day = 1;
+#endif
+#ifdef BUILD_HOUR
+    date_time.unit.hour = BUILD_HOUR;
+#endif
+#ifdef BUILD_MINUTE
+    date_time.unit.minute = BUILD_MINUTE;
+#endif
+    return date_time;
+}
+
 void watch_rtc_register_tick_callback(watch_cb_t callback) {
     watch_rtc_register_periodic_callback(callback, 1);
 }
@@ -71,7 +97,7 @@ void watch_rtc_register_periodic_callback(watch_cb_t callback, uint8_t frequency
     // this left-justifies the period in a 32-bit integer.
     uint32_t tmp = (frequency & 0xFF) << 24;
     // now we can count the leading zeroes to get the value we need.
-    // 0x01 (1 Hz) will have 7 leading zeros for PER7. 0xF0 (128 Hz) will have no leading zeroes for PER0.
+    // 0x01 (1 Hz) will have 7 leading zeros for PER7. 0x80 (128 Hz) will have no leading zeroes for PER0.
     uint8_t per_n = __builtin_clz(tmp);
 
     // this also maps nicely to an index for our list of tick callbacks.

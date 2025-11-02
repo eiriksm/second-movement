@@ -35,7 +35,7 @@ const watch_face_t watch_faces[] = {
     fast_stopwatch_face,
     voltage_face,
     set_time_face,
-    preferences_face,
+    settings_face,
 };
 
 #define MOVEMENT_NUM_FACES (sizeof(watch_faces) / sizeof(watch_face_t))
@@ -43,7 +43,7 @@ const watch_face_t watch_faces[] = {
 /* Determines what face to go to from the first face on long press of the Mode button.
  * Also excludes these faces from the normal rotation.
  * In the default firmware, this lets you access temperature and battery voltage with a long press of Mode.
- * Some folks also like to use this to hide the preferences and time set faces from the normal rotation.
+ * Some folks also like to use this to hide the settings and time set faces from the normal rotation.
  * If you don't want any faces to be excluded, set this to 0 and a long Mode press will have no effect.
  */
 #define MOVEMENT_SECONDARY_FACE_INDEX (MOVEMENT_NUM_FACES - 2)
@@ -63,6 +63,8 @@ const watch_face_t watch_faces[] = {
 
 /* Enable or disable the sound on mode button press */
 #define MOVEMENT_DEFAULT_BUTTON_SOUND false
+
+#define MOVEMENT_DEFAULT_BUTTON_VOLUME WATCH_BUZZER_VOLUME_SOFT
 
 /* Set the timeout before switching back to the main watch face
  * Valid values are:
