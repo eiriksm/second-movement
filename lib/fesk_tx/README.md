@@ -37,24 +37,3 @@ FESK encodes text messages into dual-tone audio sequences transmitted via the pi
 ## Usage
 
 See `fesk_tx.h` and `fesk_session.h` for API documentation.
-
-Quick example:
-```c
-#include "fesk_session.h"
-
-fesk_session_t session;
-fesk_session_config_t config = fesk_session_config_defaults();
-config.static_message = "Hello";
-fesk_session_init(&session, &config);
-fesk_session_start(&session);  // 3-2-1-GO, then transmits
-```
-
-## Testing
-
-```bash
-cd test && make test
-```
-
-## License
-
-MIT License - Copyright (c) 2025 Eirik S. Morland
