@@ -58,7 +58,6 @@ static void _fesk_default_display(const char *text) {
 }
 
 static void _fesk_default_show_countdown(uint8_t seconds) {
-    printf("countdown: %u\n", (unsigned int)seconds);
     if (seconds > 0) {
         char buffer[6];
         snprintf(buffer, sizeof(buffer), "%5u", (unsigned int)seconds);
@@ -307,7 +306,6 @@ static bool _handle_cancel(fesk_session_t *session) {
 }
 
 static void _fesk_transmission_complete(void) {
-    printf("transmission complete\n");
     if (!_fesk_active_session) {
         return;
     }
