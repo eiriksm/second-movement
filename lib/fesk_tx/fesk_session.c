@@ -68,11 +68,6 @@ static void _fesk_default_show_countdown(uint8_t seconds) {
     }
 }
 
-static void _fesk_default_on_ready(void *user_data) {
-    (void)user_data;
-    _fesk_default_display(" READY");
-}
-
 static void _fesk_default_on_transmission_start(void *user_data) {
     (void)user_data;
     _fesk_default_display("  TX  ");
@@ -111,7 +106,6 @@ fesk_session_config_t fesk_session_config_defaults(void) {
     config.countdown_seconds = FESK_SESSION_DEFAULT_COUNTDOWN_SECONDS;
     config.countdown_beep = true;
     config.show_bell_indicator = true;
-    config.on_ready = _fesk_default_on_ready;
     config.on_countdown_tick = _fesk_default_on_countdown_tick;
     config.on_countdown_complete = _fesk_default_on_countdown_complete;
     config.on_transmission_start = _fesk_default_on_transmission_start;
@@ -391,15 +385,6 @@ void fesk_session_cancel(fesk_session_t *session) {
         return;
     }
     _handle_cancel(session);
-}
-
-void fesk_session_prepare(fesk_session_t *session) {
-    if (!session) {
-        return;
-    }
-    session->phase = FESK_SESSION_IDLE;
-    session->seconds_remaining = 0;
-    _call_simple(session->config.on_ready, session->config.user_data);
 }
 
 bool fesk_session_is_idle(const fesk_session_t *session) {

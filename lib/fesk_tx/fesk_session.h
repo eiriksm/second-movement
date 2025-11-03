@@ -40,13 +40,12 @@
  * any currently active transmission.
  *
  * Callback Lifecycle (normal flow):
- *   1. on_ready (after fesk_session_prepare)
- *   2. on_countdown_begin (if countdown enabled)
- *   3. on_countdown_tick (countdown_seconds times, counting down to 0)
- *   4. on_countdown_complete (when countdown reaches 0)
- *   5. on_sequence_ready (after encoding, before playback)
- *   6. on_transmission_start (when buzzer starts)
- *   7. on_transmission_end (when buzzer finishes)
+ *   1. on_countdown_begin (if countdown enabled)
+ *   2. on_countdown_tick (countdown_seconds times, counting down to 0)
+ *   3. on_countdown_complete (when countdown reaches 0)
+ *   4. on_sequence_ready (after encoding, before playback)
+ *   5. on_transmission_start (when buzzer starts)
+ *   6. on_transmission_end (when buzzer finishes)
  *
  * Cancelled flow:
  *   - on_cancelled (if fesk_session_cancel called during countdown/transmission)
@@ -60,7 +59,6 @@
  *   config.static_message = "Hello";
  *   config.on_transmission_end = my_done_callback;
  *   fesk_session_init(&session, &config);
- *   fesk_session_prepare(&session);  // Calls on_ready
  *   fesk_session_start(&session);     // Starts countdown -> transmission
  *   // ... wait for callbacks ...
  *   fesk_session_dispose(&session);
@@ -104,7 +102,6 @@ typedef struct {
     const char *static_message;                 /**< Static message to transmit (or NULL if using provide_payload) */
     size_t static_message_length;               /**< Length of static_message (0 = use strlen) */
     fesk_session_payload_cb provide_payload;    /**< Dynamic payload callback (overrides static_message) */
-    fesk_session_simple_cb on_ready;            /**< Called after fesk_session_prepare */
     fesk_session_simple_cb on_countdown_begin;  /**< Called when countdown starts */
     fesk_session_countdown_cb on_countdown_tick;/**< Called each countdown second */
     fesk_session_simple_cb on_countdown_complete;/**< Called when countdown reaches 0 */
@@ -163,12 +160,6 @@ bool fesk_session_start(fesk_session_t *session);
  * @param session Session to cancel
  */
 void fesk_session_cancel(fesk_session_t *session);
-
-/**
- * @brief Prepare session (calls on_ready callback)
- * @param session Session to prepare
- */
-void fesk_session_prepare(fesk_session_t *session);
 
 /**
  * @brief Check if session is idle (not counting down or transmitting)
