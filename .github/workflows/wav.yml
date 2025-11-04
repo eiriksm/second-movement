@@ -41,7 +41,9 @@ jobs:
 
       - name: Compile movement
         run: emmake make
-
+        env:
+          BOARD: sensorwatch_pro
+          DISPLAY: custom
       # Virtual display for headed Chrome (audio tends to be more reliable than "new" headless)
       - name: Start Xvfb
         run: |
