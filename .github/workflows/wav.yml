@@ -1,0 +1,90 @@
+# .github/workflows/e2e-with-audio-wav.yml
+name: E2E with Audio WAV
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  e2e-audio:
+    runs-on: 'ubuntu-latest'
+    env:
+      DISPLAY: ":99"                 # virtual display for Chrome
+      OUT_WAV: "cypress-audio.wav"  # output filename
+      SAMPLE_RATE: "48000"
+      CHANNELS: "2"
+      PULSE_SINK: "virt_out"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install system deps (Xvfb, PulseAudio, ffmpeg)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb pulseaudio ffmpeg
+
+      - name: Install project deps
+        run: npm ci
+      - name: Compile movement
+        run: emmake make
+
+      # Virtual display for headed Chrome (audio tends to be more reliable than "new" headless)
+      - name: Start Xvfb
+        run: |
+          Xvfb $DISPLAY -screen 0 1280x720x24 -ac +extension RANDR &
+          echo "XVFB_PID=$!" >> $GITHUB_ENV
+
+      # Start PulseAudio and create a virtual output sink;
+      # we will record the sink's *monitor* as "system audio".
+      - name: Start PulseAudio and virtual sink
+        run: |
+          pulseaudio -D --exit-idle-time=-1
+          pactl load-module module-null-sink sink_name=$PULSE_SINK sink_properties=device.description=$PULSE_SINK >/dev/null
+          pactl set-default-sink $PULSE_SINK
+          # Find the monitor of our sink (what we'll record)
+          MON_SRC=$(pactl list short sources | awk "/${PULSE_SINK}\.monitor/ {print \$2}" | head -n1)
+          if [ -z "$MON_SRC" ]; then echo "Monitor source not found"; exit 1; fi
+          echo "MONITOR_SRC=$MON_SRC" >> $GITHUB_ENV
+
+      # Start audio-only capture in the background (WAV, 16-bit PCM)
+      - name: Start ffmpeg audio capture
+        run: |
+          ffmpeg -y \
+            -f pulse -i "$MONITOR_SRC" \
+            -ac $CHANNELS -ar $SAMPLE_RATE -acodec pcm_s16le \
+            "$OUT_WAV" >/dev/null 2>&1 &
+          echo "FFMPEG_PID=$!" >> $GITHUB_ENV
+
+      # Run Cypress with Chrome in headed mode so it outputs to the Pulse sink
+      - name: Run Cypress (Chrome, headed)
+        uses: cypress-io/github-action@v6
+        with:
+          browser: chrome
+          start: npm run start
+          headed: true
+        env:
+          # makes sure Cypress can see the display
+          DISPLAY: ${{ env.DISPLAY }}
+
+      # Stop ffmpeg and Xvfb even if Cypress failed
+      - name: Stop recorders
+        if: always()
+        run: |
+          if [ -n "${FFMPEG_PID:-}" ]; then kill $FFMPEG_PID || true; fi
+          if [ -n "${XVFB_PID:-}" ]; then kill $XVFB_PID || true; fi
+
+      # Upload the WAV no matter what (useful for debugging)
+      - name: Upload WAV artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-audio
+          path: ${{ env.OUT_WAV }}
