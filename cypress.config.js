@@ -10,7 +10,13 @@ module.exports = defineConfig({
     video: false,
     screenshotOnRunFailure: true,
     setupNodeEvents(on, config) {
-      // implement node event listeners here
+      on('before:browser:launch', (browser = {}, launchOptions) => {
+        if (browser.family === 'chromium') {
+          launchOptions.args = launchOptions.args.filter(a => !a.includes('--mute-audio'));
+          launchOptions.args.push('--autoplay-policy=no-user-gesture-required'); // harmless even if not needed
+        }
+        return launchOptions;
+      });
     },
   },
 })
