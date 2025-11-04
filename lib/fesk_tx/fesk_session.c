@@ -208,10 +208,9 @@ static bool _build_sequence(fesk_session_t *session) {
 
     int8_t *sequence = NULL;
     size_t entries = 0;
-    fesk_result_t encode_result = fesk_encode_text(payload,
-                                                   payload_length,
-                                                   &sequence,
-                                                   &entries);
+    fesk_result_t encode_result = fesk_encode(payload,
+                                              &sequence,
+                                              &entries);
     if (encode_result != FESK_OK) {
         _call_error(session->config.on_error, encode_result, session->config.user_data);
         return false;
