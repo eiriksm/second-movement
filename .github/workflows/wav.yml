@@ -8,7 +8,7 @@ on:
 
 jobs:
   e2e-audio:
-    runs-on: ubuntu-22.04
+    runs-on: 'ubuntu-latest'
     env:
       DISPLAY: ":99"                 # virtual display for Chrome
       OUT_WAV: "cypress-audio.wav"  # output filename
@@ -18,6 +18,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -31,6 +33,8 @@ jobs:
 
       - name: Install project deps
         run: npm ci
+      - name: Compile movement
+        run: emmake make
 
       # Virtual display for headed Chrome (audio tends to be more reliable than "new" headless)
       - name: Start Xvfb
