@@ -64,6 +64,7 @@ jobs:
         uses: cypress-io/github-action@v6
         with:
           browser: chrome
+          start: npm run start
           headed: true
         env:
           # makes sure Cypress can see the display
