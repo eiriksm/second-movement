@@ -33,6 +33,12 @@ jobs:
 
       - name: Install project deps
         run: npm ci
+
+      - name: Setup Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 'latest'
+
       - name: Compile movement
         run: emmake make
 
