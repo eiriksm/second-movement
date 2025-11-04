@@ -64,13 +64,9 @@ jobs:
           submodules: recursive
       - name: Ensure workspace directory is defined as safe
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - name: Setup Emscripten environment
-        run: source /emsdk/emsdk_env.sh
-        shell: bash
       - name: Compile movement
-        run: source /emsdk/emsdk_env.sh && emmake make
+        run: emmake make
         working-directory: '.'
-        shell: bash
       - name: Archive simulator build
         working-directory: './build-sim'
         run: |
