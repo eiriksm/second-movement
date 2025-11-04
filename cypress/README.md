@@ -9,22 +9,28 @@ This directory contains Cypress end-to-end tests for the second-movement watch s
    npm install
    ```
 
-2. Start a local web server to serve the HTML files:
+2. Start the local web server:
    ```bash
-   python3 -m http.server 8000
+   npm start
    ```
-   Or use any other static file server on port 8000.
+   This will serve the project files on http://localhost:8000
 
 ## Running Tests
+
+**Note:** Make sure the web server is running (`npm start`) in a separate terminal before running tests.
 
 ### Interactive Mode
 ```bash
 npm run cypress:open
+# or
+npm run test:open
 ```
 
 ### Headless Mode
 ```bash
 npm run cypress:run
+# or
+npm test
 ```
 
 ## Tests

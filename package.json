@@ -3,10 +3,14 @@
   "version": "1.0.0",
   "description": "Cypress tests for second-movement watch simulator",
   "scripts": {
+    "start": "serve -l 8000",
     "cypress:open": "cypress open",
-    "cypress:run": "cypress run"
+    "cypress:run": "cypress run",
+    "test": "npm run cypress:run",
+    "test:open": "npm run cypress:open"
   },
   "devDependencies": {
-    "cypress": "^13.6.0"
+    "cypress": "^13.6.0",
+    "serve": "^14.2.1"
   }
 }
