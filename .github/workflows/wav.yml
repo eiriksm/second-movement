@@ -11,7 +11,7 @@ jobs:
     runs-on: 'ubuntu-latest'
     env:
       DISPLAY: ":99"                 # virtual display for Chrome
-      OUT_WAV: "cypress-audio.wav"  # output filename
+      OUT_WAV: "cypress/screenshots/cypress-audio.wav"  # output filename
       SAMPLE_RATE: "48000"
       CHANNELS: "2"
       PULSE_SINK: "virt_out"
@@ -33,9 +33,17 @@ jobs:
 
       - name: Install project deps
         run: npm ci
+
+      - name: Setup Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 'latest'
+
       - name: Compile movement
         run: emmake make
-
+        env:
+          BOARD: sensorwatch_pro
+          DISPLAY: custom
       # Virtual display for headed Chrome (audio tends to be more reliable than "new" headless)
       - name: Start Xvfb
         run: |
