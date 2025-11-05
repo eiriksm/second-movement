@@ -4,6 +4,7 @@ describe('Button #btn3 Click Test', () => {
     cy.visit('build-sim/firmware.html')
 
     // Find and click button #btn3
+    cy.wait(5000)
     cy.get('#btn3').click()
     cy.wait(15000)
 
