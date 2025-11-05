@@ -2,6 +2,8 @@ const { defineConfig } = require('cypress')
 
 module.exports = defineConfig({
   e2e: {
+    screenshot: true,
+    screenshotOnRunFailure: true,
     // Configure baseUrl to serve files from the project root
     // You can start a local server with: python3 -m http.server 8000
     baseUrl: 'http://localhost:8000',
