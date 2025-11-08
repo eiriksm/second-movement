@@ -254,11 +254,11 @@ bool clock_face_loop(movement_event_t event, void *context) {
             break;
         case EVENT_ALARM_BUTTON_DOWN:
             int8_t start_tune[] = {
-    BUZZER_NOTE_C5, 15,
-    BUZZER_NOTE_E5, 15,
-    BUZZER_NOTE_G5, 15,
-    0
-};
+              BUZZER_NOTE_C5, 15,
+              BUZZER_NOTE_E5, 15,
+              BUZZER_NOTE_G5, 15,
+              0
+            };
             watch_buzzer_play_sequence(start_tune, NULL);
             break;
         case EVENT_ALARM_LONG_PRESS:
