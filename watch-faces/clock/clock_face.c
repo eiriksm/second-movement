@@ -252,7 +252,7 @@ bool clock_face_loop(movement_event_t event, void *context) {
             state->date_time.previous = current;
 
             break;
-        case EVENT_ALARM_BUTTON_DOWN:
+        case EVENT_ALARM_BUTTON_DOWN: {
             int8_t start_tune[] = {
               BUZZER_NOTE_C5, 15,
               BUZZER_NOTE_E5, 15,
@@ -261,6 +261,7 @@ bool clock_face_loop(movement_event_t event, void *context) {
             };
             watch_buzzer_play_sequence(start_tune, NULL);
             break;
+        }
         case EVENT_ALARM_LONG_PRESS:
             clock_toggle_time_signal(state);
             break;
