@@ -101,7 +101,7 @@ def transmit_file(port: str, filename: str, data_file: str = None):
         ser.flush()
 
         # Wait a moment for transmission
-        time.sleep(len(packet) / 90 + 0.5)  # ~10 bytes/sec + buffer
+        time.sleep(len(packet) / 90 + 0.5)  # ~90 bytes/sec + buffer
 
         ser.close()
         print("Transmission complete!")

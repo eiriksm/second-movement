@@ -58,6 +58,11 @@ endif
 
 # Emscripten targets are now handled in rules.mk in gossamer
 
+# Enable IR sensor support for simulator builds
+ifdef EMSCRIPTEN
+    DEFINES += -DHAS_IR_SENSOR
+endif
+
 # Add your include directories here.
 INCLUDES += \
   -I./ \
