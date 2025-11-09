@@ -6,15 +6,25 @@ This document explains how to test the IrDA upload face in the Emscripten simula
 
 The simulator now includes support for the IrDA upload face, which allows you to test file upload functionality without physical hardware.
 
+**Important:** IrDA support is only available for `sensorwatch_pro` builds, as only that board has the IR sensor hardware.
+
 ## Building the Simulator
 
-To build the simulator with IrDA support:
+To build the simulator with IrDA support, you must:
 
+1. **Apply the gossamer UART patch** (required for simulator UART support):
 ```bash
-make EMSCRIPTEN=1
+cd gossamer
+git apply ../scripts/gossamer_uart_simulator.patch
+cd ..
 ```
 
-This will automatically enable `HAS_IR_SENSOR` and include the IrDA upload face in the build.
+2. **Build the sensorwatch_pro simulator**:
+```bash
+emmake make BOARD=sensorwatch_pro DISPLAY=classic
+```
+
+The `HAS_IR_SENSOR` flag is automatically defined for sensorwatch_pro via its board configuration.
 
 ## Testing in the Simulator
 
@@ -125,18 +135,20 @@ The dummy UART implementation (`gossamer/dummy/peripherals/uart.c`) now includes
 
 ### Enabled Features
 
-When building with `EMSCRIPTEN=1`, the following is automatically enabled:
+When building the sensorwatch_pro simulator (with the UART patch applied):
 
-- `HAS_IR_SENSOR` define
+- `HAS_IR_SENSOR` define (from sensorwatch_pro board configuration)
 - IrDA upload face in simulator build
-- UART buffer implementation for SERCOM 0
+- UART buffer implementation for SERCOM 0 (via patched gossamer dummy peripheral)
 
 ## Limitations
 
-1. **No actual IR hardware** - Data must be injected manually via JavaScript
-2. **Buffer size** - Limited to 512 bytes per injection
-3. **No visual feedback** - Watch face shows upload status on simulated LCD only
-4. **Timing** - No actual baud rate emulation (instant injection)
+1. **Board-specific** - Only works with sensorwatch_pro simulator builds
+2. **No actual IR hardware** - Data must be injected manually via JavaScript
+3. **Requires patch** - Must apply gossamer UART patch before building
+4. **Buffer size** - Limited to 512 bytes per injection
+5. **No visual feedback** - Watch face shows upload status on simulated LCD only
+6. **Timing** - No actual baud rate emulation (instant injection)
 
 ## Future Improvements
 
@@ -150,7 +162,8 @@ Possible enhancements:
 ## Troubleshooting
 
 **Face not appearing:**
-- Ensure you built with `make EMSCRIPTEN=1`
+- Ensure you built with `BOARD=sensorwatch_pro` (other boards don't have IR sensor)
+- Verify you applied the gossamer UART patch before building
 - Check that `HAS_IR_SENSOR` is defined in build log
 - Verify IrDA face is in `movement_faces.h`
 
