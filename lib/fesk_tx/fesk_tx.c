@@ -357,3 +357,11 @@ void fesk_free_sequence(int8_t *sequence) {
         free(sequence);
     }
 }
+
+bool fesk_lookup_char_code(unsigned char ch, uint8_t *out_code) {
+    return _lookup_code(ch, out_code);
+}
+
+uint8_t fesk_crc8_update_code(uint8_t crc, uint8_t code) {
+    return _crc8_update_code(crc, code);
+}

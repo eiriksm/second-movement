@@ -75,3 +75,7 @@ fesk_result_t fesk_encode_cstr(const char *text,
                                size_t *out_entries);
 
 void fesk_free_sequence(int8_t *sequence);
+
+// Helper functions for raw source generation
+bool fesk_lookup_char_code(unsigned char ch, uint8_t *out_code);
+uint8_t fesk_crc8_update_code(uint8_t crc, uint8_t code);
