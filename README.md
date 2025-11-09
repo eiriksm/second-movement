@@ -6,9 +6,37 @@ This is a work-in-progress refactor of the Movement firmware for [Sensor Watch](
 
 Getting dependencies
 -------------------------
-You will need to install [the GNU Arm Embedded Toolchain](https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-rm/downloads/) to build projects for the watch. If you're using Debian or Ubuntu, it should be sufficient to `apt install gcc-arm-none-eabi`.
 
-You will need to fetch the git submodules for this repository too, with `git submodule update --init --recursive` 
+### ARM Toolchain
+
+You will need to install the GNU Arm Embedded Toolchain to build projects for the watch.
+
+**Recommended:** Use the provided setup script (Linux only):
+```bash
+./setup-toolchain.sh
+export PATH="$HOME/.local/arm-toolchain/bin:$PATH"
+```
+
+**Alternative methods:**
+
+1. **Using apt (Ubuntu/Debian):**
+   ```bash
+   sudo apt install gcc-arm-none-eabi
+   ```
+   Note: The version from apt may be newer than tested (13.x vs 10.x). If you encounter build errors with `-march=armv6s-m`, use the setup script or download version 10.3 manually.
+
+2. **Manual download:**
+   Download version 10.3-2021.07 from [ARM Developer](https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-rm/downloads/) or [xPack releases](https://github.com/xpack-dev-tools/arm-none-eabi-gcc-xpack/releases/tag/v10.3.1-2.3)
+
+3. **Using devcontainer:**
+   Open this repository in VS Code with the Dev Containers extension. The container includes all required dependencies.
+
+### Git Submodules
+
+You will need to fetch the git submodules for this repository:
+```bash
+git submodule update --init --recursive
+``` 
 
 
 Building Second Movement
