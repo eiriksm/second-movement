@@ -8,6 +8,10 @@
 #define ELIMINATION_RATE_H 0.15f // Average elimination rate (g/kg/hour)
 #define ALCOHOL_DENSITY 0.789  // g/ml
 
+// Forward declarations for static functions
+static void print_unit_count(unit_counter_state_t *state);
+static uint32_t calculate_time_to_point_two(float current_bac);
+
 void unit_counter_face_setup(uint8_t watch_face_index, void ** context_ptr) {
     (void) watch_face_index;
     if (*context_ptr == NULL) {
