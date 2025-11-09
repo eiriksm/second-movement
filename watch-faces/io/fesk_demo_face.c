@@ -123,7 +123,6 @@ void fesk_demo_face_setup(uint8_t watch_face_index, void **context_ptr) {
     fesk_session_config_t config = fesk_session_config_defaults();
     state->config = config;
     state->config.static_message = test_message;
-    state->config.on_sequence_ready = _fesk_demo_on_ready;
     state->config.on_countdown_begin = _fesk_demo_on_countdown_begin;
     state->config.on_transmission_start = _fesk_demo_on_transmission_start;
     state->config.on_transmission_end = _fesk_demo_on_transmission_end;

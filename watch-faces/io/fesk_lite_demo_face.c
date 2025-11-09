@@ -52,7 +52,7 @@ void fesk_lite_demo_face_setup(uint8_t watch_face_index, void **context_ptr) {
 
     fesk_session_config_t config = fesk_session_config_defaults();
     config.static_message = _fesk_lite_message;
-    config.on_sequence_ready = _fesk_lite_on_ready;
+    config.on_transmission_end = _fesk_lite_on_ready;
     config.on_cancelled = _fesk_lite_on_ready;
     config.user_data = state;
 
