@@ -1,3 +1,27 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2025 Eirik S. Morland
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include "fesk_session.h"
 
 #include <stdio.h>
@@ -11,6 +35,11 @@
 #define FESK_SESSION_TICKS_PER_SECOND 64
 #define FESK_COUNTDOWN_BEEP_TICKS 8
 
+/**
+ * Global singleton: Only one session can be active at a time due to hardware
+ * limitations (single piezo buzzer). Starting a new session will abort any
+ * currently active transmission.
+ */
 static fesk_session_t *_fesk_active_session = NULL;
 
 static const int8_t _fesk_countdown_sequence[] = {
@@ -37,11 +66,6 @@ static void _fesk_default_show_countdown(uint8_t seconds) {
     } else {
         _fesk_default_display("  GO  ");
     }
-}
-
-static void _fesk_default_on_ready(void *user_data) {
-    (void)user_data;
-    _fesk_default_display(" READY");
 }
 
 static void _fesk_default_on_transmission_start(void *user_data) {
@@ -82,7 +106,6 @@ fesk_session_config_t fesk_session_config_defaults(void) {
     config.countdown_seconds = FESK_SESSION_DEFAULT_COUNTDOWN_SECONDS;
     config.countdown_beep = true;
     config.show_bell_indicator = true;
-    config.on_ready = _fesk_default_on_ready;
     config.on_countdown_tick = _fesk_default_on_countdown_tick;
     config.on_countdown_complete = _fesk_default_on_countdown_complete;
     config.on_transmission_start = _fesk_default_on_transmission_start;
@@ -162,7 +185,7 @@ static void _finish_session(fesk_session_t *session, bool notify) {
 
 static bool _build_sequence(fesk_session_t *session) {
     const char *payload = session->config.static_message;
-    size_t payload_length = session->config.static_message_length;
+    size_t payload_length = 0;
 
     if (session->config.provide_payload) {
         fesk_result_t callback_result = session->config.provide_payload(&payload,
@@ -185,10 +208,9 @@ static bool _build_sequence(fesk_session_t *session) {
 
     int8_t *sequence = NULL;
     size_t entries = 0;
-    fesk_result_t encode_result = fesk_encode_text(payload,
-                                                   payload_length,
-                                                   &sequence,
-                                                   &entries);
+    fesk_result_t encode_result = fesk_encode(payload,
+                                              &sequence,
+                                              &entries);
     if (encode_result != FESK_OK) {
         _call_error(session->config.on_error, encode_result, session->config.user_data);
         return false;
@@ -553,15 +575,6 @@ void fesk_session_cancel(fesk_session_t *session) {
         return;
     }
     _handle_cancel(session);
-}
-
-void fesk_session_prepare(fesk_session_t *session) {
-    if (!session) {
-        return;
-    }
-    session->phase = FESK_SESSION_IDLE;
-    session->seconds_remaining = 0;
-    _call_simple(session->config.on_ready, session->config.user_data);
 }
 
 bool fesk_session_is_idle(const fesk_session_t *session) {

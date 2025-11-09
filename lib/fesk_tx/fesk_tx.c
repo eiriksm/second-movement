@@ -30,11 +30,13 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "watch_tcc.h"
 
 #define FESK_BIT_LOG_CAP 2048
 #define FESK_CODE_LOG_CAP 2048
+#define FESK_MAX_MESSAGE_LENGTH 1024
 
 #ifndef FESK_USE_LOG
 // Flip to 1 at build time (e.g. -DFESK_USE_LOG=1) to display debug logs.
@@ -52,7 +54,7 @@ static const fesk_code_entry_t _code_table[] = {
     {'q', 16}, {'r', 17}, {'s', 18}, {'t', 19}, {'u', 20}, {'v', 21}, {'w', 22}, {'x', 23},
     {'y', 24}, {'z', 25}, {'0', 26}, {'1', 27}, {'2', 28}, {'3', 29}, {'4', 30}, {'5', 31},
     {'6', 32}, {'7', 33}, {'8', 34}, {'9', 35}, {' ', 36}, {',', 37}, {':', 38}, {'\'', 39},
-    {'"', 40},
+    {'"', 40}, {'\n', 41},
 };
 
 const watch_buzzer_note_t fesk_tone_map[FESK_TONE_COUNT] = {
@@ -120,11 +122,15 @@ static bool _lookup_code(unsigned char raw, uint8_t *out_code) {
     return false;
 }
 
+/**
+ * CRC-8 with polynomial x^3 + x^2 + x + 1 (0x07)
+ * Common in embedded systems, provides good error detection for short messages.
+ */
 static inline uint8_t _crc8_update_bit(uint8_t crc, uint8_t bit) {
     uint8_t mix = ((crc >> 7) & 0x01u) ^ (bit & 0x01u);
     crc <<= 1;
     if (mix) {
-        crc ^= 0x07u;
+        crc ^= 0x07u;  /* Polynomial: x^3 + x^2 + x + 1 */
     }
     return crc;
 }
@@ -207,6 +213,11 @@ static fesk_result_t _encode_internal(const char *text,
         return FESK_ERR_INVALID_ARGUMENT;
     }
 
+    // Check for maximum message length to prevent excessive allocations
+    if (length > FESK_MAX_MESSAGE_LENGTH) {
+        return FESK_ERR_INVALID_ARGUMENT;
+    }
+
     uint8_t *payload_codes = malloc(length);
     if (!payload_codes) {
         return FESK_ERR_ALLOCATION_FAILED;
@@ -230,7 +241,19 @@ static fesk_result_t _encode_internal(const char *text,
                       + (payload_count * FESK_BITS_PER_CODE)               // payload
                       + 8                                                  // CRC
                       + FESK_BITS_PER_CODE;                                // end marker
+
+    // Check for overflow before multiplication
+    if (total_bits > SIZE_MAX / 4) {
+        free(payload_codes);
+        return FESK_ERR_ALLOCATION_FAILED;
+    }
     size_t total_entries = total_bits * 4;
+
+    // Check for overflow before final allocation
+    if (total_entries > SIZE_MAX - 1 || (total_entries + 1) > SIZE_MAX / sizeof(int8_t)) {
+        free(payload_codes);
+        return FESK_ERR_ALLOCATION_FAILED;
+    }
 
     int8_t *sequence = malloc((total_entries + 1) * sizeof(int8_t));
     if (!sequence) {
@@ -330,23 +353,16 @@ static fesk_result_t _encode_internal(const char *text,
     return FESK_OK;
 }
 
-fesk_result_t fesk_encode_text(const char *text,
-                               size_t length,
-                               int8_t **out_sequence,
-                               size_t *out_entries) {
-    return _encode_internal(text, length, out_sequence, out_entries);
-}
-
-fesk_result_t fesk_encode_cstr(const char *text,
-                               int8_t **out_sequence,
-                               size_t *out_entries) {
+fesk_result_t fesk_encode(const char *text,
+                          int8_t **out_sequence,
+                          size_t *out_entries) {
     if (!text) {
         return FESK_ERR_INVALID_ARGUMENT;
     }
 
-    size_t length = 0;
-    while (text[length] != '\0') {
-        length++;
+    size_t length = strlen(text);
+    if (length == 0) {
+        return FESK_ERR_INVALID_ARGUMENT;
     }
 
     return _encode_internal(text, length, out_sequence, out_entries);
