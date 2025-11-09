@@ -112,8 +112,12 @@ SRCS += ./watch-library/shared/driver/lis2dw.c
 
 ifdef EMSCRIPTEN
 
+# Filter out gossamer's dummy UART implementation and use our custom one
+SRCS := $(filter-out $(GOSSAMER_PATH)/dummy/peripherals/uart.c,$(SRCS))
+
 INCLUDES += \
   -I./watch-library/simulator/watch \
+  -I./watch-library/simulator/peripherals \
 
 SRCS += \
   ./watch-library/simulator/watch/watch.c \
@@ -129,6 +133,7 @@ SRCS += \
   ./watch-library/simulator/watch/watch_storage.c \
   ./watch-library/simulator/watch/watch_tcc.c \
   ./watch-library/simulator/watch/watch_uart.c \
+  ./watch-library/simulator/peripherals/uart.c \
 
 else
 

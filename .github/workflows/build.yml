@@ -64,11 +64,6 @@ jobs:
           submodules: recursive
       - name: Ensure workspace directory is defined as safe
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - name: Apply UART simulator patch
-        run: |
-          cd gossamer
-          git apply ../scripts/gossamer_uart_simulator.patch
-          cd ..
       - name: Compile movement
         run: emmake make
         working-directory: '.'
