@@ -94,11 +94,20 @@ static void _fesk_demo_on_error(fesk_result_t error, void *user_data) {
     printf("FESK error: %d\n", (int)error);
 }
 
+// Debug sequence tick values adjusted for buzzer code version
+#ifdef WATCH_BUZZER_PERIOD_REST
+// New buzzer code: add 1 to compensate for the -1 in playback
+#define DEBUG_TONE_DURATION 41
+#else
+// Old buzzer code: use original durations
+#define DEBUG_TONE_DURATION 40
+#endif
+
 static int8_t debug_sequence[] = {
-    FESK_TONE_LOW_NOTE, 40,
-    FESK_TONE_HIGH_NOTE, 40,
-    FESK_TONE_LOW_NOTE, 40,
-    FESK_TONE_HIGH_NOTE, 40,
+    FESK_TONE_LOW_NOTE, DEBUG_TONE_DURATION,
+    FESK_TONE_HIGH_NOTE, DEBUG_TONE_DURATION,
+    FESK_TONE_LOW_NOTE, DEBUG_TONE_DURATION,
+    FESK_TONE_HIGH_NOTE, DEBUG_TONE_DURATION,
     0
 };
 

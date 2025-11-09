@@ -36,8 +36,20 @@ typedef enum {
     FESK_ERR_ALLOCATION_FAILED,
 } fesk_result_t;
 
+// The c32 PR changed watch_buzzer_play_sequence to subtract 1 from durations.
+// Old code: duration N plays for N+1 callbacks
+// New code: duration N plays for N callbacks
+// To match timing, we add 1 to each duration when the new code is present.
+#ifdef WATCH_BUZZER_PERIOD_REST
+// New buzzer code: add 1 to compensate for the -1 in playback
+#define FESK_TICKS_PER_BIT 2
+#define FESK_TICKS_PER_REST 3
+#else
+// Old buzzer code: use original values
 #define FESK_TICKS_PER_BIT 1
 #define FESK_TICKS_PER_REST 2
+#endif
+
 #define FESK_BITS_PER_CODE 6
 #define FESK_START_MARKER 62u
 #define FESK_END_MARKER 63u
