@@ -119,6 +119,15 @@ typedef enum {
     FESK_SESSION_TRANSMITTING,      /**< Transmitting audio */
 } fesk_session_phase_t;
 
+// State for raw source generation (when WATCH_BUZZER_PERIOD_REST is available)
+typedef enum {
+    FESK_RAW_PHASE_START_MARKER = 0,
+    FESK_RAW_PHASE_DATA,
+    FESK_RAW_PHASE_CRC,
+    FESK_RAW_PHASE_END_MARKER,
+    FESK_RAW_PHASE_DONE
+} fesk_raw_phase_t;
+
 /** Session state structure */
 typedef struct fesk_session_s {
     fesk_session_config_t config;   /**< Session configuration */
@@ -126,6 +135,17 @@ typedef struct fesk_session_s {
     uint8_t seconds_remaining;      /**< Countdown seconds remaining */
     int8_t *sequence;               /**< Encoded sequence (managed internally) */
     size_t sequence_entries;        /**< Number of sequence entries */
+#ifdef WATCH_BUZZER_PERIOD_REST
+    // Raw source generation state
+    const char *raw_payload;
+    size_t raw_payload_length;
+    fesk_raw_phase_t raw_phase;
+    size_t raw_char_pos;       // Current character position in payload
+    uint8_t raw_bit_pos;       // Current bit position (0-5 for 6-bit codes, 0-7 for CRC)
+    uint8_t raw_current_code;  // Current code being transmitted
+    uint8_t raw_crc;           // CRC accumulator
+    bool raw_is_tone;          // true = tone, false = rest
+#endif
 } fesk_session_t;
 
 /**

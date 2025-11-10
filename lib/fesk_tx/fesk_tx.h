@@ -58,6 +58,7 @@
 #ifndef FESK_TX_H
 #define FESK_TX_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -71,11 +72,20 @@ typedef enum {
     FESK_ERR_ALLOCATION_FAILED,         /**< Memory allocation failed or overflow */
 } fesk_result_t;
 
-/** Timing: 1 tick tone + 2 ticks silence = 3 ticks per bit (~47ms @ 64Hz) */
+// The c32 PR changed watch_buzzer_play_sequence to subtract 1 from durations.
+// Old code: duration N plays for N+1 callbacks
+// New code: duration N plays for N callbacks
+// To match timing, we add 1 to each duration when the new code is present.
+#ifdef WATCH_BUZZER_PERIOD_REST
+// New buzzer code: add 1 to compensate for the -1 in playback
+#define FESK_TICKS_PER_BIT 2
+#define FESK_TICKS_PER_REST 3
+#else
+// Old buzzer code: use original values
 #define FESK_TICKS_PER_BIT 1
 #define FESK_TICKS_PER_REST 2
+#endif
 
-/** 6-bit encoding allows 64 codes (0-63) */
 #define FESK_BITS_PER_CODE 6
 
 /** Frame markers: codes 62 and 63 are reserved (not in character set) */
@@ -113,4 +123,8 @@ fesk_result_t fesk_encode(const char *text,
  */
 void fesk_free_sequence(int8_t *sequence);
 
-#endif
+// Helper functions for raw source generation
+bool fesk_lookup_char_code(unsigned char ch, uint8_t *out_code);
+uint8_t fesk_crc8_update_code(uint8_t crc, uint8_t code);
+
+#endif  // FESK_TX_H
