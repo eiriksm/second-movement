@@ -41,7 +41,6 @@ typedef struct {
 } fesk_demo_state_t;
 
 static const char test_message[] = "test";
-static const size_t test_message_len = sizeof(test_message) - 1;
 
 static fesk_demo_state_t *sequence_callback_state = NULL;
 
@@ -124,8 +123,6 @@ void fesk_demo_face_setup(uint8_t watch_face_index, void **context_ptr) {
     fesk_session_config_t config = fesk_session_config_defaults();
     state->config = config;
     state->config.static_message = test_message;
-    state->config.static_message_length = test_message_len;
-    state->config.on_ready = _fesk_demo_on_ready;
     state->config.on_countdown_begin = _fesk_demo_on_countdown_begin;
     state->config.on_transmission_start = _fesk_demo_on_transmission_start;
     state->config.on_transmission_end = _fesk_demo_on_transmission_end;
@@ -141,7 +138,7 @@ void fesk_demo_face_activate(void *context) {
     fesk_demo_state_t *state = (fesk_demo_state_t *)context;
     if (!state) return;
     state->is_debug_playing = false;
-    fesk_session_prepare(&state->session);
+    // Session is ready, no preparation needed
 }
 
 bool fesk_demo_face_loop(movement_event_t event, void *context) {
