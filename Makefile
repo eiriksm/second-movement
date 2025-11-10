@@ -22,12 +22,6 @@ include $(GOSSAMER_PATH)/make.mk
 
 CFLAGS+=-D_POSIX_C_SOURCE=200112L
 
-# Add Emscripten exports for simulator UART injection
-ifdef EMSCRIPTEN
-    LDFLAGS += -s EXPORTED_RUNTIME_METHODS=lengthBytesUTF8,printErr,ccall,cwrap
-    LDFLAGS += -s EXPORTED_FUNCTIONS=_main,_uart_sim_inject_data,_uart_sim_get_buffer_count
-endif
-
 define n
 
 
@@ -172,3 +166,14 @@ SRCS += \
 
 # Finally, leave this line at the bottom of the file.
 include $(GOSSAMER_PATH)/rules.mk
+
+# Override Emscripten HTML build rule to add UART injection exports
+ifdef EMSCRIPTEN
+$(BUILD)/$(BIN).html: $(OBJS)
+	@echo HTML $@
+	@$(CC) $(LDFLAGS) $(OBJS) $(LIBS) -o $@ \
+		-s ASYNCIFY=1 \
+		-s EXPORTED_RUNTIME_METHODS=lengthBytesUTF8,printErr,ccall,cwrap \
+		-s EXPORTED_FUNCTIONS=_main,_uart_sim_inject_data,_uart_sim_get_buffer_count \
+		--shell-file=./watch-library/simulator/shell.html
+endif
