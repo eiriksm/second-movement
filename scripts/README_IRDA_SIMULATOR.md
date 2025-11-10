@@ -20,9 +20,44 @@ The `HAS_IR_SENSOR` flag is automatically defined for sensorwatch_pro via its bo
 
 ## Testing in the Simulator
 
-### Method 1: JavaScript Console (Simple Testing)
+### Method 1: Direct Filesystem API (Easiest)
 
-Once the simulator is running in your browser, you can inject IrDA data using the browser's JavaScript console:
+The simplest way to upload files is using the exported filesystem functions directly:
+
+```javascript
+// Helper to write a file to the watch filesystem
+function writeFile(filename, content) {
+    // Allocate filename string
+    const filenameLen = Module.lengthBytesUTF8(filename) + 1;
+    const filenamePtr = Module._malloc(filenameLen);
+    Module.stringToUTF8(filename, filenamePtr, filenameLen);
+
+    // Allocate content buffer
+    const contentBytes = new TextEncoder().encode(content);
+    const contentPtr = Module._malloc(contentBytes.length);
+    Module.HEAPU8.set(contentBytes, contentPtr);
+
+    // Call filesystem_write_file
+    const result = Module._filesystem_write_file(filenamePtr, contentPtr, contentBytes.length);
+
+    // Cleanup
+    Module._free(filenamePtr);
+    Module._free(contentPtr);
+
+    console.log(result ? "✓ File written successfully" : "✗ File write failed");
+    return result !== 0;
+}
+
+// Example usage
+writeFile("test.txt", "Hello from JavaScript!");
+
+// Check free space
+console.log("Free space:", Module._filesystem_get_free_space(), "bytes");
+```
+
+### Method 2: IrDA Protocol Simulation (Testing IR Face)
+
+If you want to test the actual IrDA upload face, you can inject IrDA data via UART:
 
 ```javascript
 // Helper function to inject raw bytes into UART buffer
@@ -90,7 +125,7 @@ function uploadTestFile() {
 uploadTestFile();
 ```
 
-### Method 2: Python Script
+### Method 3: Python Script
 
 Use the included `irda_transmitter.py` script to generate test packets:
 
@@ -104,7 +139,7 @@ python3 scripts/irda_transmitter.py /dev/null test.txt /tmp/testfile.txt
 
 Then copy the packet bytes and inject them using Method 1 above.
 
-### Method 3: Automated Testing (Future Enhancement)
+### Method 4: Automated Testing (Future Enhancement)
 
 A more sophisticated approach would be to:
 
