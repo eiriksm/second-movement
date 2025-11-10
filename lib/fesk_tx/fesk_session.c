@@ -345,7 +345,7 @@ static bool _fesk_raw_source(uint16_t position, void* userdata, uint16_t* period
 // Initialize raw source state for transmission
 static bool _init_raw_source(fesk_session_t *session) {
     const char *payload = session->config.static_message;
-    size_t payload_length = session->config.static_message_length;
+    size_t payload_length = 0;
 
     if (session->config.provide_payload) {
         fesk_result_t callback_result = session->config.provide_payload(&payload,
