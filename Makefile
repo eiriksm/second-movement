@@ -22,6 +22,12 @@ include $(GOSSAMER_PATH)/make.mk
 
 CFLAGS+=-D_POSIX_C_SOURCE=200112L
 
+# Add Emscripten exports for simulator UART injection
+ifdef EMSCRIPTEN
+    LDFLAGS += -s EXPORTED_RUNTIME_METHODS=lengthBytesUTF8,printErr,ccall,cwrap
+    LDFLAGS += -s EXPORTED_FUNCTIONS=_main,_uart_sim_inject_data,_uart_sim_get_buffer_count
+endif
+
 define n
 
 

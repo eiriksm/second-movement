@@ -27,16 +27,16 @@ Once the simulator is running in your browser, you can inject IrDA data using th
 ```javascript
 // Helper function to inject raw bytes into UART buffer
 function injectIrDAData(data) {
-    // Convert data array to Uint8Array
-    const uint8Array = new Uint8Array(data);
+    // Convert data array to Uint8Array if needed
+    const uint8Array = data instanceof Uint8Array ? data : new Uint8Array(data);
 
     // Allocate memory in Emscripten heap
     const dataPtr = Module._malloc(uint8Array.length);
     Module.HEAPU8.set(uint8Array, dataPtr);
 
     // Call the inject function (sercom 0 is used by IrDA face)
-    Module.ccall('uart_sim_inject_data', null, ['number', 'number', 'number'],
-                 [0, dataPtr, uint8Array.length]);
+    // Using direct function call (more reliable):
+    Module._uart_sim_inject_data(0, dataPtr, uint8Array.length);
 
     // Free allocated memory
     Module._free(dataPtr);
