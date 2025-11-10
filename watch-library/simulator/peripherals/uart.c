@@ -36,36 +36,36 @@ static uart_sim_state_t uart_instances[MAX_SERCOM_INSTANCES] = {0};
 
 // Poll JavaScript global variable for UART data
 // This follows the same pattern as shell.c which polls the 'tx' variable
+// Note: Unlike shell.c which uses UTF-8 strings, UART needs to handle binary data
+// with null bytes, so we copy bytes directly from the JavaScript string
 static void uart_sim_poll_js_data(uint8_t sercom) {
     if (sercom >= MAX_SERCOM_INSTANCES) return;
 
     uart_sim_state_t *state = &uart_instances[sercom];
 
-    // Check if there's data in the JavaScript uart_rx_data variable
-    char *received_data = (char*)EM_ASM_INT({
-        // Check if uart_rx_data exists and has content
+    // Get length and data from JavaScript uart_rx_data variable
+    // We handle binary data by accessing string bytes directly (not UTF-8 encoding)
+    int length = EM_ASM_INT({
         if (typeof uart_rx_data === 'undefined' || uart_rx_data.length === 0) {
             return 0;
         }
-        var len = lengthBytesUTF8(uart_rx_data) + 1;
-        var s = _malloc(len);
-        stringToUTF8(uart_rx_data, s, len);
-        return s;
+        return uart_rx_data.length;
     });
 
-    if (received_data != NULL) {
-        size_t length = strlen(received_data);
-
-        // Inject data into the buffer
-        for (size_t i = 0; i < length; i++) {
+    if (length > 0) {
+        // Inject data into the buffer byte by byte
+        for (int i = 0; i < length; i++) {
             if (state->rx_count < UART_BUFFER_SIZE) {
-                state->rx_buffer[state->rx_write_pos] = received_data[i];
+                // Get byte directly from JavaScript string (handles null bytes correctly)
+                uint8_t byte = EM_ASM_INT({
+                    return uart_rx_data.charCodeAt($0) & 0xFF;
+                }, i);
+
+                state->rx_buffer[state->rx_write_pos] = byte;
                 state->rx_write_pos = (state->rx_write_pos + 1) % UART_BUFFER_SIZE;
                 state->rx_count++;
             }
         }
-
-        free(received_data);
 
         // Clear the JavaScript variable
         EM_ASM({
