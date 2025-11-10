@@ -166,14 +166,3 @@ SRCS += \
 
 # Finally, leave this line at the bottom of the file.
 include $(GOSSAMER_PATH)/rules.mk
-
-# Override Emscripten HTML build rule to add simulator utility exports
-ifdef EMSCRIPTEN
-$(BUILD)/$(BIN).html: $(OBJS)
-	@echo HTML $@
-	@$(CC) $(LDFLAGS) $(OBJS) $(LIBS) -o $@ \
-		-s ASYNCIFY=1 \
-		-s EXPORTED_RUNTIME_METHODS=lengthBytesUTF8,printErr,ccall,cwrap,stringToUTF8 \
-		-s EXPORTED_FUNCTIONS=_main,_uart_sim_inject_data,_uart_sim_get_buffer_count,_filesystem_write_file,_filesystem_read_file,_filesystem_rm,_filesystem_get_free_space,_filesystem_file_exists \
-		--shell-file=./watch-library/simulator/shell.html
-endif

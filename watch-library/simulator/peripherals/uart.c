@@ -30,21 +30,50 @@ typedef struct {
 
 static uart_sim_state_t uart_instances[MAX_SERCOM_INSTANCES] = {0};
 
-// Helper function to add data to UART buffer (for testing/UI integration)
-// This function can be called from JavaScript via Emscripten or from test code
-void uart_sim_inject_data(uint8_t sercom, const char *data, size_t length) {
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#include <stdlib.h>
+
+// Poll JavaScript global variable for UART data
+// This follows the same pattern as shell.c which polls the 'tx' variable
+static void uart_sim_poll_js_data(uint8_t sercom) {
     if (sercom >= MAX_SERCOM_INSTANCES) return;
 
     uart_sim_state_t *state = &uart_instances[sercom];
 
-    for (size_t i = 0; i < length; i++) {
-        if (state->rx_count < UART_BUFFER_SIZE) {
-            state->rx_buffer[state->rx_write_pos] = data[i];
-            state->rx_write_pos = (state->rx_write_pos + 1) % UART_BUFFER_SIZE;
-            state->rx_count++;
+    // Check if there's data in the JavaScript uart_rx_data variable
+    char *received_data = (char*)EM_ASM_INT({
+        // Check if uart_rx_data exists and has content
+        if (typeof uart_rx_data === 'undefined' || uart_rx_data.length === 0) {
+            return 0;
         }
+        var len = lengthBytesUTF8(uart_rx_data) + 1;
+        var s = _malloc(len);
+        stringToUTF8(uart_rx_data, s, len);
+        return s;
+    });
+
+    if (received_data != NULL) {
+        size_t length = strlen(received_data);
+
+        // Inject data into the buffer
+        for (size_t i = 0; i < length; i++) {
+            if (state->rx_count < UART_BUFFER_SIZE) {
+                state->rx_buffer[state->rx_write_pos] = received_data[i];
+                state->rx_write_pos = (state->rx_write_pos + 1) % UART_BUFFER_SIZE;
+                state->rx_count++;
+            }
+        }
+
+        free(received_data);
+
+        // Clear the JavaScript variable
+        EM_ASM({
+            uart_rx_data = "";
+        });
     }
 }
+#endif
 
 // Helper function to check buffer status
 size_t uart_sim_get_buffer_count(uint8_t sercom) {
@@ -133,6 +162,11 @@ void uart_write_instance(uint8_t sercom, char *data, size_t length) {
 
 size_t uart_read_instance(uint8_t sercom, char *data, size_t max_length) {
     if (sercom >= MAX_SERCOM_INSTANCES) return 0;
+
+#ifdef __EMSCRIPTEN__
+    // Check for new data from JavaScript
+    uart_sim_poll_js_data(sercom);
+#endif
 
     uart_sim_state_t *state = &uart_instances[sercom];
 
