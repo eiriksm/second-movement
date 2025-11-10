@@ -159,6 +159,7 @@ static void uptime_on_transmission_end(void *user_data) {
     uptime_state_t *state = (uptime_state_t *)user_data;
     if (!state) return;
     state->mode = UT_NONE;
+    uptime_display_title();
     uptime_display_elapsed(uptime_get_seconds_since_boot(state));
     printf("Uptime transmission complete\n");
 }
@@ -167,6 +168,7 @@ static void uptime_on_cancelled(void *user_data) {
     uptime_state_t *state = (uptime_state_t *)user_data;
     if (!state) return;
     state->mode = UT_NONE;
+    uptime_display_title();
     uptime_display_elapsed(uptime_get_seconds_since_boot(state));
 }
 
@@ -216,7 +218,6 @@ void uptime_face_setup(uint8_t watch_face_index, void **context_ptr) {
 
     state->config.enable_countdown = false;
     state->config.provide_payload = uptime_payload_provider;
-    state->config.on_ready = uptime_on_ready;
     state->config.on_transmission_start = uptime_on_transmission_start;
     state->config.on_transmission_end = uptime_on_transmission_end;
     state->config.on_cancelled = uptime_on_cancelled;
@@ -232,7 +233,7 @@ void uptime_face_activate(void *context) {
     uptime_state_t *state = (uptime_state_t *)context;
     if (!state) return;
     state->mode = UT_NONE;
-    fesk_session_prepare(&state->session);
+    // Session is ready, no preparation needed
 }
 
 bool uptime_face_loop(movement_event_t event, void *context) {

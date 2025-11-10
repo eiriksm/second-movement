@@ -35,10 +35,6 @@ void unit_counter_print_settings_screen(unit_counter_state_t *state);
 void unit_counter_print_time_to_sober_screen(unit_counter_state_t *state);
 
 float unit_counter_calculate_bac(unit_counter_state_t *state);
-static void print_unit_count(unit_counter_state_t *state);
-
-
-static uint32_t calculate_time_to_point_two(float current_bac);
 
 #define unit_counter_face ((const watch_face_t){ \
     unit_counter_face_setup, \
