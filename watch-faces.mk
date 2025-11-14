@@ -57,4 +57,5 @@ SRCS += \
   ./watch-faces/complication/deadline_face.c \
   ./watch-faces/complication/endless_runner_face.c \
   ./watch-faces/complication/uptime_face.c \
+  ./watch-faces/complication/step_counter_face.c \
 # New watch faces go above this line.

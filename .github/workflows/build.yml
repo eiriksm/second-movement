@@ -3,12 +3,12 @@ name: Build
 on:
   pull_request:
     branches:
-      - eirik-clock-v2
+      - eirik3
   push:
     branches:
-      - eirik-clock-v2
+      - eirik3
 
-jobs: 
+jobs:
   build:
     container:
       image: ghcr.io/armmbed/mbed-os-env:latest
@@ -85,13 +85,13 @@ jobs:
         if: matrix.board == 'sensorwatch_pro' && matrix.display == 'custom'
         with:
           publish-dir: './build-sim'
-          production-branch: eirik-clock-v2
+          production-branch: eirik3
           github-token: ${{ secrets.GITHUB_TOKEN }}
           deploy-message: "Deploy from GitHub Actions"
           enable-pull-request-comment: true
           enable-commit-comment: true
           overwrites-pull-request-comment: true
-          github-deployment-environment: eirik-clock-v2
+          github-deployment-environment: eirik3
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
