@@ -29,17 +29,19 @@
 
 const watch_face_t watch_faces[] = {
     clock_face,
+    unit_counter_face,
 #ifdef I2C_SERCOM
     step_counter_face,
 #endif
-    world_clock_face,
-    sunrise_sunset_face,
-    moon_phase_face,
+    atb_countdown_face,
     fast_stopwatch_face,
     countdown_face,
-    alarm_face,
-    temperature_display_face,
+    endless_runner_face,
+    uptime_face,
+    fesk_demo_face,
     voltage_face,
+    finetune_face,
+    nanosec_face,
     settings_face,
     set_time_face,
 };
