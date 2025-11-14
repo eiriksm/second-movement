@@ -1,4 +1,8 @@
 SRCS += \
+  ./watch-faces/complication/unit_counter_face.c \
+  ./watch-faces/complication/bac.c \
+  ./watch-faces/complication/atb_countdown_face.c \
+  ./watch-faces/complication/atb.c \
   ./watch-faces/clock/clock_face.c \
   ./watch-faces/clock/beats_face.c \
   ./watch-faces/clock/world_clock_face.c \
@@ -33,6 +37,8 @@ SRCS += \
   ./watch-faces/settings/finetune_face.c \
   ./watch-faces/settings/nanosec_face.c \
   ./watch-faces/io/chirpy_demo_face.c \
+  ./watch-faces/io/fesk_demo_face.c \
+  ./watch-faces/io/fesk_lite_demo_face.c \
   ./watch-faces/io/irda_upload_face.c \
   ./watch-faces/complication/probability_face.c \
   ./watch-faces/clock/close_enough_face.c \
@@ -49,5 +55,7 @@ SRCS += \
   ./watch-faces/sensor/lis2dw_monitor_face.c \
   ./watch-faces/complication/wareki_face.c \
   ./watch-faces/complication/deadline_face.c \
+  ./watch-faces/complication/endless_runner_face.c \
+  ./watch-faces/complication/uptime_face.c \
   ./watch-faces/complication/step_counter_face.c \
 # New watch faces go above this line.
