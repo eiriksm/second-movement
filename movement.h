@@ -56,6 +56,13 @@ typedef enum {
     MOVEMENT_NUM_CLOCK_MODES
 } movement_clock_mode_t;
 
+typedef enum {
+    MOVEMENT_SC_OFF = 0,
+    MOVEMENT_SC_ALWAYS,
+    MOVEMENT_SC_DAYTIME,
+    MOVEMENT_SC_NOT_INSTALLED
+} movement_step_count_option_t;
+
 /// struct for Movement LED color
 typedef struct {
     uint8_t red : 4;
@@ -133,6 +140,23 @@ typedef enum {
     EVENT_SINGLE_TAP,           // Accelerometer detected a single tap. This event is not yet implemented.
     EVENT_DOUBLE_TAP,           // Accelerometer detected a double tap. This event is not yet implemented.
 } movement_event_type_t;
+
+// Each different timeout type will use a different index when invoking watch_rtc_register_comp_callback
+typedef enum {
+    LIGHT_BUTTON_TIMEOUT = 0,   // Light button longpress timeout
+    MODE_BUTTON_TIMEOUT,        // Mode button longpress timeout
+    ALARM_BUTTON_TIMEOUT,       // Alarm button longpress timeout
+    LED_TIMEOUT,                // LED off timeout
+    RESIGN_TIMEOUT,             // Resign active face timeout
+    SLEEP_TIMEOUT,              // Low-energy begin timeout
+    MINUTE_TIMEOUT,             // Top of the Minute timeout
+} movement_timeout_index_t;
+
+typedef enum {
+    BUZZER_PRIORITY_BUTTON = 0, // Buzzer priority for button beeps (lowest priority).
+    BUZZER_PRIORITY_SIGNAL,     // Buzzer priority for hourly chime (medium priority).
+    BUZZER_PRIORITY_ALARM,      // Buzzer priority for hourly chime (highest priority).
+} movement_buzzer_priority_t;
 
 typedef struct {
     uint8_t event_type;
@@ -249,37 +273,16 @@ typedef struct {
     int16_t current_face_idx;
     int16_t next_face_idx;
     bool watch_face_changed;
-    bool fast_tick_enabled;
-    int16_t fast_ticks;
 
     // LED stuff
-    int16_t light_ticks;
-
-    // alarm stuff
-    int16_t alarm_ticks;
-    bool is_buzzing;
-    watch_buzzer_note_t alarm_note;
-
-    // button tracking for long press
-    uint16_t light_down_timestamp;
-    uint16_t mode_down_timestamp;
-    uint16_t alarm_down_timestamp;
+    bool light_on;
 
     // background task handling
-    bool woke_from_alarm_handler;
     bool has_scheduled_background_task;
-    bool needs_wake;
-
-    // low energy mode countdown
-    int32_t le_mode_ticks;
-
-    // app resignation countdown (TODO: consolidate with LE countdown?)
-    int16_t timeout_ticks;
 
     // stuff for subsecond tracking
     uint8_t tick_frequency;
-    uint8_t last_second;
-    uint8_t subsecond;
+    uint8_t tick_pern;
 
     // backup register stuff
     uint8_t next_available_backup_register;
@@ -296,6 +299,17 @@ typedef struct {
     lis2dw_data_rate_t accelerometer_background_rate;
     // threshold for considering the wearer is in motion
     uint8_t accelerometer_motion_threshold;
+
+    // signal and alarm volumes
+    watch_buzzer_volume_t signal_volume;
+    watch_buzzer_volume_t alarm_volume;
+
+    uint8_t when_to_count_steps : 4;
+    uint8_t counting_steps      : 1;
+    uint8_t count_steps_keep_on : 1;
+    uint8_t count_steps_keep_off: 1;
+    uint8_t tap_enabled         : 1;
+    int8_t step_count_disable_req_sec;
 } movement_state_t;
 
 void movement_move_to_face(uint8_t watch_face_index);
@@ -324,9 +338,11 @@ void movement_cancel_background_task_for_face(uint8_t watch_face_index);
 void movement_request_sleep(void);
 void movement_request_wake(void);
 
+void movement_play_note(watch_buzzer_note_t note, uint16_t duration_ms);
 void movement_play_signal(void);
 void movement_play_alarm(void);
 void movement_play_alarm_beeps(uint8_t rounds, watch_buzzer_note_t alarm_note);
+void movement_play_sequence(int8_t *note_sequence, movement_buzzer_priority_t priority);
 
 uint8_t movement_claim_backup_register(void);
 
@@ -339,14 +355,30 @@ void movement_set_timezone_index(uint8_t value);
 watch_date_time_t movement_get_utc_date_time(void);
 watch_date_time_t movement_get_local_date_time(void);
 watch_date_time_t movement_get_date_time_in_zone(uint8_t zone_index);
+uint32_t movement_get_utc_timestamp(void);
 
+void movement_set_utc_date_time(watch_date_time_t date_time);
 void movement_set_local_date_time(watch_date_time_t date_time);
+void movement_set_utc_timestamp(uint32_t timestamp);
 
 bool movement_button_should_sound(void);
 void movement_set_button_should_sound(bool value);
 
 watch_buzzer_volume_t movement_button_volume(void);
 void movement_set_button_volume(watch_buzzer_volume_t value);
+
+watch_buzzer_volume_t movement_signal_volume(void);
+void movement_set_signal_volume(watch_buzzer_volume_t value);
+
+watch_buzzer_volume_t movement_alarm_volume(void);
+void movement_set_alarm_volume(watch_buzzer_volume_t value);
+
+movement_step_count_option_t movement_get_when_to_count_steps(void);
+void movement_set_when_to_count_steps(movement_step_count_option_t value);
+
+uint8_t get_step_count_start_hour(void);
+uint8_t get_step_count_end_hour(void);
+bool movement_in_step_counter_interval(uint8_t hour);
 
 movement_clock_mode_t movement_clock_mode_24h(void);
 void movement_set_clock_mode_24h(movement_clock_mode_t value);
@@ -378,6 +410,9 @@ void movement_set_alarm_enabled(bool value);
 bool movement_enable_tap_detection_if_available(void);
 bool movement_disable_tap_detection_if_available(void);
 
+bool movement_has_lis2dw(void);
+bool movement_still_sees_accelerometer(void);
+
 // gets and sets the accelerometer data rate in the background
 lis2dw_data_rate_t movement_get_accelerometer_background_rate(void);
 bool movement_set_accelerometer_background_rate(lis2dw_data_rate_t new_rate);
@@ -385,6 +420,20 @@ bool movement_set_accelerometer_background_rate(lis2dw_data_rate_t new_rate);
 // gets and sets the accelerometer motion threshold
 uint8_t movement_get_accelerometer_motion_threshold(void);
 bool movement_set_accelerometer_motion_threshold(uint8_t new_threshold);
+
+// if the board has an accelerometer, these functions will enable or disable step_counting
+void enable_disable_step_count_times(watch_date_time_t date_time);
+bool movement_enable_step_count(bool force_enable);
+bool movement_enable_step_count_multiple_attempts(uint8_t max_tries, bool force_enable);
+bool movement_disable_step_count(bool disable_immedietly);
+bool movement_step_count_is_enabled(void);
+bool movement_step_count_keep_on(void);
+bool movement_step_count_keep_off(void);
+void movement_set_step_count_keep_on(bool keep_on);
+void movement_set_step_count_keep_off(bool keep_off);
+void movement_reset_step_count(void);
+uint32_t movement_get_step_count(void);
+uint8_t movement_get_lis2dw_awake(void);
 
 // If the board has a temperature sensor, this function will give you the temperature in degrees celsius.
 // If the board has multiple temperature sensors, it will use the most accurate one available.
