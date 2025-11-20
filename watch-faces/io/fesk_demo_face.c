@@ -206,13 +206,13 @@ bool fesk_demo_face_loop(movement_event_t event, void *context) {
                     watch_set_led_green();
                 }
 
-                // Update static message for transmission
+                // Update static message for transmission in the session's config
                 if (state->led_color == 0) {
-                    state->config.static_message = test_message;
+                    state->session.config.static_message = test_message;
                 } else if (state->led_color == 1) {
-                    state->config.static_message = red_pixel;
+                    state->session.config.static_message = red_pixel;
                 } else {
-                    state->config.static_message = green_pixel;
+                    state->session.config.static_message = green_pixel;
                 }
             }
             handled = true;
