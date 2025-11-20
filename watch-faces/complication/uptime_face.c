@@ -81,6 +81,8 @@ static void uptime_display_title(void) {
 }
 
 static void uptime_display_elapsed(uint32_t seconds_since_boot) {
+    // Make sure we clear the display first.
+    watch_display_text_with_fallback(WATCH_POSITION_BOTTOM, "      ", "      ");
     char buf[16];
     snprintf(buf, sizeof(buf), "%lu", (unsigned long)seconds_since_boot);
     strncat(buf, "s", sizeof(buf) - strlen(buf) - 1);
@@ -233,6 +235,8 @@ void uptime_face_activate(void *context) {
     uptime_state_t *state = (uptime_state_t *)context;
     if (!state) return;
     state->mode = UT_NONE;
+    uptime_display_title();
+    uptime_display_elapsed(uptime_get_seconds_since_boot(state));
     // Session is ready, no preparation needed
 }
 

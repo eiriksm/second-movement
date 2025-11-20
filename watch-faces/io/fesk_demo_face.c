@@ -38,15 +38,18 @@ typedef struct {
     bool is_countdown;
     bool is_transmitting;
     bool is_debug_playing;
+    uint8_t led_color;  // 0 = no LED, 1 = red, 2 = green
 } fesk_demo_state_t;
 
 static const char test_message[] = "test";
+static const char red_pixel[] = "KJEUMRSKAAAAAV2FIJIFMUBYLAFAAAAAAAAAAAAAAAAAAAAAKZIDQIBMAAAABEABACOQCKQBAAAQAASAHAS2AATUXIAAHGAA73HIF7DPG6NNNN77WB377IHP75A572OAAAAA";
+static const char green_pixel[] = "KJEUMRR2AAAAAV2FIJIFMUBYEAXAAAAA2AAQBHIBFIAQAAIAAJADQJNAAJ2LUAPYAAB3AAH65OHF77EC4WC5OVS77VHD6JY7SOH6WKAAAA";
 
 static fesk_demo_state_t *sequence_callback_state = NULL;
 
 static void _fesk_demo_display_ready(fesk_demo_state_t *state) {
     (void)state;
-    watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "FK", "FESK");
+    watch_display_text_with_fallback(WATCH_POSITION_TOP, "FESK", "FK");
     watch_display_text(WATCH_POSITION_BOTTOM, " TEST ");
 }
 
@@ -68,6 +71,17 @@ static void _fesk_demo_on_countdown_begin(void *user_data) {
 static void _fesk_demo_on_transmission_start(void *user_data) {
     fesk_demo_state_t *state = (fesk_demo_state_t *)user_data;
     if (!state) return;
+
+    const char *mode_name;
+    if (state->led_color == 0) {
+        mode_name = "TEST (no LED)";
+    } else if (state->led_color == 1) {
+        mode_name = "RED";
+    } else {
+        mode_name = "GREEN";
+    }
+    printf("Transmitting: %s\n", mode_name);
+
     state->is_countdown = false;
     state->is_transmitting = true;
     watch_display_text(WATCH_POSITION_BOTTOM, "  TX  ");
@@ -129,6 +143,8 @@ void fesk_demo_face_setup(uint8_t watch_face_index, void **context_ptr) {
     }
     memset(state, 0, sizeof(*state));
 
+    state->led_color = 0;  // Start with no LED
+
     fesk_session_config_t config = fesk_session_config_defaults();
     state->config = config;
     state->config.static_message = test_message;
@@ -147,6 +163,17 @@ void fesk_demo_face_activate(void *context) {
     fesk_demo_state_t *state = (fesk_demo_state_t *)context;
     if (!state) return;
     state->is_debug_playing = false;
+    _fesk_demo_display_ready(state);
+
+    // Set LED based on current state
+    if (state->led_color == 0) {
+        watch_set_led_off();
+    } else if (state->led_color == 1) {
+        watch_set_led_red();
+    } else {
+        watch_set_led_green();
+    }
+
     // Session is ready, no preparation needed
 }
 
@@ -157,6 +184,40 @@ bool fesk_demo_face_loop(movement_event_t event, void *context) {
     bool handled = false;
 
     switch (event.event_type) {
+
+        case EVENT_LIGHT_BUTTON_DOWN:
+        case EVENT_LIGHT_LONG_PRESS:
+        case EVENT_LIGHT_LONG_UP:
+            // Do nothing.
+            handled = true;
+            break;
+
+        case EVENT_LIGHT_BUTTON_UP:
+            // Cycle between no LED, red, and green
+            if (!state->is_debug_playing && fesk_session_is_idle(&state->session)) {
+                state->led_color = (state->led_color + 1) % 3;
+
+                // Update LED
+                if (state->led_color == 0) {
+                    watch_set_led_off();
+                } else if (state->led_color == 1) {
+                    watch_set_led_red();
+                } else {
+                    watch_set_led_green();
+                }
+
+                // Update static message for transmission
+                if (state->led_color == 0) {
+                    state->config.static_message = test_message;
+                } else if (state->led_color == 1) {
+                    state->config.static_message = red_pixel;
+                } else {
+                    state->config.static_message = green_pixel;
+                }
+            }
+            handled = true;
+            break;
+
         case EVENT_MODE_BUTTON_UP:
             if (!state->is_debug_playing && fesk_session_is_idle(&state->session)) {
                 movement_move_to_next_face();
@@ -222,4 +283,7 @@ void fesk_demo_face_resign(void *context) {
     }
 
     fesk_session_cancel(&state->session);
+
+    // Turn off LED when leaving face
+    watch_set_led_off();
 }
