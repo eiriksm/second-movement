@@ -40,9 +40,10 @@ typedef struct {
     float z;
 } lis2dw_acceleration_measurement_t;
 
+#define LIS2DW_FIFO_MAX_COUNT 32
 typedef struct {
     int8_t count;
-    lis2dw_reading_t readings[32];
+    lis2dw_reading_t readings[LIS2DW_FIFO_MAX_COUNT];
 } lis2dw_fifo_t;
 
 typedef enum {
@@ -295,6 +296,8 @@ typedef enum {
 #define LIS2DW_CTRL7_VAL_HP_REF_MODE        0b00000010
 #define LIS2DW_CTRL7_VAL_LPASS_ON6D         0b00000001
 
+#define LIS2DW_FIFO_TIMEOUT                 100  // timeout is in terms of 1/RTC_CNT_HZ seconds (likely 128 timeouts is one second)
+
 bool lis2dw_begin(void);
 
 uint8_t lis2dw_get_device_id(void);
@@ -339,9 +342,13 @@ void lis2dw_enable_fifo(void);
 
 void lis2dw_disable_fifo(void);
 
-bool lis2dw_read_fifo(lis2dw_fifo_t *fifo_data);
+bool lis2dw_read_fifo(lis2dw_fifo_t *fifo_data, uint32_t timeout);
 
 void lis2dw_clear_fifo(void);
+
+void lis2dw_enable_double_tap(void);
+
+void lis2dw_disable_double_tap(void);
 
 void lis2dw_enable_sleep(void);
 

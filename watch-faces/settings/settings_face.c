@@ -77,6 +77,64 @@ static void beep_setting_advance(void) {
     }
 }
 
+static void signal_setting_display(uint8_t subsecond) {
+    watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "SIG", "SI");
+    watch_display_text(WATCH_POSITION_BOTTOM, "SIGNAL");
+    if (subsecond % 2) {
+        if (movement_signal_volume() == WATCH_BUZZER_VOLUME_LOUD) {
+            // H for HIGH
+            watch_display_text(WATCH_POSITION_TOP_RIGHT, " H");
+        }
+        else {
+            // L for LOW
+            watch_display_text(WATCH_POSITION_TOP_RIGHT, " L");
+        }
+    }
+}
+
+static void signal_setting_advance(void) {
+    if (movement_signal_volume() == WATCH_BUZZER_VOLUME_SOFT) {
+        // was soft. make it loud.
+        movement_set_signal_volume(WATCH_BUZZER_VOLUME_LOUD);
+    } else {
+        // was loud. make it soft.
+        movement_set_signal_volume(WATCH_BUZZER_VOLUME_SOFT);
+    }
+
+    signal_setting_display(1);
+    movement_play_signal();
+}
+
+
+static void alarm_setting_display(uint8_t subsecond) {
+    watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "ALM", "AL");
+    watch_display_text(WATCH_POSITION_BOTTOM, "ALARM ");
+    if (subsecond % 2) {
+        if (movement_alarm_volume() == WATCH_BUZZER_VOLUME_LOUD) {
+            // H for HIGH
+            watch_display_text(WATCH_POSITION_TOP_RIGHT, " H");
+        }
+        else {
+            // L for LOW
+            watch_display_text(WATCH_POSITION_TOP_RIGHT, " L");
+        }
+    }
+}
+
+static void alarm_setting_advance(void) {
+    if (movement_alarm_volume() == WATCH_BUZZER_VOLUME_SOFT) {
+        // was soft. make it loud.
+        movement_set_alarm_volume(WATCH_BUZZER_VOLUME_LOUD);
+    } else {
+        // was loud. make it soft.
+        movement_set_alarm_volume(WATCH_BUZZER_VOLUME_SOFT);
+
+    }
+
+    alarm_setting_display(1);
+    movement_play_alarm();
+}
+
 static void timeout_setting_display(uint8_t subsecond) {
     watch_display_text_with_fallback(WATCH_POSITION_TOP, "TMOUt", "TO");
     if (subsecond % 2) {
@@ -136,6 +194,41 @@ static void low_energy_setting_display(uint8_t subsecond) {
 static void low_energy_setting_advance(void) {
     movement_set_low_energy_timeout((movement_get_low_energy_timeout() + 1));
 }
+
+#ifdef I2C_SERCOM
+static void step_counter_setting_display(uint8_t subsecond) {
+    watch_display_text_with_fallback(WATCH_POSITION_TOP, "STEP", "SC");
+    movement_step_count_option_t when_to_count_steps = movement_get_when_to_count_steps();
+    if (when_to_count_steps == MOVEMENT_SC_NOT_INSTALLED) {
+        watch_display_text(WATCH_POSITION_BOTTOM, "NO SNS");
+        return;
+    }
+    char buf[9];
+    if (subsecond % 2) {
+        switch (when_to_count_steps) {
+            case MOVEMENT_SC_OFF:
+                watch_display_text_with_fallback(WATCH_POSITION_BOTTOM, "OFF", "   OFF");
+                break;
+            case MOVEMENT_SC_ALWAYS:
+                watch_display_text_with_fallback(WATCH_POSITION_BOTTOM, "Always"," Alway");
+                break;
+            case MOVEMENT_SC_DAYTIME:
+                sprintf(buf, "%d-%d", get_step_count_start_hour(), get_step_count_end_hour());
+                watch_display_text(WATCH_POSITION_BOTTOM, buf);
+                break;
+            default:
+                break;
+        }
+    }
+}
+
+static void step_counter_setting_advance(void) {
+    movement_step_count_option_t when_to_count_steps = movement_get_when_to_count_steps();
+    if (when_to_count_steps == MOVEMENT_SC_NOT_INSTALLED) return;
+    movement_step_count_option_t next_mode = (when_to_count_steps + 1) % MOVEMENT_SC_NOT_INSTALLED;
+    movement_set_when_to_count_steps(next_mode);
+}
+#endif
 
 static void led_duration_setting_display(uint8_t subsecond) {
     char buf[8];
@@ -235,7 +328,7 @@ void settings_face_setup(uint8_t watch_face_index, void ** context_ptr) {
         settings_state_t *state = (settings_state_t *)*context_ptr;
         int8_t current_setting = 0;
 
-        state->num_settings = 5; // baseline, without LED settings
+        state->num_settings = 7; // baseline, without LED settings
 #ifdef BUILD_GIT_HASH
         state->num_settings++;
 #endif
@@ -248,6 +341,9 @@ void settings_face_setup(uint8_t watch_face_index, void ** context_ptr) {
 #ifdef WATCH_BLUE_TCC_CHANNEL
         state->num_settings++;
 #endif
+#ifdef I2C_SERCOM
+        state->num_settings++;
+#endif
 
         state->settings_screens = malloc(state->num_settings * sizeof(settings_screen_t));
         state->settings_screens[current_setting].display = clock_setting_display;
@@ -256,12 +352,23 @@ void settings_face_setup(uint8_t watch_face_index, void ** context_ptr) {
         state->settings_screens[current_setting].display = beep_setting_display;
         state->settings_screens[current_setting].advance = beep_setting_advance;
         current_setting++;
+        state->settings_screens[current_setting].display = signal_setting_display;
+        state->settings_screens[current_setting].advance = signal_setting_advance;
+        current_setting++;
+        state->settings_screens[current_setting].display = alarm_setting_display;
+        state->settings_screens[current_setting].advance = alarm_setting_advance;
+        current_setting++;
         state->settings_screens[current_setting].display = timeout_setting_display;
         state->settings_screens[current_setting].advance = timeout_setting_advance;
         current_setting++;
 #ifndef MOVEMENT_LOW_ENERGY_MODE_FORBIDDEN
         state->settings_screens[current_setting].display = low_energy_setting_display;
         state->settings_screens[current_setting].advance = low_energy_setting_advance;
+        current_setting++;
+#endif
+#ifdef I2C_SERCOM
+        state->settings_screens[current_setting].display = step_counter_setting_display;
+        state->settings_screens[current_setting].advance = step_counter_setting_advance;
         current_setting++;
 #endif
         state->settings_screens[current_setting].display = led_duration_setting_display;
@@ -322,7 +429,7 @@ bool settings_face_loop(movement_event_t event, void *context) {
         case EVENT_MODE_BUTTON_UP:
             movement_force_led_off();
             movement_move_to_next_face();
-            return false;
+            return true;
         case EVENT_ALARM_BUTTON_UP:
             state->settings_screens[state->current_page].advance();
             break;
@@ -339,7 +446,7 @@ bool settings_face_loop(movement_event_t event, void *context) {
         movement_force_led_on(color.red | color.red << 4,
                               color.green | color.green << 4,
                               color.blue | color.blue << 4);
-        return false;
+        return true;
     } else {
         movement_force_led_off();
         return true;
