@@ -35,6 +35,7 @@ typedef enum {
 
 typedef enum {
     SCREEN_TITLE = 0,
+    SCREEN_SCORE,
     SCREEN_PLAYING,
     SCREEN_LOSE,
     SCREEN_TIME,
@@ -85,7 +86,7 @@ int8_t custom_ball_arr_com[] = {2, 1, 1, 0, 3, 3, 2};
 int8_t custom_ball_arr_seg[] = {15, 15, 14, 15, 14, 15, 14};
 
 // obstacle 0-11
-int8_t classic_obstacle_arr_com[] = {0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0};
+int8_t classic_obstacle_arr_com[] = {0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 1};
 int8_t classic_obstacle_arr_seg[] = {18, 19, 20, 21, 22, 23, 0, 1, 2, 4, 5, 6};
 int8_t custom_obstacle_arr_com[] = {1, 1, 1, 1, 1, 0, 1, 0, 3, 0, 0, 2};
 int8_t custom_obstacle_arr_seg[] = {22, 16, 15, 14, 1, 2, 3, 4, 4, 5, 6, 7};
@@ -97,6 +98,20 @@ int8_t *obstacle_arr_seg;
 
 static game_state_t game_state;
 static const uint8_t _num_bits_obst_pattern = sizeof(game_state.obst_pattern) * 8;
+
+int8_t start_tune[] = {
+    BUZZER_NOTE_C5, 15,
+    BUZZER_NOTE_E5, 15,
+    BUZZER_NOTE_G5, 15,
+    0
+};
+
+int8_t lose_tune[] = {
+    BUZZER_NOTE_D3, 10,
+    BUZZER_NOTE_C3SHARP_D3FLAT, 10,
+    BUZZER_NOTE_C3, 10,
+    0
+};
 
 static void print_binary(uint32_t value, int bits) {
 #if __EMSCRIPTEN__
@@ -261,7 +276,7 @@ static void display_fuel(uint8_t subsecond, uint8_t difficulty) {
 
 static void check_and_reset_hi_score(endless_runner_state_t *state) {
     // Resets the hi score at the beginning of each month.
-    watch_date_time_t date_time = watch_rtc_get_date_time();
+    watch_date_time_t date_time = movement_get_local_date_time();
     if ((state -> year_last_hi_score != date_time.unit.year) || 
         (state -> month_last_hi_score != date_time.unit.month))
     {
@@ -294,28 +309,54 @@ static void change_difficulty(endless_runner_state_t *state) {
     }
 }
 
-static void toggle_sound(endless_runner_state_t *state) {
-    state -> soundOn = !state -> soundOn;
-    if (state -> soundOn){
-        watch_buzzer_play_note(BUZZER_NOTE_C5, 30);
+static void display_sound_indicator(bool soundOn) {
+    if (soundOn){
         watch_set_indicator(WATCH_INDICATOR_BELL);
-    }
-    else {
+    } else {
         watch_clear_indicator(WATCH_INDICATOR_BELL);
     }
 }
 
+static void toggle_sound(endless_runner_state_t *state) {
+    state -> soundOn = !state -> soundOn;
+    display_sound_indicator(state -> soundOn);
+    if (state -> soundOn){
+        watch_buzzer_play_note(BUZZER_NOTE_C5, 30);
+    }
+}
+
+static void enable_tap_control(endless_runner_state_t *state) {
+    if (!state->tap_control_on) {
+        movement_enable_tap_detection_if_available();
+        state->tap_control_on = true;
+    }
+}
+
+static void disable_tap_control(endless_runner_state_t *state) {
+    if (state->tap_control_on) {
+        movement_disable_tap_detection_if_available();
+        state->tap_control_on = false;
+    }
+}
+
 static void display_title(endless_runner_state_t *state) {
+    game_state.curr_screen = SCREEN_TITLE;
+    watch_clear_colon();
+    watch_display_text_with_fallback(WATCH_POSITION_TOP, "ENdLS", "ER  ");
+    watch_display_text(WATCH_POSITION_BOTTOM, "RUNNER");
+    display_sound_indicator(state -> soundOn);
+}
+
+static void display_score_screen(endless_runner_state_t *state) {
     uint16_t hi_score = state -> hi_score;
     uint8_t difficulty = state -> difficulty;
     bool sound_on = state -> soundOn;
-    game_state.curr_screen = SCREEN_TITLE;
     memset(&game_state, 0, sizeof(game_state));
+    game_state.curr_screen = SCREEN_SCORE;
     game_state.sec_before_moves = 1; // The first obstacles will all be 0s, which is about an extra second of delay.
     if (sound_on) game_state.sec_before_moves--; // Start chime is about 1 second
     watch_set_colon();
-    watch_display_text_with_fallback(WATCH_POSITION_TOP, "RUN", "ER");
-    watch_display_text(WATCH_POSITION_TOP_RIGHT, "  ");
+    watch_display_text_with_fallback(WATCH_POSITION_TOP, "RUN  ", "ER  ");
     if (hi_score > MAX_HI_SCORE) {
         watch_display_text(WATCH_POSITION_BOTTOM, "HS  --");
     }
@@ -325,25 +366,30 @@ static void display_title(endless_runner_state_t *state) {
         watch_display_text(WATCH_POSITION_BOTTOM, buf);
     }
     display_difficulty(difficulty);
+    display_sound_indicator(sound_on);
 }
 
-static void display_time(watch_date_time_t date_time, bool clock_mode_24h) {
+static void display_time(void) {
     static watch_date_time_t previous_date_time;
+    watch_date_time_t date_time = movement_get_local_date_time();
+    movement_clock_mode_t clock_mode_24h = movement_clock_mode_24h();
     char buf[6 + 1];
 
     // If the hour needs updating or it's the first time displaying the time
     if ((game_state.curr_screen != SCREEN_TIME) || (date_time.unit.hour != previous_date_time.unit.hour)) {
         uint8_t hour = date_time.unit.hour;
         game_state.curr_screen = SCREEN_TIME;
-
-        if (clock_mode_24h) watch_set_indicator(WATCH_INDICATOR_24H);
+        if (!watch_sleep_animation_is_running()) {
+            watch_set_colon();
+            watch_start_indicator_blink_if_possible(WATCH_INDICATOR_COLON, 500);
+        }
+        if (clock_mode_24h != MOVEMENT_CLOCK_MODE_12H) watch_set_indicator(WATCH_INDICATOR_24H);
         else {
             if (hour >= 12) watch_set_indicator(WATCH_INDICATOR_PM);
             hour %= 12;
             if (hour == 0) hour = 12;
         }
-        watch_set_colon();
-        sprintf( buf, "%2d%02d  ", hour, date_time.unit.minute);
+        sprintf( buf, clock_mode_24h == MOVEMENT_CLOCK_MODE_024H ? "%02d%02d  " : "%2d%02d  ", hour, date_time.unit.minute);
         watch_display_text(WATCH_POSITION_BOTTOM, buf);
     }
     // If only the minute need updating
@@ -358,6 +404,7 @@ static void begin_playing(endless_runner_state_t *state) {
     uint8_t difficulty = state -> difficulty;
     game_state.curr_screen = SCREEN_PLAYING;
     watch_clear_colon();
+    display_sound_indicator(state -> soundOn);
     movement_request_tick_frequency((state -> difficulty == DIFF_BABY) ? FREQ_SLOW : FREQ);
     if (game_state.fuel_mode) {
         watch_clear_display();
@@ -375,9 +422,7 @@ static void begin_playing(endless_runner_state_t *state) {
     display_ball(game_state.jump_state != NOT_JUMPING);
     display_score( game_state.curr_score);
     if (state -> soundOn){
-        watch_buzzer_play_note(BUZZER_NOTE_C5, 200);
-        watch_buzzer_play_note(BUZZER_NOTE_E5, 200);
-        watch_buzzer_play_note(BUZZER_NOTE_G5, 200);
+        watch_buzzer_play_sequence(start_tune, NULL);
     }
 }
 
@@ -386,10 +431,10 @@ static void display_lose_screen(endless_runner_state_t *state) {
     game_state.curr_score = 0;
     watch_clear_display();
     watch_display_text(WATCH_POSITION_BOTTOM, " LOSE ");
-    if (state -> soundOn)
-        watch_buzzer_play_note(BUZZER_NOTE_A1, 600);
-    else
+    if (state -> soundOn) {
+        watch_buzzer_play_sequence(lose_tune, NULL);
         delay_ms(600);
+    }
 }
 
 static void display_obstacle(bool obstacle, int grid_loc, endless_runner_state_t *state) {
@@ -515,6 +560,7 @@ void endless_runner_face_setup(uint8_t watch_face_index, void ** context_ptr) {
         memset(*context_ptr, 0, sizeof(endless_runner_state_t));
         endless_runner_state_t *state = (endless_runner_state_t *)*context_ptr;
         state->difficulty = DIFF_NORM;
+        state->tap_control_on = false;
     }
 }
 
@@ -525,22 +571,26 @@ void endless_runner_face_activate(void *context) {
     ball_arr_seg = is_custom_lcd ? custom_ball_arr_seg : classic_ball_arr_seg;
     obstacle_arr_com = is_custom_lcd ? custom_obstacle_arr_com : classic_obstacle_arr_com;
     obstacle_arr_seg = is_custom_lcd ? custom_obstacle_arr_seg : classic_obstacle_arr_seg;
-    movement_enable_tap_detection_if_available();
+    if (watch_sleep_animation_is_running()) {
+        watch_stop_blink();
+    }
 }
 
 bool endless_runner_face_loop(movement_event_t event, void *context) {
     endless_runner_state_t *state = (endless_runner_state_t *)context;
     switch (event.event_type) {
         case EVENT_ACTIVATE:
+            disable_tap_control(state);
             check_and_reset_hi_score(state);
-            if (state -> soundOn) watch_set_indicator(WATCH_INDICATOR_BELL);
             display_title(state);
             break;
         case EVENT_TICK:
             switch (game_state.curr_screen)
             {
             case SCREEN_TITLE:
+            case SCREEN_SCORE:
             case SCREEN_LOSE:
+            case SCREEN_TIME:
                 break;
             default:
                 update_game(state, event.subsecond);
@@ -549,16 +599,37 @@ bool endless_runner_face_loop(movement_event_t event, void *context) {
             break;
         case EVENT_LIGHT_BUTTON_UP:
         case EVENT_ALARM_BUTTON_UP:
-            if (game_state.curr_screen == SCREEN_TITLE)
-                begin_playing(state);
-            else if (game_state.curr_screen == SCREEN_LOSE)
-                display_title(state);
+            switch (game_state.curr_screen) {
+                case SCREEN_SCORE:
+                    enable_tap_control(state);
+                    begin_playing(state);
+                    break;
+                case SCREEN_TITLE:
+                    enable_tap_control(state);
+                    // fall through
+                case SCREEN_TIME:
+                case SCREEN_LOSE:
+                    watch_clear_display();
+                    display_score_screen(state);
+            }
             break;
         case EVENT_LIGHT_LONG_PRESS:
-            if (game_state.curr_screen == SCREEN_TITLE)
+            if (game_state.curr_screen == SCREEN_SCORE)
                 change_difficulty(state);
             break;
         case EVENT_SINGLE_TAP:
+        case EVENT_DOUBLE_TAP:
+            if (state->difficulty > DIFF_HARD) break; // Don't do this on fuel modes
+            // Allow starting a new game by tapping.
+            if (game_state.curr_screen == SCREEN_SCORE) {
+                begin_playing(state);
+                break;
+            }
+            else if (game_state.curr_screen == SCREEN_LOSE) {
+                display_score_screen(state);
+                break;
+            }
+            //fall through
         case EVENT_LIGHT_BUTTON_DOWN:
         case EVENT_ALARM_BUTTON_DOWN:
             if (game_state.curr_screen == SCREEN_PLAYING && game_state.jump_state == NOT_JUMPING){
@@ -568,15 +639,21 @@ bool endless_runner_face_loop(movement_event_t event, void *context) {
             }
             break;
         case EVENT_ALARM_LONG_PRESS:
-            if (game_state.curr_screen != SCREEN_PLAYING)
+            if (game_state.curr_screen == SCREEN_TITLE || game_state.curr_screen == SCREEN_SCORE)
                 toggle_sound(state);
             break;
         case EVENT_TIMEOUT:
-            if (game_state.curr_screen != SCREEN_TITLE)
-                display_title(state);
+            disable_tap_control(state);
+            if (game_state.curr_screen != SCREEN_SCORE)
+                display_score_screen(state);
             break;
         case EVENT_LOW_ENERGY_UPDATE:
-            display_time(movement_get_local_date_time(), movement_clock_mode_24h());
+            if (game_state.curr_screen != SCREEN_TIME) {
+                watch_display_text_with_fallback(WATCH_POSITION_TOP, "RUN  ", "ER  ");
+                display_sound_indicator(state -> soundOn);
+                display_difficulty(state->difficulty);
+            }
+            display_time();
             break;
         default:
             return movement_default_loop_handler(event);
@@ -585,7 +662,6 @@ bool endless_runner_face_loop(movement_event_t event, void *context) {
 }
 
 void endless_runner_face_resign(void *context) {
-    (void) context;
-    movement_disable_tap_detection_if_available();
+    endless_runner_state_t *state = (endless_runner_state_t *)context;
+    disable_tap_control(state);
 }
-
