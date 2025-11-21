@@ -75,6 +75,9 @@ typedef enum {
 } fesk_result_t;
 
 // The c32 PR changed watch_buzzer_play_sequence to subtract 1 from durations.
+// Old code: duration N plays for N+1 callbacks
+// New code: duration N plays for N callbacks
+// To match timing, we add 1 to each duration when the new code is present.
 #ifdef WATCH_BUZZER_PERIOD_REST
 #define FESK_TICKS_PER_SYMBOL 2
 #define FESK_TICKS_PER_REST 3
@@ -85,6 +88,8 @@ typedef enum {
 
 #define FESK_BITS_PER_CODE 6
 #define FESK_BITS_PER_SYMBOL 2
+#define FESK_DIBITS_PER_CODE 3   /**< 6 bits = 3 dibits */
+#define FESK_DIBITS_PER_CRC 4    /**< 8 bits = 4 dibits */
 
 /** Frame markers: codes 62 and 63 are reserved (not in character set) */
 #define FESK_START_MARKER 62u

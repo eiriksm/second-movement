@@ -242,11 +242,10 @@ static fesk_result_t _encode_internal(const char *text,
     }
 
     // Calculate total symbols (dibits)
-    // 6-bit codes = 3 dibits each, 8-bit CRC = 4 dibits
-    size_t total_symbols = 3                          // start marker (6 bits = 3 dibits)
-                         + (payload_count * 3)        // payload
-                         + 4                          // CRC (8 bits = 4 dibits)
-                         + 3;                         // end marker
+    size_t total_symbols = FESK_DIBITS_PER_CODE              // start marker
+                         + (payload_count * FESK_DIBITS_PER_CODE)  // payload
+                         + FESK_DIBITS_PER_CRC               // CRC
+                         + FESK_DIBITS_PER_CODE;             // end marker
 
     // Each symbol = 4 entries (tone, duration, rest, duration)
     if (total_symbols > SIZE_MAX / 4) {

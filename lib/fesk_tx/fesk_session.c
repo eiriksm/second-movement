@@ -293,13 +293,13 @@ static bool _fesk_raw_source(uint16_t position, void* userdata, uint16_t* period
 
         switch (session->raw_phase) {
             case FESK_RAW_PHASE_START_MARKER:
-                if (session->raw_dibit_pos >= 3) {  // 6 bits = 3 dibits
+                if (session->raw_dibit_pos >= FESK_DIBITS_PER_CODE) {
                     advance_phase = true;
                 }
                 break;
 
             case FESK_RAW_PHASE_DATA:
-                if (session->raw_dibit_pos >= 3) {
+                if (session->raw_dibit_pos >= FESK_DIBITS_PER_CODE) {
                     // Finished current character, move to next
                     session->raw_char_pos++;
                     session->raw_dibit_pos = 0;
@@ -320,13 +320,13 @@ static bool _fesk_raw_source(uint16_t position, void* userdata, uint16_t* period
                 break;
 
             case FESK_RAW_PHASE_CRC:
-                if (session->raw_dibit_pos >= 4) {  // 8 bits = 4 dibits
+                if (session->raw_dibit_pos >= FESK_DIBITS_PER_CRC) {
                     advance_phase = true;
                 }
                 break;
 
             case FESK_RAW_PHASE_END_MARKER:
-                if (session->raw_dibit_pos >= 3) {
+                if (session->raw_dibit_pos >= FESK_DIBITS_PER_CODE) {
                     advance_phase = true;
                 }
                 break;
