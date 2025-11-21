@@ -1200,6 +1200,11 @@ uint8_t movement_get_lis2dw_awake(void) {
 
 float movement_get_temperature(void) {
     float temperature_c = (float)0xFFFFFFFF;
+#if __EMSCRIPTEN__
+    temperature_c = EM_ASM_DOUBLE({
+        return temp_c || 25.0;
+    });
+#else
 
     if (movement_state.has_thermistor) {
         thermistor_driver_enable();
@@ -1211,6 +1216,7 @@ float movement_get_temperature(void) {
         val = val >> 4;
         temperature_c = 25 + (float)val / 16.0;
     }
+#endif
 
     return temperature_c;
 }
