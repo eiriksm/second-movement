@@ -141,7 +141,7 @@ typedef struct fesk_session_s {
     size_t raw_payload_length;
     fesk_raw_phase_t raw_phase;
     size_t raw_char_pos;       // Current character position in payload
-    uint8_t raw_dibit_pos;     // Current dibit position (0-2 for 6-bit codes, 0-3 for CRC)
+    uint8_t raw_tribit_pos;    // Current tribit position (0-1 for 6-bit codes, 0-2 for CRC)
     uint8_t raw_current_code;  // Current code being transmitted
     uint8_t raw_crc;           // CRC accumulator
     bool raw_is_tone;          // true = tone, false = rest
