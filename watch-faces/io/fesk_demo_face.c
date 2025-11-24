@@ -116,12 +116,11 @@ static void _fesk_demo_on_error(fesk_result_t error, void *user_data) {
 #define DEBUG_TONE_DURATION 40
 #endif
 
-// Play all 4 tones for debug (4-FSK)
 static int8_t debug_sequence[] = {
-    FESK_TONE_00_NOTE, DEBUG_TONE_DURATION,
-    FESK_TONE_01_NOTE, DEBUG_TONE_DURATION,
-    FESK_TONE_10_NOTE, DEBUG_TONE_DURATION,
-    FESK_TONE_11_NOTE, DEBUG_TONE_DURATION,
+    FESK_TONE_LOW_NOTE, DEBUG_TONE_DURATION,
+    FESK_TONE_HIGH_NOTE, DEBUG_TONE_DURATION,
+    FESK_TONE_LOW_NOTE, DEBUG_TONE_DURATION,
+    FESK_TONE_HIGH_NOTE, DEBUG_TONE_DURATION,
     0
 };
 
