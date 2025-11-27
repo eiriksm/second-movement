@@ -248,11 +248,11 @@ static fesk_result_t _encode_internal(const char *text,
                          + FESK_DIBITS_PER_CODE;             // end marker
 
     // Check for overflow before multiplication
-    if (total_bits > SIZE_MAX / 4) {
+    if (total_symbols > SIZE_MAX / 4) {
         free(payload_codes);
         return FESK_ERR_ALLOCATION_FAILED;
     }
-    size_t total_entries = total_bits * 4;
+    size_t total_entries = total_symbols * 4;
 
     // Check for overflow before final allocation
     if (total_entries > SIZE_MAX - 1 || (total_entries + 1) > SIZE_MAX / sizeof(int8_t)) {

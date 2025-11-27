@@ -82,10 +82,12 @@ typedef enum {
 // New buzzer code: add 1 to compensate for the -1 in playback
 #define FESK_TICKS_PER_BIT 2
 #define FESK_TICKS_PER_REST 3
+#define FESK_TICKS_PER_SYMBOL 2  // For 4FSK raw source: duration per symbol (dibit)
 #else
 // Old buzzer code: use original values
 #define FESK_TICKS_PER_BIT 1
 #define FESK_TICKS_PER_REST 2
+#define FESK_TICKS_PER_SYMBOL 1  // For 4FSK raw source: duration per symbol (dibit)
 #endif
 
 #define FESK_BITS_PER_CODE 6
