@@ -136,12 +136,12 @@ typedef struct fesk_session_s {
     int8_t *sequence;               /**< Encoded sequence (managed internally) */
     size_t sequence_entries;        /**< Number of sequence entries */
 #ifdef WATCH_BUZZER_PERIOD_REST
-    // Raw source generation state
+    // Raw source generation state (4-FSK dibits)
     const char *raw_payload;
     size_t raw_payload_length;
     fesk_raw_phase_t raw_phase;
     size_t raw_char_pos;       // Current character position in payload
-    uint8_t raw_bit_pos;       // Current bit position (0-5 for 6-bit codes, 0-7 for CRC)
+    uint8_t raw_dibit_pos;     // Current dibit position (0-2 for 6-bit codes, 0-3 for CRC)
     uint8_t raw_current_code;  // Current code being transmitted
     uint8_t raw_crc;           // CRC accumulator
     bool raw_is_tone;          // true = tone, false = rest

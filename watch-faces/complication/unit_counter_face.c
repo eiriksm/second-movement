@@ -376,7 +376,7 @@ bool unit_counter_face_loop(movement_event_t event, void *context) {
             break;
 
         case EVENT_LIGHT_LONG_PRESS:
-            // Reset. Unless in edit mode.
+            // Only works in edit or settings mode.
             if (state->screen_delta == 1) {
                 state->edit_on = !state->edit_on;
                 if (state->edit_on) {
@@ -384,7 +384,6 @@ bool unit_counter_face_loop(movement_event_t event, void *context) {
                     state->is_alc_cont_screen = false;
                 }
                 print_edit_screen(state);
-                break;
             }
             if (state->screen_delta == 3) {
                 state->edit_on = !state->edit_on;
@@ -392,11 +391,7 @@ bool unit_counter_face_loop(movement_event_t event, void *context) {
                     state->edit_weight = true;
                 }
                 unit_counter_print_settings_screen(state);
-                break;
             }
-            state->unit_count = 0;
-            state->start_time = 0;
-            print_unit_count(state);
             break;
 
         case EVENT_TIMEOUT:
