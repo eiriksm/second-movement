@@ -153,7 +153,7 @@ static inline void _append_dibit(uint8_t dibit,
                                   size_t dibit_capacity) {
     watch_buzzer_note_t tone = fesk_tone_map[dibit & 0x03];
     sequence[(*pos)++] = (int8_t)tone;
-    sequence[(*pos)++] = FESK_TICKS_PER_SYMBOL;
+    sequence[(*pos)++] = FESK_TICKS_PER_BIT;
     sequence[(*pos)++] = (int8_t)BUZZER_NOTE_REST;
     sequence[(*pos)++] = FESK_TICKS_PER_REST;
 
@@ -247,12 +247,12 @@ static fesk_result_t _encode_internal(const char *text,
                          + FESK_DIBITS_PER_CRC               // CRC
                          + FESK_DIBITS_PER_CODE;             // end marker
 
-    // Each symbol = 4 entries (tone, duration, rest, duration)
-    if (total_symbols > SIZE_MAX / 4) {
+    // Check for overflow before multiplication
+    if (total_bits > SIZE_MAX / 4) {
         free(payload_codes);
         return FESK_ERR_ALLOCATION_FAILED;
     }
-    size_t total_entries = total_symbols * 4;
+    size_t total_entries = total_bits * 4;
 
     // Check for overflow before final allocation
     if (total_entries > SIZE_MAX - 1 || (total_entries + 1) > SIZE_MAX / sizeof(int8_t)) {
