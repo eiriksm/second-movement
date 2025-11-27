@@ -58,14 +58,10 @@ static const fesk_code_entry_t _code_table[] = {
 };
 
 const watch_buzzer_note_t fesk_tone_map[FESK_TONE_COUNT] = {
-    [FESK_TONE_000] = FESK_TONE_000_NOTE,
-    [FESK_TONE_001] = FESK_TONE_001_NOTE,
-    [FESK_TONE_010] = FESK_TONE_010_NOTE,
-    [FESK_TONE_011] = FESK_TONE_011_NOTE,
-    [FESK_TONE_100] = FESK_TONE_100_NOTE,
-    [FESK_TONE_101] = FESK_TONE_101_NOTE,
-    [FESK_TONE_110] = FESK_TONE_110_NOTE,
-    [FESK_TONE_111] = FESK_TONE_111_NOTE,
+    [FESK_TONE_00] = FESK_TONE_00_NOTE,
+    [FESK_TONE_01] = FESK_TONE_01_NOTE,
+    [FESK_TONE_10] = FESK_TONE_10_NOTE,
+    [FESK_TONE_11] = FESK_TONE_11_NOTE,
 };
 
 #if FESK_USE_LOG
@@ -149,24 +145,24 @@ static uint8_t _crc8_update_code(uint8_t crc, uint8_t code) {
     return crc;
 }
 
-static inline void _append_tribit(uint8_t tribit,
-                                   int8_t *sequence,
-                                   size_t *pos,
-                                   char *tribit_log,
-                                   size_t *tribit_offset,
-                                   size_t tribit_capacity) {
-    watch_buzzer_note_t tone = fesk_tone_map[tribit & 0x07];
+static inline void _append_dibit(uint8_t dibit,
+                                  int8_t *sequence,
+                                  size_t *pos,
+                                  char *dibit_log,
+                                  size_t *dibit_offset,
+                                  size_t dibit_capacity) {
+    watch_buzzer_note_t tone = fesk_tone_map[dibit & 0x03];
     sequence[(*pos)++] = (int8_t)tone;
     sequence[(*pos)++] = FESK_TICKS_PER_SYMBOL;
     sequence[(*pos)++] = (int8_t)BUZZER_NOTE_REST;
     sequence[(*pos)++] = FESK_TICKS_PER_REST;
 
-    if (tribit_log) {
-        _append_to_log(tribit_log,
-                       tribit_offset,
-                       tribit_capacity,
-                       *tribit_offset == 0 ? "%u" : " %u",
-                       tribit);
+    if (dibit_log) {
+        _append_to_log(dibit_log,
+                       dibit_offset,
+                       dibit_capacity,
+                       *dibit_offset == 0 ? "%u" : " %u",
+                       dibit);
     }
 }
 
@@ -187,37 +183,30 @@ static void _append_code_to_log(char *buffer,
                    value);
 }
 
-static void _append_tribits_from_code(uint8_t code,
-                                       int8_t *sequence,
-                                       size_t *pos,
-                                       char *tribit_log,
-                                       size_t *tribit_offset,
-                                       size_t tribit_capacity) {
-    // 6 bits = 2 tribits: bits 5-3, bits 2-0
+static void _append_dibits_from_code(uint8_t code,
+                                      int8_t *sequence,
+                                      size_t *pos,
+                                      char *dibit_log,
+                                      size_t *dibit_offset,
+                                      size_t dibit_capacity) {
+    // 6 bits = 3 dibits: bits 5-4, bits 3-2, bits 1-0
     for (int shift = FESK_BITS_PER_CODE - FESK_BITS_PER_SYMBOL; shift >= 0; shift -= FESK_BITS_PER_SYMBOL) {
-        uint8_t tribit = (uint8_t)((code >> shift) & 0x07u);
-        _append_tribit(tribit, sequence, pos, tribit_log, tribit_offset, tribit_capacity);
+        uint8_t dibit = (uint8_t)((code >> shift) & 0x03u);
+        _append_dibit(dibit, sequence, pos, dibit_log, dibit_offset, dibit_capacity);
     }
 }
 
-static void _append_crc_tribits(uint8_t crc,
-                                 int8_t *sequence,
-                                 size_t *pos,
-                                 char *tribit_log,
-                                 size_t *tribit_offset,
-                                 size_t tribit_capacity) {
-    // 8 bits = 3 tribits (with 1 padding bit at the end)
-    // Tribit 1: bits 7-5
-    uint8_t tribit1 = (uint8_t)((crc >> 5) & 0x07u);
-    _append_tribit(tribit1, sequence, pos, tribit_log, tribit_offset, tribit_capacity);
-
-    // Tribit 2: bits 4-2
-    uint8_t tribit2 = (uint8_t)((crc >> 2) & 0x07u);
-    _append_tribit(tribit2, sequence, pos, tribit_log, tribit_offset, tribit_capacity);
-
-    // Tribit 3: bits 1-0 left-shifted (with 1 padding bit)
-    uint8_t tribit3 = (uint8_t)((crc & 0x03u) << 1);
-    _append_tribit(tribit3, sequence, pos, tribit_log, tribit_offset, tribit_capacity);
+static void _append_crc_dibits(uint8_t crc,
+                                int8_t *sequence,
+                                size_t *pos,
+                                char *dibit_log,
+                                size_t *dibit_offset,
+                                size_t dibit_capacity) {
+    // 8 bits = 4 dibits
+    for (int shift = 6; shift >= 0; shift -= 2) {
+        uint8_t dibit = (uint8_t)((crc >> shift) & 0x03u);
+        _append_dibit(dibit, sequence, pos, dibit_log, dibit_offset, dibit_capacity);
+    }
 }
 
 static fesk_result_t _encode_internal(const char *text,
@@ -252,11 +241,11 @@ static fesk_result_t _encode_internal(const char *text,
         crc = _crc8_update_code(crc, code);
     }
 
-    // Calculate total symbols (tribits)
-    size_t total_symbols = FESK_TRIBITS_PER_CODE              // start marker
-                         + (payload_count * FESK_TRIBITS_PER_CODE)  // payload
-                         + FESK_TRIBITS_PER_CRC               // CRC
-                         + FESK_TRIBITS_PER_CODE;             // end marker
+    // Calculate total symbols (dibits)
+    size_t total_symbols = FESK_DIBITS_PER_CODE              // start marker
+                         + (payload_count * FESK_DIBITS_PER_CODE)  // payload
+                         + FESK_DIBITS_PER_CRC               // CRC
+                         + FESK_DIBITS_PER_CODE;             // end marker
 
     // Each symbol = 4 entries (tone, duration, rest, duration)
     if (total_symbols > SIZE_MAX / 4) {
@@ -277,22 +266,22 @@ static fesk_result_t _encode_internal(const char *text,
         return FESK_ERR_ALLOCATION_FAILED;
     }
 
-    size_t tribit_log_offset = 0;
+    size_t dibit_log_offset = 0;
     size_t code_log_offset = 0;
 #if FESK_USE_LOG
-    char tribit_log_storage[FESK_BIT_LOG_CAP];
+    char dibit_log_storage[FESK_BIT_LOG_CAP];
     char code_log_storage[FESK_CODE_LOG_CAP];
-    char *tribit_log = tribit_log_storage;
+    char *dibit_log = dibit_log_storage;
     char *code_log = code_log_storage;
-    tribit_log[0] = '\0';
+    dibit_log[0] = '\0';
     code_log[0] = '\0';
 #else
-    char *tribit_log = NULL;
+    char *dibit_log = NULL;
     char *code_log = NULL;
 #endif
-    size_t *tribit_log_offset_ptr = tribit_log ? &tribit_log_offset : NULL;
+    size_t *dibit_log_offset_ptr = dibit_log ? &dibit_log_offset : NULL;
     size_t *code_log_offset_ptr = code_log ? &code_log_offset : NULL;
-    size_t tribit_log_capacity = tribit_log ? FESK_BIT_LOG_CAP : 0;
+    size_t dibit_log_capacity = dibit_log ? FESK_BIT_LOG_CAP : 0;
     size_t code_log_capacity = code_log ? FESK_CODE_LOG_CAP : 0;
 
     size_t pos = 0;
@@ -300,12 +289,12 @@ static fesk_result_t _encode_internal(const char *text,
     if (code_log) {
         _append_code_to_log(code_log, code_log_offset_ptr, code_log_capacity, "START", FESK_START_MARKER);
     }
-    _append_tribits_from_code(FESK_START_MARKER,
-                               sequence,
-                               &pos,
-                               tribit_log,
-                               tribit_log_offset_ptr,
-                               tribit_log_capacity);
+    _append_dibits_from_code(FESK_START_MARKER,
+                              sequence,
+                              &pos,
+                              dibit_log,
+                              dibit_log_offset_ptr,
+                              dibit_log_capacity);
 
     for (size_t i = 0; i < payload_count; ++i) {
         unsigned char display_char = (unsigned char)text[i];
@@ -328,33 +317,33 @@ static fesk_result_t _encode_internal(const char *text,
                                 payload_codes[i]);
         }
 
-        _append_tribits_from_code(payload_codes[i],
-                                   sequence,
-                                   &pos,
-                                   tribit_log,
-                                   tribit_log_offset_ptr,
-                                   tribit_log_capacity);
+        _append_dibits_from_code(payload_codes[i],
+                                  sequence,
+                                  &pos,
+                                  dibit_log,
+                                  dibit_log_offset_ptr,
+                                  dibit_log_capacity);
     }
 
     if (code_log) {
         _append_code_to_log(code_log, code_log_offset_ptr, code_log_capacity, "CRC", crc);
     }
-    _append_crc_tribits(crc, sequence, &pos, tribit_log, tribit_log_offset_ptr, tribit_log_capacity);
+    _append_crc_dibits(crc, sequence, &pos, dibit_log, dibit_log_offset_ptr, dibit_log_capacity);
 
     if (code_log) {
         _append_code_to_log(code_log, code_log_offset_ptr, code_log_capacity, "END", FESK_END_MARKER);
     }
-    _append_tribits_from_code(FESK_END_MARKER,
-                               sequence,
-                               &pos,
-                               tribit_log,
-                               tribit_log_offset_ptr,
-                               tribit_log_capacity);
+    _append_dibits_from_code(FESK_END_MARKER,
+                              sequence,
+                              &pos,
+                              dibit_log,
+                              dibit_log_offset_ptr,
+                              dibit_log_capacity);
 
     sequence[pos] = 0;
 
-    if (tribit_log && tribit_log[0] != '\0') {
-        printf("FESK tribits: %s\n", tribit_log);
+    if (dibit_log && dibit_log[0] != '\0') {
+        printf("FESK dibits: %s\n", dibit_log);
     }
     if (code_log && code_log[0] != '\0') {
         printf("FESK codes: %s\n", code_log);

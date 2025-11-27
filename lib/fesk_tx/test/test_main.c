@@ -130,11 +130,11 @@ void test_sequence_structure() {
     // Sequence should be null-terminated
     TEST_ASSERT_EQUAL(0, sequence[entries]);
 
-    // Each tribit (3 bits) is encoded as: [TONE, TICKS, REST, TICKS]
+    // Each dibit (2 bits) is encoded as: [TONE, TICKS, REST, TICKS]
     // So entries should be a multiple of 4
-    // Format: START(2 tribits) + 'a'(2 tribits) + CRC(3 tribits) + END(2 tribits) = 9 tribits
-    // 9 tribits * 4 entries/tribit = 36 entries
-    TEST_ASSERT_EQUAL(36, entries);
+    // Format: START(3 dibits) + 'a'(3 dibits) + CRC(4 dibits) + END(3 dibits) = 13 dibits
+    // 13 dibits * 4 entries/dibit = 52 entries
+    TEST_ASSERT_EQUAL(52, entries);
 
     fesk_free_sequence(sequence);
 }
@@ -214,18 +214,14 @@ void test_encode_over_max_length() {
     TEST_ASSERT_NULL(sequence);
 }
 
-// Test tone mapping (8-FSK)
+// Test tone mapping (4-FSK)
 void test_tone_mapping() {
-    // Verify 8 tones are correctly mapped
-    TEST_ASSERT_EQUAL(FESK_TONE_000_NOTE, fesk_tone_map[FESK_TONE_000]);
-    TEST_ASSERT_EQUAL(FESK_TONE_001_NOTE, fesk_tone_map[FESK_TONE_001]);
-    TEST_ASSERT_EQUAL(FESK_TONE_010_NOTE, fesk_tone_map[FESK_TONE_010]);
-    TEST_ASSERT_EQUAL(FESK_TONE_011_NOTE, fesk_tone_map[FESK_TONE_011]);
-    TEST_ASSERT_EQUAL(FESK_TONE_100_NOTE, fesk_tone_map[FESK_TONE_100]);
-    TEST_ASSERT_EQUAL(FESK_TONE_101_NOTE, fesk_tone_map[FESK_TONE_101]);
-    TEST_ASSERT_EQUAL(FESK_TONE_110_NOTE, fesk_tone_map[FESK_TONE_110]);
-    TEST_ASSERT_EQUAL(FESK_TONE_111_NOTE, fesk_tone_map[FESK_TONE_111]);
-    TEST_ASSERT_EQUAL(8, FESK_TONE_COUNT);
+    // Verify 4 tones are correctly mapped
+    TEST_ASSERT_EQUAL(FESK_TONE_00_NOTE, fesk_tone_map[FESK_TONE_00]);
+    TEST_ASSERT_EQUAL(FESK_TONE_01_NOTE, fesk_tone_map[FESK_TONE_01]);
+    TEST_ASSERT_EQUAL(FESK_TONE_10_NOTE, fesk_tone_map[FESK_TONE_10]);
+    TEST_ASSERT_EQUAL(FESK_TONE_11_NOTE, fesk_tone_map[FESK_TONE_11]);
+    TEST_ASSERT_EQUAL(4, FESK_TONE_COUNT);
 }
 
 // Test free with NULL (should be safe)

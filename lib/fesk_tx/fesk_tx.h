@@ -24,14 +24,14 @@
 
 /**
  * @file fesk_tx.h
- * @brief FESK Audio Data Transmission Library (8-FSK)
+ * @brief FESK Audio Data Transmission Library (4-FSK)
  *
- * FESK uses 8-tone FSK to encode 3 bits per symbol, providing efficient
+ * FESK uses 4-tone FSK to encode 2 bits per symbol, providing efficient
  * audio data transmission via the Sensor Watch piezo buzzer.
  *
  * Protocol Format:
  *   [START(6bit)] [PAYLOAD(N×6bit)] [CRC8(8bit)] [END(6bit)]
- *   Transmitted as tribits (3 bits per symbol)
+ *   Transmitted as dibits (2 bits per symbol)
  *
  * Character Set:
  *   - Letters: a-z A-Z (case-insensitive, codes 0-25)
@@ -41,15 +41,11 @@
  *   - Newline: \n (code 41)
  *   - Total: 42 supported characters
  *
- * Tones (8-FSK tribits):
- *   - Tribit 000: C7    (~2093 Hz)
- *   - Tribit 001: C7#   (~2217 Hz)
- *   - Tribit 010: D7    (~2349 Hz)
- *   - Tribit 011: D7#   (~2489 Hz)
- *   - Tribit 100: E7    (~2637 Hz)
- *   - Tribit 101: F7    (~2794 Hz)
- *   - Tribit 110: F7#   (~2960 Hz)
- *   - Tribit 111: G7    (~3136 Hz)
+ * Tones (4-FSK dibits):
+ *   - Dibit 00: D7  (~2349 Hz)
+ *   - Dibit 01: E7  (~2637 Hz)
+ *   - Dibit 10: F7# (~2960 Hz)
+ *   - Dibit 11: G7# (~3322 Hz)
  *
  * Example Usage:
  *   int8_t *sequence = NULL;
@@ -91,36 +87,28 @@ typedef enum {
 #endif
 
 #define FESK_BITS_PER_CODE 6
-#define FESK_BITS_PER_SYMBOL 3
-#define FESK_TRIBITS_PER_CODE 2   /**< 6 bits = 2 tribits */
-#define FESK_TRIBITS_PER_CRC 3    /**< 8 bits = 3 tribits (with 1 padding bit) */
+#define FESK_BITS_PER_SYMBOL 2
+#define FESK_DIBITS_PER_CODE 3   /**< 6 bits = 3 dibits */
+#define FESK_DIBITS_PER_CRC 4    /**< 8 bits = 4 dibits */
 
 /** Frame markers: codes 62 and 63 are reserved (not in character set) */
 #define FESK_START_MARKER 62u
 #define FESK_END_MARKER 63u
 
-/** 8-FSK tone indices (tribits) */
+/** 4-FSK tone indices (dibits) */
 enum {
-    FESK_TONE_000 = 0,  /**< Tribit 000 */
-    FESK_TONE_001 = 1,  /**< Tribit 001 */
-    FESK_TONE_010 = 2,  /**< Tribit 010 */
-    FESK_TONE_011 = 3,  /**< Tribit 011 */
-    FESK_TONE_100 = 4,  /**< Tribit 100 */
-    FESK_TONE_101 = 5,  /**< Tribit 101 */
-    FESK_TONE_110 = 6,  /**< Tribit 110 */
-    FESK_TONE_111 = 7,  /**< Tribit 111 */
-    FESK_TONE_COUNT = 8,
+    FESK_TONE_00 = 0,  /**< Dibit 00 */
+    FESK_TONE_01 = 1,  /**< Dibit 01 */
+    FESK_TONE_10 = 2,  /**< Dibit 10 */
+    FESK_TONE_11 = 3,  /**< Dibit 11 */
+    FESK_TONE_COUNT = 4,
 };
 
-/** 8-FSK tones: C7-G7 (8 semitones) - evenly spaced for good discrimination */
-#define FESK_TONE_000_NOTE  BUZZER_NOTE_C7                /**< ~2093 Hz for tribit 000 */
-#define FESK_TONE_001_NOTE  BUZZER_NOTE_C7SHARP_D7FLAT    /**< ~2217 Hz for tribit 001 */
-#define FESK_TONE_010_NOTE  BUZZER_NOTE_D7                /**< ~2349 Hz for tribit 010 */
-#define FESK_TONE_011_NOTE  BUZZER_NOTE_D7SHARP_E7FLAT    /**< ~2489 Hz for tribit 011 */
-#define FESK_TONE_100_NOTE  BUZZER_NOTE_E7                /**< ~2637 Hz for tribit 100 */
-#define FESK_TONE_101_NOTE  BUZZER_NOTE_F7                /**< ~2794 Hz for tribit 101 */
-#define FESK_TONE_110_NOTE  BUZZER_NOTE_F7SHARP_G7FLAT    /**< ~2960 Hz for tribit 110 */
-#define FESK_TONE_111_NOTE  BUZZER_NOTE_G7                /**< ~3136 Hz for tribit 111 */
+/** 4-FSK tones: D7, E7, F7#, G7# - evenly spaced for good discrimination */
+#define FESK_TONE_00_NOTE  BUZZER_NOTE_D7               /**< ~2349 Hz for dibit 00 */
+#define FESK_TONE_01_NOTE  BUZZER_NOTE_E7               /**< ~2637 Hz for dibit 01 */
+#define FESK_TONE_10_NOTE  BUZZER_NOTE_F7SHARP_G7FLAT   /**< ~2960 Hz for dibit 10 */
+#define FESK_TONE_11_NOTE  BUZZER_NOTE_G7SHARP_A7FLAT   /**< ~3322 Hz for dibit 11 */
 
 /** Mapping from tone index to buzzer note */
 extern const watch_buzzer_note_t fesk_tone_map[FESK_TONE_COUNT];

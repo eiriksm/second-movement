@@ -230,7 +230,7 @@ static void _fesk_transmission_complete(void);
 static void _fesk_countdown_step_done(void);
 
 #ifdef WATCH_BUZZER_PERIOD_REST
-// Raw source callback for 8-FSK on-the-fly tribit generation
+// Raw source callback for 4-FSK on-the-fly dibit generation
 // Returns: true = done/stop, false = continue playing
 static bool _fesk_raw_source(uint16_t position, void* userdata, uint16_t* period, uint16_t* duration) {
     (void)position;
@@ -241,46 +241,41 @@ static bool _fesk_raw_source(uint16_t position, void* userdata, uint16_t* period
 
     // Alternate between tone and rest
     if (session->raw_is_tone) {
-        // Generate tone based on current tribit
-        uint8_t tribit = 0;
+        // Generate tone based on current dibit
+        uint8_t dibit = 0;
         uint8_t code = 0;
         uint8_t shift = 0;
 
         switch (session->raw_phase) {
             case FESK_RAW_PHASE_START_MARKER:
-                // 6-bit code = 2 tribits (positions 0,1 -> shifts 3,0)
-                shift = (1 - session->raw_tribit_pos) * 3;
-                tribit = (FESK_START_MARKER >> shift) & 0x07;
+                // 6-bit code = 3 dibits (positions 0,1,2 -> shifts 4,2,0)
+                shift = (2 - session->raw_dibit_pos) * 2;
+                dibit = (FESK_START_MARKER >> shift) & 0x03;
                 break;
 
             case FESK_RAW_PHASE_DATA:
                 code = session->raw_current_code;
-                shift = (1 - session->raw_tribit_pos) * 3;
-                tribit = (code >> shift) & 0x07;
+                shift = (2 - session->raw_dibit_pos) * 2;
+                dibit = (code >> shift) & 0x03;
                 break;
 
             case FESK_RAW_PHASE_CRC:
-                // 8-bit CRC = 3 tribits (positions 0,1,2 -> shifts 5,2,left-shift)
-                if (session->raw_tribit_pos == 0) {
-                    tribit = (session->raw_crc >> 5) & 0x07;
-                } else if (session->raw_tribit_pos == 1) {
-                    tribit = (session->raw_crc >> 2) & 0x07;
-                } else {
-                    tribit = (session->raw_crc & 0x03) << 1;
-                }
+                // 8-bit CRC = 4 dibits (positions 0,1,2,3 -> shifts 6,4,2,0)
+                shift = (3 - session->raw_dibit_pos) * 2;
+                dibit = (session->raw_crc >> shift) & 0x03;
                 break;
 
             case FESK_RAW_PHASE_END_MARKER:
-                shift = (1 - session->raw_tribit_pos) * 3;
-                tribit = (FESK_END_MARKER >> shift) & 0x07;
+                shift = (2 - session->raw_dibit_pos) * 2;
+                dibit = (FESK_END_MARKER >> shift) & 0x03;
                 break;
 
             case FESK_RAW_PHASE_DONE:
                 return true; // Done - stop playing
         }
 
-        // Set the tone period based on the tribit value
-        *period = NotePeriods[fesk_tone_map[tribit]];
+        // Set the tone period based on the dibit value
+        *period = NotePeriods[fesk_tone_map[dibit]];
         *duration = FESK_TICKS_PER_SYMBOL;
         session->raw_is_tone = false; // Next call will be rest
 
@@ -290,24 +285,24 @@ static bool _fesk_raw_source(uint16_t position, void* userdata, uint16_t* period
         *duration = FESK_TICKS_PER_REST;
         session->raw_is_tone = true; // Next call will be tone
 
-        // Advance to next tribit
-        session->raw_tribit_pos++;
+        // Advance to next dibit
+        session->raw_dibit_pos++;
 
         // Check if we've finished the current phase
         bool advance_phase = false;
 
         switch (session->raw_phase) {
             case FESK_RAW_PHASE_START_MARKER:
-                if (session->raw_tribit_pos >= FESK_TRIBITS_PER_CODE) {
+                if (session->raw_dibit_pos >= FESK_DIBITS_PER_CODE) {
                     advance_phase = true;
                 }
                 break;
 
             case FESK_RAW_PHASE_DATA:
-                if (session->raw_tribit_pos >= FESK_TRIBITS_PER_CODE) {
+                if (session->raw_dibit_pos >= FESK_DIBITS_PER_CODE) {
                     // Finished current character, move to next
                     session->raw_char_pos++;
-                    session->raw_tribit_pos = 0;
+                    session->raw_dibit_pos = 0;
 
                     if (session->raw_char_pos >= session->raw_payload_length) {
                         // Finished all data
@@ -325,13 +320,13 @@ static bool _fesk_raw_source(uint16_t position, void* userdata, uint16_t* period
                 break;
 
             case FESK_RAW_PHASE_CRC:
-                if (session->raw_tribit_pos >= FESK_TRIBITS_PER_CRC) {
+                if (session->raw_dibit_pos >= FESK_DIBITS_PER_CRC) {
                     advance_phase = true;
                 }
                 break;
 
             case FESK_RAW_PHASE_END_MARKER:
-                if (session->raw_tribit_pos >= FESK_TRIBITS_PER_CODE) {
+                if (session->raw_dibit_pos >= FESK_DIBITS_PER_CODE) {
                     advance_phase = true;
                 }
                 break;
@@ -341,7 +336,7 @@ static bool _fesk_raw_source(uint16_t position, void* userdata, uint16_t* period
         }
 
         if (advance_phase) {
-            session->raw_tribit_pos = 0;
+            session->raw_dibit_pos = 0;
             session->raw_phase++;
             if (session->raw_phase == FESK_RAW_PHASE_DONE) {
                 return true; // Transmission complete - stop playing
@@ -390,7 +385,7 @@ static bool _init_raw_source(fesk_session_t *session) {
     session->raw_payload_length = payload_length;
     session->raw_phase = FESK_RAW_PHASE_START_MARKER;
     session->raw_char_pos = 0;
-    session->raw_tribit_pos = 0;
+    session->raw_dibit_pos = 0;
     session->raw_crc = 0;
     session->raw_is_tone = true; // Start with a tone
 
