@@ -274,6 +274,9 @@ bool unit_counter_face_loop(movement_event_t event, void *context) {
                             state->units[computer_delta].volume = 400;
                         }
                         else if (state->units[computer_delta].volume == 400) {
+                            state->units[computer_delta].volume = 440;
+                        }
+                        else if (state->units[computer_delta].volume == 440) {
                             state->units[computer_delta].volume = 500;
                         }
                         else if (state->units[computer_delta].volume == 500) {
