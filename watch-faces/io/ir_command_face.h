@@ -33,7 +33,12 @@
  * Currently supports:
  * - ls: List files in the filesystem
  *
- * In hardware mode: Receives commands via IR sensor
+ * Controls:
+ * - LIGHT button: Manually trigger "ls" command
+ * - ALARM button: Navigate through file list results
+ * - ALARM long press: Return to command mode
+ *
+ * IR/UART: Receives commands via IR sensor (hardware) or UART simulator
  * In simulator mode: Use the IrDA/UART upload UI in shell.html to send commands
  */
 

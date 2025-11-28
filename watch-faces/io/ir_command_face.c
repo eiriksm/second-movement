@@ -174,6 +174,12 @@ bool ir_command_face_loop(movement_event_t event, void *context) {
         }
             break;
 
+        case EVENT_LIGHT_BUTTON_UP:
+            // Trigger "ls" command manually
+            if (!state->display_mode) {
+                execute_command(state, "ls");
+            }
+            break;
 
         case EVENT_ALARM_BUTTON_UP:
             if (state->display_mode && state->file_count > 0) {
