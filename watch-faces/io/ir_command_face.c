@@ -276,9 +276,5 @@ void ir_command_face_resign(void *context) {
 #endif
 }
 
-#ifdef HAS_IR_SENSOR
-void irq_handler_sercom0(void);
-void irq_handler_sercom0(void) {
-    uart_irq_handler(0);
-}
-#endif
+// Note: irq_handler_sercom0 is defined in irda_upload_face.c
+// Both faces use UART instance 0, so we share the same handler
