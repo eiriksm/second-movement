@@ -33,18 +33,18 @@
 // External filesystem instance from filesystem.c
 extern lfs_t eeprom_filesystem;
 
-static void list_files(ir_command_state_t *state) {
+static void list_files(void) {
     lfs_dir_t dir;
     int err = lfs_dir_open(&eeprom_filesystem, &dir, "/");
     if (err < 0) {
-        state->file_count = 0;
+        printf("ir_cmd: ls: error opening directory\n");
         return;
     }
 
     struct lfs_info info;
-    state->file_count = 0;
+    int count = 0;
 
-    while (state->file_count < 16) {
+    while (true) {
         int res = lfs_dir_read(&eeprom_filesystem, &dir, &info);
         if (res <= 0) break;
 
@@ -53,61 +53,21 @@ static void list_files(ir_command_state_t *state) {
 
         // Only list files, not directories
         if (info.type == LFS_TYPE_REG) {
-            strncpy(state->filenames[state->file_count], info.name, 12);
-            state->filenames[state->file_count][12] = '\0';
-            state->file_sizes[state->file_count] = info.size;
-            state->file_count++;
+            printf("ir_cmd: %s (%ld bytes)\n", info.name, (long)info.size);
+            count++;
         }
+    }
+
+    if (count == 0) {
+        printf("ir_cmd: (no files)\n");
     }
 
     lfs_dir_close(&eeprom_filesystem, &dir);
 }
 
-static void display_file_list(ir_command_state_t *state) {
-    watch_clear_display();
-
-    if (state->file_count == 0) {
-        watch_display_text(WATCH_POSITION_TOP, "no    ");
-        watch_display_text(WATCH_POSITION_BOTTOM, "FILES ");
-        return;
-    }
-
-    // Display current file number out of total
-    char buf[11];
-    snprintf(buf, 11, "%d/%d", state->current_file + 1, state->file_count);
-    watch_display_text(WATCH_POSITION_TOP, buf);
-
-    // Display filename (truncated to 6 chars if needed)
-    char filename_display[7];
-    strncpy(filename_display, state->filenames[state->current_file], 6);
-    filename_display[6] = '\0';
-    watch_display_text(WATCH_POSITION_BOTTOM, filename_display);
-}
-
-static void display_text_content(ir_command_state_t *state) {
-    watch_clear_display();
-
-    if (state->content_size == 0) {
-        watch_display_text(WATCH_POSITION_TOP, "EMPty ");
-        return;
-    }
-
-    // Display 6 characters at current offset
-    char display[7];
-    uint16_t remaining = state->content_size - state->content_offset;
-    uint16_t to_show = remaining > 6 ? 6 : remaining;
-
-    strncpy(display, state->file_content + state->content_offset, to_show);
-    display[to_show] = '\0';
-
-    // Show offset indicator on top
-    char offset_str[11];
-    snprintf(offset_str, 11, "%d/%d", state->content_offset, state->content_size);
-    watch_display_text(WATCH_POSITION_TOP, offset_str);
-    watch_display_text(WATCH_POSITION_BOTTOM, display);
-}
-
 static void execute_command(ir_command_state_t *state, const char *cmd) {
+    (void)state;  // Unused now
+
     // Parse command and arguments
     char cmd_copy[64];
     strncpy(cmd_copy, cmd, 63);
@@ -116,28 +76,13 @@ static void execute_command(ir_command_state_t *state, const char *cmd) {
     char *command = strtok(cmd_copy, " ");
     if (!command) return;
 
-    // Free any previous content
-    if (state->file_content) {
-        free(state->file_content);
-        state->file_content = NULL;
-        state->content_size = 0;
-        state->content_offset = 0;
-    }
-
     if (strcmp(command, "ls") == 0) {
-        movement_force_led_on(0, 48, 0);  // Green LED for success
-        list_files(state);
-        state->current_file = 0;
-        state->display_mode = true;
-        display_file_list(state);
+        list_files();
 
     } else if (strcmp(command, "cat") == 0) {
         char *filename = strtok(NULL, " ");
         if (!filename) {
-            movement_force_led_on(48, 0, 0);  // Red LED for error
-            watch_clear_display();
-            watch_display_text(WATCH_POSITION_TOP, "Cat   ");
-            watch_display_text(WATCH_POSITION_BOTTOM, "no FiL");
+            printf("ir_cmd: cat: missing filename\n");
             return;
         }
 
@@ -145,57 +90,65 @@ static void execute_command(ir_command_state_t *state, const char *cmd) {
         lfs_file_t file;
         int err = lfs_file_open(&eeprom_filesystem, &file, filename, LFS_O_RDONLY);
         if (err < 0) {
-            movement_force_led_on(48, 0, 0);  // Red LED for error
-            watch_clear_display();
-            watch_display_text(WATCH_POSITION_TOP, "not   ");
-            watch_display_text(WATCH_POSITION_BOTTOM, "Found ");
+            printf("ir_cmd: cat: %s: not found\n", filename);
             return;
         }
 
         lfs_soff_t size = lfs_file_size(&eeprom_filesystem, &file);
         if (size > 0 && size < 4096) {  // Limit to 4KB
-            state->file_content = malloc(size + 1);
-            if (state->file_content) {
-                lfs_file_read(&eeprom_filesystem, &file, state->file_content, size);
-                state->file_content[size] = '\0';
-                state->content_size = size;
-                state->content_offset = 0;
-                state->display_mode = true;
-                movement_force_led_on(0, 48, 0);  // Green LED
-                display_text_content(state);
+            char *buffer = malloc(size + 1);
+            if (buffer) {
+                lfs_file_read(&eeprom_filesystem, &file, buffer, size);
+                buffer[size] = '\0';
+                printf("ir_cmd: %s\n", buffer);
+                free(buffer);
             } else {
-                movement_force_led_on(48, 0, 0);  // Red LED - no memory
-                watch_clear_display();
-                watch_display_text(WATCH_POSITION_TOP, "no    ");
-                watch_display_text(WATCH_POSITION_BOTTOM, "MEMory");
+                printf("ir_cmd: cat: out of memory\n");
             }
+        } else if (size == 0) {
+            printf("ir_cmd: (empty file)\n");
         } else {
-            movement_force_led_on(48, 48, 0);  // Yellow LED - file too big
-            watch_clear_display();
-            watch_display_text(WATCH_POSITION_TOP, "FiLE  ");
-            watch_display_text(WATCH_POSITION_BOTTOM, "tooBig");
+            printf("ir_cmd: cat: file too large (%ld bytes)\n", (long)size);
         }
         lfs_file_close(&eeprom_filesystem, &file);
 
     } else if (strcmp(command, "echo") == 0) {
-        char *text = strtok(NULL, "");  // Get rest of string
-        if (!text) {
-            movement_force_led_on(48, 48, 0);  // Yellow LED
-            watch_clear_display();
-            watch_display_text(WATCH_POSITION_TOP, "ECHo  ");
-            watch_display_text(WATCH_POSITION_BOTTOM, "EMPty ");
+        char *rest = strtok(NULL, "");  // Get rest of string
+        if (!rest) {
+            printf("ir_cmd: \n");
             return;
         }
 
-        size_t len = strlen(text);
-        state->file_content = malloc(len + 1);
-        if (state->file_content) {
-            strcpy(state->file_content, text);
-            state->content_size = len;
-            state->content_offset = 0;
-            state->display_mode = true;
-            movement_force_led_on(0, 48, 0);  // Green LED
-            display_text_content(state);
+        // Check for output redirection: echo text > filename
+        char *redirect = strstr(rest, " > ");
+        if (redirect) {
+            // Split text and filename
+            *redirect = '\0';  // Terminate text part
+            char *filename = redirect + 3;  // Skip " > "
+
+            // Trim whitespace from filename
+            while (*filename == ' ') filename++;
+
+            if (*filename == '\0') {
+                printf("ir_cmd: echo: missing filename after >\n");
+                return;
+            }
+
+            // Write to file
+            lfs_file_t file;
+            int err = lfs_file_open(&eeprom_filesystem, &file, filename,
+                                   LFS_O_WRONLY | LFS_O_CREAT | LFS_O_TRUNC);
+            if (err < 0) {
+                printf("ir_cmd: echo: cannot create %s\n", filename);
+                return;
+            }
+
+            lfs_file_write(&eeprom_filesystem, &file, rest, strlen(rest));
+            lfs_file_close(&eeprom_filesystem, &file);
+            printf("ir_cmd: wrote to %s\n", filename);
+        } else {
+            // Just echo to output
+            printf("ir_cmd: %s\n", rest);
         }
 
     } else if (strcmp(command, "df") == 0) {
@@ -205,7 +158,6 @@ static void execute_command(ir_command_state_t *state, const char *cmd) {
         if (err >= 0) {
             // Calculate used and total blocks
             uint32_t total_kb = (fsstat.block_count * fsstat.block_size) / 1024;
-            // LittleFS doesn't track used blocks directly, approximate by counting files
             uint32_t used_kb = 0;
 
             lfs_dir_t dir;
@@ -219,33 +171,13 @@ static void execute_command(ir_command_state_t *state, const char *cmd) {
                 lfs_dir_close(&eeprom_filesystem, &dir);
             }
 
-            // Create display string
-            char df_text[64];
-            snprintf(df_text, 64, "%luK/%luK", (unsigned long)used_kb, (unsigned long)total_kb);
-
-            size_t len = strlen(df_text);
-            state->file_content = malloc(len + 1);
-            if (state->file_content) {
-                strcpy(state->file_content, df_text);
-                state->content_size = len;
-                state->content_offset = 0;
-                state->display_mode = true;
-                movement_force_led_on(0, 48, 0);  // Green LED
-                display_text_content(state);
-            }
+            printf("ir_cmd: %luK / %luK used\n", (unsigned long)used_kb, (unsigned long)total_kb);
         } else {
-            movement_force_led_on(48, 0, 0);  // Red LED
-            watch_clear_display();
-            watch_display_text(WATCH_POSITION_TOP, "FS    ");
-            watch_display_text(WATCH_POSITION_BOTTOM, "Error ");
+            printf("ir_cmd: df: filesystem error\n");
         }
 
     } else {
-        // Unknown command
-        movement_force_led_on(48, 48, 0);  // Yellow LED for unknown
-        watch_clear_display();
-        watch_display_text(WATCH_POSITION_TOP, "UnKno ");
-        watch_display_text(WATCH_POSITION_BOTTOM, "Wn Cmd");
+        printf("ir_cmd: %s: unknown command\n", command);
     }
 }
 
@@ -258,10 +190,7 @@ void ir_command_face_setup(uint8_t watch_face_index, void ** context_ptr) {
 }
 
 void ir_command_face_activate(void *context) {
-    ir_command_state_t *state = (ir_command_state_t *)context;
-    state->display_mode = false;
-    state->current_file = 0;
-    state->file_count = 0;
+    (void)context;
 
 #ifdef HAS_IR_SENSOR
     // Initialize IR receiver on hardware
@@ -283,12 +212,8 @@ bool ir_command_face_loop(movement_event_t event, void *context) {
         case EVENT_ACTIVATE:
         case EVENT_NONE:
             watch_clear_display();
-            if (state->display_mode) {
-                display_file_list(state);
-            } else {
-                watch_display_text(WATCH_POSITION_TOP, "IR    ");
-                watch_display_text(WATCH_POSITION_BOTTOM, "Cmd   ");
-            }
+            watch_display_text(WATCH_POSITION_TOP, "IR    ");
+            watch_display_text(WATCH_POSITION_BOTTOM, "Cmd   ");
             break;
 
         case EVENT_TICK:
@@ -310,14 +235,11 @@ bool ir_command_face_loop(movement_event_t event, void *context) {
                     execute_command(state, data);
                 }
             } else {
-                movement_force_led_off();
-                if (!state->display_mode) {
-                    // Blink indicator to show we're waiting
-                    if (watch_rtc_get_date_time().unit.second % 2 == 0) {
-                        watch_set_indicator(WATCH_INDICATOR_SIGNAL);
-                    } else {
-                        watch_clear_indicator(WATCH_INDICATOR_SIGNAL);
-                    }
+                // Blink indicator to show we're waiting for commands
+                if (watch_rtc_get_date_time().unit.second % 2 == 0) {
+                    watch_set_indicator(WATCH_INDICATOR_SIGNAL);
+                } else {
+                    watch_clear_indicator(WATCH_INDICATOR_SIGNAL);
                 }
             }
         }
@@ -325,46 +247,7 @@ bool ir_command_face_loop(movement_event_t event, void *context) {
 
         case EVENT_LIGHT_BUTTON_UP:
             // Trigger "ls" command manually
-            if (!state->display_mode) {
-                execute_command(state, "ls");
-            }
-            break;
-
-        case EVENT_ALARM_BUTTON_UP:
-            if (state->display_mode) {
-                if (state->file_count > 0 && !state->file_content) {
-                    // Navigate through file list (ls mode)
-                    state->current_file = (state->current_file + 1) % state->file_count;
-                    display_file_list(state);
-                } else if (state->file_content && state->content_size > 0) {
-                    // Scroll through text content (cat/echo mode)
-                    if (state->content_offset + 6 < state->content_size) {
-                        state->content_offset += 6;
-                        display_text_content(state);
-                    } else {
-                        // Wrap to beginning
-                        state->content_offset = 0;
-                        display_text_content(state);
-                    }
-                }
-            }
-            break;
-
-        case EVENT_ALARM_LONG_PRESS:
-            // Return to command mode
-            if (state->display_mode) {
-                state->display_mode = false;
-                // Free any content
-                if (state->file_content) {
-                    free(state->file_content);
-                    state->file_content = NULL;
-                    state->content_size = 0;
-                    state->content_offset = 0;
-                }
-                watch_clear_display();
-                watch_display_text(WATCH_POSITION_TOP, "IR    ");
-                watch_display_text(WATCH_POSITION_BOTTOM, "Cmd   ");
-            }
+            execute_command(state, "ls");
             break;
 
         case EVENT_TIMEOUT:
@@ -383,15 +266,7 @@ bool ir_command_face_loop(movement_event_t event, void *context) {
 }
 
 void ir_command_face_resign(void *context) {
-    ir_command_state_t *state = (ir_command_state_t *)context;
-
-    // Free any allocated content
-    if (state->file_content) {
-        free(state->file_content);
-        state->file_content = NULL;
-        state->content_size = 0;
-        state->content_offset = 0;
-    }
+    (void)context;
 
     uart_disable_instance(0);
 #ifdef HAS_IR_SENSOR
