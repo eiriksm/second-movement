@@ -84,13 +84,162 @@ static void display_file_list(ir_command_state_t *state) {
     watch_display_text(WATCH_POSITION_BOTTOM, filename_display);
 }
 
+static void display_text_content(ir_command_state_t *state) {
+    watch_clear_display();
+
+    if (state->content_size == 0) {
+        watch_display_text(WATCH_POSITION_TOP, "EMPty ");
+        return;
+    }
+
+    // Display 6 characters at current offset
+    char display[7];
+    uint16_t remaining = state->content_size - state->content_offset;
+    uint16_t to_show = remaining > 6 ? 6 : remaining;
+
+    strncpy(display, state->file_content + state->content_offset, to_show);
+    display[to_show] = '\0';
+
+    // Show offset indicator on top
+    char offset_str[11];
+    snprintf(offset_str, 11, "%d/%d", state->content_offset, state->content_size);
+    watch_display_text(WATCH_POSITION_TOP, offset_str);
+    watch_display_text(WATCH_POSITION_BOTTOM, display);
+}
+
 static void execute_command(ir_command_state_t *state, const char *cmd) {
-    if (strcmp(cmd, "ls") == 0) {
+    // Parse command and arguments
+    char cmd_copy[64];
+    strncpy(cmd_copy, cmd, 63);
+    cmd_copy[63] = '\0';
+
+    char *command = strtok(cmd_copy, " ");
+    if (!command) return;
+
+    // Free any previous content
+    if (state->file_content) {
+        free(state->file_content);
+        state->file_content = NULL;
+        state->content_size = 0;
+        state->content_offset = 0;
+    }
+
+    if (strcmp(command, "ls") == 0) {
         movement_force_led_on(0, 48, 0);  // Green LED for success
         list_files(state);
         state->current_file = 0;
         state->display_mode = true;
         display_file_list(state);
+
+    } else if (strcmp(command, "cat") == 0) {
+        char *filename = strtok(NULL, " ");
+        if (!filename) {
+            movement_force_led_on(48, 0, 0);  // Red LED for error
+            watch_clear_display();
+            watch_display_text(WATCH_POSITION_TOP, "Cat   ");
+            watch_display_text(WATCH_POSITION_BOTTOM, "no FiL");
+            return;
+        }
+
+        // Read file from filesystem
+        lfs_file_t file;
+        int err = lfs_file_open(&eeprom_filesystem, &file, filename, LFS_O_RDONLY);
+        if (err < 0) {
+            movement_force_led_on(48, 0, 0);  // Red LED for error
+            watch_clear_display();
+            watch_display_text(WATCH_POSITION_TOP, "not   ");
+            watch_display_text(WATCH_POSITION_BOTTOM, "Found ");
+            return;
+        }
+
+        lfs_soff_t size = lfs_file_size(&eeprom_filesystem, &file);
+        if (size > 0 && size < 4096) {  // Limit to 4KB
+            state->file_content = malloc(size + 1);
+            if (state->file_content) {
+                lfs_file_read(&eeprom_filesystem, &file, state->file_content, size);
+                state->file_content[size] = '\0';
+                state->content_size = size;
+                state->content_offset = 0;
+                state->display_mode = true;
+                movement_force_led_on(0, 48, 0);  // Green LED
+                display_text_content(state);
+            } else {
+                movement_force_led_on(48, 0, 0);  // Red LED - no memory
+                watch_clear_display();
+                watch_display_text(WATCH_POSITION_TOP, "no    ");
+                watch_display_text(WATCH_POSITION_BOTTOM, "MEMory");
+            }
+        } else {
+            movement_force_led_on(48, 48, 0);  // Yellow LED - file too big
+            watch_clear_display();
+            watch_display_text(WATCH_POSITION_TOP, "FiLE  ");
+            watch_display_text(WATCH_POSITION_BOTTOM, "tooBig");
+        }
+        lfs_file_close(&eeprom_filesystem, &file);
+
+    } else if (strcmp(command, "echo") == 0) {
+        char *text = strtok(NULL, "");  // Get rest of string
+        if (!text) {
+            movement_force_led_on(48, 48, 0);  // Yellow LED
+            watch_clear_display();
+            watch_display_text(WATCH_POSITION_TOP, "ECHo  ");
+            watch_display_text(WATCH_POSITION_BOTTOM, "EMPty ");
+            return;
+        }
+
+        size_t len = strlen(text);
+        state->file_content = malloc(len + 1);
+        if (state->file_content) {
+            strcpy(state->file_content, text);
+            state->content_size = len;
+            state->content_offset = 0;
+            state->display_mode = true;
+            movement_force_led_on(0, 48, 0);  // Green LED
+            display_text_content(state);
+        }
+
+    } else if (strcmp(command, "df") == 0) {
+        // Display filesystem usage
+        struct lfs_fsstat fsstat;
+        int err = lfs_fs_stat(&eeprom_filesystem, &fsstat);
+        if (err >= 0) {
+            // Calculate used and total blocks
+            uint32_t total_kb = (fsstat.block_count * fsstat.block_size) / 1024;
+            // LittleFS doesn't track used blocks directly, approximate by counting files
+            uint32_t used_kb = 0;
+
+            lfs_dir_t dir;
+            if (lfs_dir_open(&eeprom_filesystem, &dir, "/") >= 0) {
+                struct lfs_info info;
+                while (lfs_dir_read(&eeprom_filesystem, &dir, &info) > 0) {
+                    if (info.type == LFS_TYPE_REG) {
+                        used_kb += (info.size + 1023) / 1024;  // Round up to KB
+                    }
+                }
+                lfs_dir_close(&eeprom_filesystem, &dir);
+            }
+
+            // Create display string
+            char df_text[64];
+            snprintf(df_text, 64, "%luK/%luK", (unsigned long)used_kb, (unsigned long)total_kb);
+
+            size_t len = strlen(df_text);
+            state->file_content = malloc(len + 1);
+            if (state->file_content) {
+                strcpy(state->file_content, df_text);
+                state->content_size = len;
+                state->content_offset = 0;
+                state->display_mode = true;
+                movement_force_led_on(0, 48, 0);  // Green LED
+                display_text_content(state);
+            }
+        } else {
+            movement_force_led_on(48, 0, 0);  // Red LED
+            watch_clear_display();
+            watch_display_text(WATCH_POSITION_TOP, "FS    ");
+            watch_display_text(WATCH_POSITION_BOTTOM, "Error ");
+        }
+
     } else {
         // Unknown command
         movement_force_led_on(48, 48, 0);  // Yellow LED for unknown
@@ -182,10 +331,22 @@ bool ir_command_face_loop(movement_event_t event, void *context) {
             break;
 
         case EVENT_ALARM_BUTTON_UP:
-            if (state->display_mode && state->file_count > 0) {
-                // Navigate through file list
-                state->current_file = (state->current_file + 1) % state->file_count;
-                display_file_list(state);
+            if (state->display_mode) {
+                if (state->file_count > 0 && !state->file_content) {
+                    // Navigate through file list (ls mode)
+                    state->current_file = (state->current_file + 1) % state->file_count;
+                    display_file_list(state);
+                } else if (state->file_content && state->content_size > 0) {
+                    // Scroll through text content (cat/echo mode)
+                    if (state->content_offset + 6 < state->content_size) {
+                        state->content_offset += 6;
+                        display_text_content(state);
+                    } else {
+                        // Wrap to beginning
+                        state->content_offset = 0;
+                        display_text_content(state);
+                    }
+                }
             }
             break;
 
@@ -193,6 +354,13 @@ bool ir_command_face_loop(movement_event_t event, void *context) {
             // Return to command mode
             if (state->display_mode) {
                 state->display_mode = false;
+                // Free any content
+                if (state->file_content) {
+                    free(state->file_content);
+                    state->file_content = NULL;
+                    state->content_size = 0;
+                    state->content_offset = 0;
+                }
                 watch_clear_display();
                 watch_display_text(WATCH_POSITION_TOP, "IR    ");
                 watch_display_text(WATCH_POSITION_BOTTOM, "Cmd   ");
@@ -215,7 +383,16 @@ bool ir_command_face_loop(movement_event_t event, void *context) {
 }
 
 void ir_command_face_resign(void *context) {
-    (void) context;
+    ir_command_state_t *state = (ir_command_state_t *)context;
+
+    // Free any allocated content
+    if (state->file_content) {
+        free(state->file_content);
+        state->file_content = NULL;
+        state->content_size = 0;
+        state->content_offset = 0;
+    }
+
     uart_disable_instance(0);
 #ifdef HAS_IR_SENSOR
     HAL_GPIO_IRSENSE_pmuxdis();

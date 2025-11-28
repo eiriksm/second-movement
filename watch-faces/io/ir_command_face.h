@@ -30,12 +30,16 @@
  * IR COMMAND FACE
  *
  * Watch face that can receive IR commands and execute them.
- * Currently supports:
- * - ls: List files in the filesystem
+ *
+ * Supported commands:
+ * - ls              : List files in the filesystem
+ * - cat <filename>  : Display file contents (max 4KB)
+ * - echo <text>     : Display text message
+ * - df              : Show filesystem usage (used/total)
  *
  * Controls:
- * - LIGHT button: Manually trigger "ls" command
- * - ALARM button: Navigate through file list results
+ * - LIGHT button    : Manually trigger "ls" command
+ * - ALARM button    : Navigate file list / scroll text content
  * - ALARM long press: Return to command mode
  *
  * IR/UART: Receives commands via IR sensor (hardware) or UART simulator
@@ -48,6 +52,9 @@ typedef struct {
     char filenames[16][13];  // Up to 16 files, 12 chars + null terminator
     int32_t file_sizes[16];
     bool display_mode;  // false = showing command prompt, true = showing results
+    char *file_content;  // For cat command - allocated dynamically
+    uint16_t content_size;
+    uint16_t content_offset;  // Current viewing offset
 } ir_command_state_t;
 
 void ir_command_face_setup(uint8_t watch_face_index, void ** context_ptr);
