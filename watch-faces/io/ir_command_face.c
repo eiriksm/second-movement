@@ -50,8 +50,6 @@ static void execute_command(ir_command_state_t *state, const char *cmd) {
     if (argc == 0) return;
 
     // Dispatch to filesystem command functions
-    printf("ir_cmd: ");
-
     if (strcmp(argv[0], "ls") == 0) {
         filesystem_cmd_ls(argc, argv);
     } else if (strcmp(argv[0], "cat") == 0) {
