@@ -26,158 +26,42 @@
 #include <string.h>
 #include "ir_command_face.h"
 #include "filesystem.h"
-#include "lfs.h"
 
 #include "uart.h"
 
-// External filesystem instance from filesystem.c
-extern lfs_t eeprom_filesystem;
-
-static void list_files(void) {
-    lfs_dir_t dir;
-    int err = lfs_dir_open(&eeprom_filesystem, &dir, "/");
-    if (err < 0) {
-        printf("ir_cmd: ls: error opening directory\n");
-        return;
-    }
-
-    struct lfs_info info;
-    int count = 0;
-
-    while (true) {
-        int res = lfs_dir_read(&eeprom_filesystem, &dir, &info);
-        if (res <= 0) break;
-
-        // Skip . and .. entries
-        if (strcmp(info.name, ".") == 0 || strcmp(info.name, "..") == 0) continue;
-
-        // Only list files, not directories
-        if (info.type == LFS_TYPE_REG) {
-            printf("ir_cmd: %s (%ld bytes)\n", info.name, (long)info.size);
-            count++;
-        }
-    }
-
-    if (count == 0) {
-        printf("ir_cmd: (no files)\n");
-    }
-
-    lfs_dir_close(&eeprom_filesystem, &dir);
-}
-
 static void execute_command(ir_command_state_t *state, const char *cmd) {
-    (void)state;  // Unused now
+    (void)state;  // Unused
 
-    // Parse command and arguments
+    // Parse command into argc/argv format
     char cmd_copy[64];
     strncpy(cmd_copy, cmd, 63);
     cmd_copy[63] = '\0';
 
-    char *command = strtok(cmd_copy, " ");
-    if (!command) return;
+    // Simple tokenizer to build argv
+    char *argv[10];
+    int argc = 0;
 
-    if (strcmp(command, "ls") == 0) {
-        list_files();
+    char *token = strtok(cmd_copy, " ");
+    while (token && argc < 10) {
+        argv[argc++] = token;
+        token = strtok(NULL, " ");
+    }
 
-    } else if (strcmp(command, "cat") == 0) {
-        char *filename = strtok(NULL, " ");
-        if (!filename) {
-            printf("ir_cmd: cat: missing filename\n");
-            return;
-        }
+    if (argc == 0) return;
 
-        // Read file from filesystem
-        lfs_file_t file;
-        int err = lfs_file_open(&eeprom_filesystem, &file, filename, LFS_O_RDONLY);
-        if (err < 0) {
-            printf("ir_cmd: cat: %s: not found\n", filename);
-            return;
-        }
+    // Dispatch to filesystem command functions
+    printf("ir_cmd: ");
 
-        lfs_soff_t size = lfs_file_size(&eeprom_filesystem, &file);
-        if (size > 0 && size < 4096) {  // Limit to 4KB
-            char *buffer = malloc(size + 1);
-            if (buffer) {
-                lfs_file_read(&eeprom_filesystem, &file, buffer, size);
-                buffer[size] = '\0';
-                printf("ir_cmd: %s\n", buffer);
-                free(buffer);
-            } else {
-                printf("ir_cmd: cat: out of memory\n");
-            }
-        } else if (size == 0) {
-            printf("ir_cmd: (empty file)\n");
-        } else {
-            printf("ir_cmd: cat: file too large (%ld bytes)\n", (long)size);
-        }
-        lfs_file_close(&eeprom_filesystem, &file);
-
-    } else if (strcmp(command, "echo") == 0) {
-        char *rest = strtok(NULL, "");  // Get rest of string
-        if (!rest) {
-            printf("ir_cmd: \n");
-            return;
-        }
-
-        // Check for output redirection: echo text > filename
-        char *redirect = strstr(rest, " > ");
-        if (redirect) {
-            // Split text and filename
-            *redirect = '\0';  // Terminate text part
-            char *filename = redirect + 3;  // Skip " > "
-
-            // Trim whitespace from filename
-            while (*filename == ' ') filename++;
-
-            if (*filename == '\0') {
-                printf("ir_cmd: echo: missing filename after >\n");
-                return;
-            }
-
-            // Write to file
-            lfs_file_t file;
-            int err = lfs_file_open(&eeprom_filesystem, &file, filename,
-                                   LFS_O_WRONLY | LFS_O_CREAT | LFS_O_TRUNC);
-            if (err < 0) {
-                printf("ir_cmd: echo: cannot create %s\n", filename);
-                return;
-            }
-
-            lfs_file_write(&eeprom_filesystem, &file, rest, strlen(rest));
-            lfs_file_close(&eeprom_filesystem, &file);
-            printf("ir_cmd: wrote to %s\n", filename);
-        } else {
-            // Just echo to output
-            printf("ir_cmd: %s\n", rest);
-        }
-
-    } else if (strcmp(command, "df") == 0) {
-        // Display filesystem usage
-        struct lfs_fsstat fsstat;
-        int err = lfs_fs_stat(&eeprom_filesystem, &fsstat);
-        if (err >= 0) {
-            // Calculate used and total blocks
-            uint32_t total_kb = (fsstat.block_count * fsstat.block_size) / 1024;
-            uint32_t used_kb = 0;
-
-            lfs_dir_t dir;
-            if (lfs_dir_open(&eeprom_filesystem, &dir, "/") >= 0) {
-                struct lfs_info info;
-                while (lfs_dir_read(&eeprom_filesystem, &dir, &info) > 0) {
-                    if (info.type == LFS_TYPE_REG) {
-                        used_kb += (info.size + 1023) / 1024;  // Round up to KB
-                    }
-                }
-                lfs_dir_close(&eeprom_filesystem, &dir);
-            }
-
-            printf("ir_cmd: %luK / %luK used\n", (unsigned long)used_kb, (unsigned long)total_kb);
-        } else {
-            printf("ir_cmd: df: filesystem error\n");
-        }
-
+    if (strcmp(argv[0], "ls") == 0) {
+        filesystem_cmd_ls(argc, argv);
+    } else if (strcmp(argv[0], "cat") == 0) {
+        filesystem_cmd_cat(argc, argv);
+    } else if (strcmp(argv[0], "echo") == 0) {
+        filesystem_cmd_echo(argc, argv);
+    } else if (strcmp(argv[0], "df") == 0) {
+        filesystem_cmd_df(argc, argv);
     } else {
-        printf("ir_cmd: %s: unknown command\n", command);
+        printf("%s: unknown command\n", argv[0]);
     }
 }
 
