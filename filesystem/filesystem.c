@@ -233,19 +233,38 @@ bool filesystem_read_line(char *filename, char *buf, int32_t *offset, int32_t le
     return false;
 }
 
-static void filesystem_cat(char *filename) {
+char* filesystem_get_cat_output(char *filename) {
     info.type = 0;
     lfs_stat(&eeprom_filesystem, filename, &info);
     if (filesystem_file_exists(filename)) {
         if (info.size > 0) {
             char *buf = malloc(info.size + 1);
-            filesystem_read_file(filename, buf, info.size);
-            buf[info.size] = '\0';
-            printf("%s\r\n", buf);
+            if (buf == NULL) {
+                return NULL;
+            }
+            if (filesystem_read_file(filename, buf, info.size)) {
+                buf[info.size] = '\0';
+                return buf;
+            }
             free(buf);
+            return NULL;
         } else {
-            printf("\r\n");
+            // Empty file - return empty string
+            char *buf = malloc(1);
+            if (buf != NULL) {
+                buf[0] = '\0';
+            }
+            return buf;
         }
+    }
+    return NULL;
+}
+
+static void filesystem_cat(char *filename) {
+    char *output = filesystem_get_cat_output(filename);
+    if (output != NULL) {
+        printf("%s\r\n", output);
+        free(output);
     } else {
         printf("cat: %s: No such file\r\n", filename);
     }

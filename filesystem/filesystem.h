@@ -80,6 +80,15 @@ bool filesystem_read_file(char *filename, char *buf, int32_t length);
   */
 bool filesystem_read_line(char *filename, char *buf, int32_t *offset, int32_t length);
 
+/** @brief Gets the contents of a file as a dynamically allocated string
+  * @param filename the file you wish to read
+  * @return A dynamically allocated null-terminated string containing the file contents,
+  *         or NULL if the file does not exist or an error occurred. The caller is responsible
+  *         for freeing the returned string.
+  * @note For empty files, this returns an allocated empty string (not NULL).
+  */
+char* filesystem_get_cat_output(char *filename);
+
 /** @brief Writes file to the filesystem
   * @param filename the file you wish to write
   * @param text The contents of the file
