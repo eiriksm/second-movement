@@ -53,60 +53,6 @@ static void flush_output(ir_command_state_t *state) {
     }
 }
 
-// Custom echo implementation for simple parsing
-static void cmd_echo(ir_command_state_t *state, const char *cmd) {
-    // Skip "echo "
-    const char *text_start = cmd + 5;
-
-    // Check for redirect
-    const char *redirect = strstr(text_start, " > ");
-
-    if (redirect) {
-        // Extract text and filename
-        size_t text_len = redirect - text_start;
-        char text[128];
-        strncpy(text, text_start, text_len);
-        text[text_len] = '\0';
-
-        // Strip quotes if present
-        char *final_text = text;
-        if ((text[0] == '"' || text[0] == '\'') && text_len > 2) {
-            final_text = text + 1;
-            final_text[text_len - 2] = '\0';
-        }
-
-        const char *filename = redirect + 3;
-
-        // Trim leading spaces from filename
-        while (*filename == ' ') filename++;
-
-        // Write to file
-        lfs_file_t file;
-        int err = lfs_file_open(&eeprom_filesystem, &file, filename,
-                               LFS_O_WRONLY | LFS_O_CREAT | LFS_O_TRUNC);
-        if (err >= 0) {
-            lfs_file_write(&eeprom_filesystem, &file, final_text, strlen(final_text));
-            lfs_file_close(&eeprom_filesystem, &file);
-            buffer_printf(state, "wrote to %s\n", filename);
-        } else {
-            buffer_printf(state, "error writing to %s\n", filename);
-        }
-    } else {
-        // Just echo the text
-        // Strip quotes if present
-        size_t len = strlen(text_start);
-        if (len > 2 && (text_start[0] == '"' || text_start[0] == '\'') &&
-            text_start[len-1] == text_start[0]) {
-            char text[128];
-            strncpy(text, text_start + 1, len - 2);
-            text[len - 2] = '\0';
-            buffer_printf(state, "%s\n", text);
-        } else {
-            buffer_printf(state, "%s\n", text_start);
-        }
-    }
-}
-
 static void execute_command(ir_command_state_t *state, const char *cmd) {
     // Clear output buffer
     state->output_len = 0;
@@ -117,10 +63,46 @@ static void execute_command(ir_command_state_t *state, const char *cmd) {
     strncpy(cmd_copy, cmd, 63);
     cmd_copy[63] = '\0';
 
-    // Check for echo first (needs special handling)
+    // Check for echo - needs special parsing for redirect
     if (strncmp(cmd, "echo ", 5) == 0) {
-        cmd_echo(state, cmd);
-        flush_output(state);
+        const char *text_start = cmd + 5;
+
+        // Look for redirect operators
+        const char *redirect_write = strstr(text_start, " > ");
+        const char *redirect_append = strstr(text_start, " >> ");
+        const char *redirect = redirect_append ? redirect_append : redirect_write;
+
+        if (redirect) {
+            // Parse for filesystem_cmd_echo format: echo TEXT > FILE
+            static char text[128];
+            static char op[3];
+            static char filename[32];
+
+            size_t text_len = redirect - text_start;
+            strncpy(text, text_start, text_len);
+            text[text_len] = '\0';
+
+            if (redirect_append) {
+                strcpy(op, ">>");
+                const char *file = redirect_append + 4;
+                while (*file == ' ') file++;
+                strncpy(filename, file, 31);
+                filename[31] = '\0';
+            } else {
+                strcpy(op, ">");
+                const char *file = redirect_write + 3;
+                while (*file == ' ') file++;
+                strncpy(filename, file, 31);
+                filename[31] = '\0';
+            }
+
+            char *argv[4] = {"echo", text, op, filename};
+            filesystem_cmd_echo(4, argv);
+        } else {
+            // Just print - not supported by filesystem_cmd_echo, do it ourselves
+            buffer_printf(state, "%s\n", text_start);
+            flush_output(state);
+        }
         return;
     }
 
