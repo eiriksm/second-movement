@@ -134,13 +134,10 @@ static void execute_command(ir_command_state_t *state, const char *cmd) {
 
             char *argv[4] = {"echo", text, op, filename};
             filesystem_cmd_echo(4, argv);
-            state->output_len += snprintf(state->output_buffer + state->output_len,
-                                         512 - state->output_len, "wrote to %s\n", filename);
-        } else {
-            // Just echo the text
-            state->output_len += snprintf(state->output_buffer + state->output_len,
-                                         512 - state->output_len, "%s\n", text_start);
+            // No output for echo
         }
+        // No output for plain echo either
+        return;
     } else {
         // Simple tokenizer to build argv for other commands
         char *argv[10];
