@@ -54,8 +54,6 @@ static void execute_command(ir_command_state_t *state, const char *cmd) {
         filesystem_cmd_ls(argc, argv);
     } else if (strcmp(argv[0], "cat") == 0) {
         filesystem_cmd_cat(argc, argv);
-    } else if (strcmp(argv[0], "echo") == 0) {
-        filesystem_cmd_echo(argc, argv);
     } else if (strcmp(argv[0], "df") == 0) {
         filesystem_cmd_df(argc, argv);
     } else {

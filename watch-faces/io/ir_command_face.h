@@ -33,11 +33,9 @@
  * Results are sent back through UART (visible in simulator console or serial output).
  *
  * Supported commands:
- * - ls                   : List files (output: "ir_cmd: filename (size bytes)")
- * - cat <filename>       : Display file contents (output: "ir_cmd: <contents>")
- * - echo <text>          : Echo text (output: "ir_cmd: <text>")
- * - echo <text> > <file> : Write text to file (output: "ir_cmd: wrote to <file>")
- * - df                   : Show filesystem usage (output: "ir_cmd: XK / YK used")
+ * - ls                   : List files
+ * - cat <filename>       : Display file contents
+ * - df                   : Show filesystem usage
  *
  * Controls:
  * - LIGHT button: Manually trigger "ls" command
