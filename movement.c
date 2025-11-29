@@ -561,13 +561,13 @@ void movement_rainbow_led(void) {
     movement_volatile_state.rainbow_active = true;
     movement_volatile_state.rainbow_index = 0;
     movement_volatile_state.rainbow_ticks = 0;
-    movement_volatile_state.rainbow_waypoint = 0; // Start at first waypoint (red)
+    movement_volatile_state.rainbow_waypoint = 0; // Start at first waypoint (pink)
     movement_volatile_state.rainbow_phase = 0;
 
     // Disable any existing LED timeout
     watch_rtc_disable_comp_callback_no_schedule(LED_TIMEOUT);
 
-    // Set first color (red)
+    // Set first color (pink)
     RGB color = rainbow_lut[rainbow_waypoints[0]];
     watch_set_led_color_rgb(color.r, color.g, color.b);
 
@@ -1881,8 +1881,8 @@ void cb_rainbow_timeout_interrupt(void) {
     if (movement_volatile_state.rainbow_phase >= 29) {
         movement_volatile_state.rainbow_phase = 0;
         movement_volatile_state.rainbow_waypoint++;
-        if (movement_volatile_state.rainbow_waypoint >= 7) {
-            movement_volatile_state.rainbow_waypoint = 6; // Stay on last color
+        if (movement_volatile_state.rainbow_waypoint >= 4) {
+            movement_volatile_state.rainbow_waypoint = 3; // Stay on last color
         }
     }
 
@@ -1894,7 +1894,7 @@ void cb_rainbow_timeout_interrupt(void) {
     } else {
         // TRANSITION phase - interpolate to next waypoint
         uint8_t next_waypoint = movement_volatile_state.rainbow_waypoint + 1;
-        if (next_waypoint >= 7) next_waypoint = 6; // Don't go past last waypoint
+        if (next_waypoint >= 4) next_waypoint = 3; // Don't go past last waypoint
 
         uint8_t next_waypoint_idx = rainbow_waypoints[next_waypoint];
         uint8_t transition_step = movement_volatile_state.rainbow_phase - 15; // 0-13
