@@ -556,7 +556,7 @@ void movement_force_led_off(void) {
 }
 
 void movement_rainbow_led(void) {
-    // Start rainbow animation (4 seconds, hold-and-transition effect)
+    // Start rainbow animation (2.3 seconds, hold-and-transition effect, 4 colors)
     movement_state.light_on = true;
     movement_volatile_state.rainbow_active = true;
     movement_volatile_state.rainbow_index = 0;
@@ -571,10 +571,8 @@ void movement_rainbow_led(void) {
     RGB color = rainbow_lut[rainbow_waypoints[0]];
     watch_set_led_color_rgb(color.r, color.g, color.b);
 
-    // Schedule first update (20ms intervals for smooth 3-second animation)
-    // At 32768 Hz, 20ms = 655 ticks
-    // 3000ms / 20ms = 150 updates
-    // 256 colors / 150 updates ≈ 1.7 colors per update (we'll increment by 2)
+    // Schedule first update (20ms intervals for smooth animation)
+    // 4 waypoints × 29 ticks = 116 total ticks = 2320ms total duration
     rtc_counter_t counter = watch_rtc_get_counter();
     uint32_t freq = watch_rtc_get_frequency();
     uint32_t update_interval = freq / 50; // 20ms intervals
@@ -1868,8 +1866,9 @@ void cb_rainbow_timeout_interrupt(void) {
     movement_volatile_state.rainbow_ticks++;
     movement_volatile_state.rainbow_phase++;
 
-    // Check if 4 seconds have elapsed (200 ticks at 20ms each = 4000ms)
-    if (movement_volatile_state.rainbow_ticks >= 200) {
+    // Check if animation is complete (116 ticks at 20ms each = 2320ms for 4 colors)
+    // 4 waypoints × 29 ticks per waypoint = 116 ticks
+    if (movement_volatile_state.rainbow_ticks >= 116) {
         movement_volatile_state.rainbow_active = false;
         movement_volatile_state.turn_led_off = true;
         return;
