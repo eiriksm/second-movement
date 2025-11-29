@@ -154,6 +154,7 @@ typedef enum {
     MODE_BUTTON_TIMEOUT,        // Mode button longpress timeout
     ALARM_BUTTON_TIMEOUT,       // Alarm button longpress timeout
     LED_TIMEOUT,                // LED off timeout
+    RAINBOW_TIMEOUT,            // Rainbow LED animation update timeout
     RESIGN_TIMEOUT,             // Resign active face timeout
     SLEEP_TIMEOUT,              // Low-energy begin timeout
     MINUTE_TIMEOUT,             // Top of the Minute timeout

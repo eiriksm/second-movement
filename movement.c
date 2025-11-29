@@ -87,6 +87,11 @@ typedef struct {
 typedef struct {
     volatile uint32_t pending_events;
     volatile bool turn_led_off;
+    volatile bool rainbow_active;
+    volatile uint8_t rainbow_index;
+    volatile uint8_t rainbow_ticks;
+    volatile uint8_t rainbow_waypoint; // Current waypoint index (0-6)
+    volatile uint8_t rainbow_phase; // Phase within current waypoint (0-28)
     volatile bool has_pending_sequence;
     volatile bool enter_sleep_mode;
     volatile bool exit_sleep_mode;
@@ -135,6 +140,49 @@ int8_t alarm_tune[] = {
 int8_t _movement_dst_offset_cache[NUM_ZONE_NAMES] = {0};
 #define TIMEZONE_DOES_NOT_OBSERVE (-127)
 
+typedef struct { uint8_t r, g, b; } RGB;
+
+// Optimized rainbow lookup table - 256 smooth colors cycling through the full spectrum
+// Generated using HSV to RGB conversion with H=0-360°, S=100%, V=100%
+static const RGB rainbow_lut[256] = {
+    {255,0,0},{255,6,0},{255,12,0},{255,18,0},{255,24,0},{255,30,0},{255,36,0},{255,42,0},
+    {255,48,0},{255,54,0},{255,60,0},{255,66,0},{255,72,0},{255,78,0},{255,84,0},{255,90,0},
+    {255,96,0},{255,102,0},{255,108,0},{255,114,0},{255,120,0},{255,126,0},{255,132,0},{255,138,0},
+    {255,144,0},{255,150,0},{255,156,0},{255,162,0},{255,168,0},{255,174,0},{255,180,0},{255,186,0},
+    {255,192,0},{255,198,0},{255,204,0},{255,210,0},{255,216,0},{255,222,0},{255,228,0},{255,234,0},
+    {255,240,0},{255,246,0},{255,252,0},{252,255,0},{246,255,0},{240,255,0},{234,255,0},{228,255,0},
+    {222,255,0},{216,255,0},{210,255,0},{204,255,0},{198,255,0},{192,255,0},{186,255,0},{180,255,0},
+    {174,255,0},{168,255,0},{162,255,0},{156,255,0},{150,255,0},{144,255,0},{138,255,0},{132,255,0},
+    {126,255,0},{120,255,0},{114,255,0},{108,255,0},{102,255,0},{96,255,0},{90,255,0},{84,255,0},
+    {78,255,0},{72,255,0},{66,255,0},{60,255,0},{54,255,0},{48,255,0},{42,255,0},{36,255,0},
+    {30,255,0},{24,255,0},{18,255,0},{12,255,0},{6,255,0},{0,255,0},{0,255,6},{0,255,12},
+    {0,255,18},{0,255,24},{0,255,30},{0,255,36},{0,255,42},{0,255,48},{0,255,54},{0,255,60},
+    {0,255,66},{0,255,72},{0,255,78},{0,255,84},{0,255,90},{0,255,96},{0,255,102},{0,255,108},
+    {0,255,114},{0,255,120},{0,255,126},{0,255,132},{0,255,138},{0,255,144},{0,255,150},{0,255,156},
+    {0,255,162},{0,255,168},{0,255,174},{0,255,180},{0,255,186},{0,255,192},{0,255,198},{0,255,204},
+    {0,255,210},{0,255,216},{0,255,222},{0,255,228},{0,255,234},{0,255,240},{0,255,246},{0,255,252},
+    {0,252,255},{0,246,255},{0,240,255},{0,234,255},{0,228,255},{0,222,255},{0,216,255},{0,210,255},
+    {0,204,255},{0,198,255},{0,192,255},{0,186,255},{0,180,255},{0,174,255},{0,168,255},{0,162,255},
+    {0,156,255},{0,150,255},{0,144,255},{0,138,255},{0,132,255},{0,126,255},{0,120,255},{0,114,255},
+    {0,108,255},{0,102,255},{0,96,255},{0,90,255},{0,84,255},{0,78,255},{0,72,255},{0,66,255},
+    {0,60,255},{0,54,255},{0,48,255},{0,42,255},{0,36,255},{0,30,255},{0,24,255},{0,18,255},
+    {0,12,255},{0,6,255},{0,0,255},{6,0,255},{12,0,255},{18,0,255},{24,0,255},{30,0,255},
+    {36,0,255},{42,0,255},{48,0,255},{54,0,255},{60,0,255},{66,0,255},{72,0,255},{78,0,255},
+    {84,0,255},{90,0,255},{96,0,255},{102,0,255},{108,0,255},{114,0,255},{120,0,255},{126,0,255},
+    {132,0,255},{138,0,255},{144,0,255},{150,0,255},{156,0,255},{162,0,255},{168,0,255},{174,0,255},
+    {180,0,255},{186,0,255},{192,0,255},{198,0,255},{204,0,255},{210,0,255},{216,0,255},{222,0,255},
+    {228,0,255},{234,0,255},{240,0,255},{246,0,255},{252,0,255},{255,0,252},{255,0,246},{255,0,240},
+    {255,0,234},{255,0,228},{255,0,222},{255,0,216},{255,0,210},{255,0,204},{255,0,198},{255,0,192},
+    {255,0,186},{255,0,180},{255,0,174},{255,0,168},{255,0,162},{255,0,156},{255,0,150},{255,0,144},
+    {255,0,138},{255,0,132},{255,0,126},{255,0,120},{255,0,114},{255,0,108},{255,0,102},{255,0,96},
+    {255,0,90},{255,0,84},{255,0,78},{255,0,72},{255,0,66},{255,0,60},{255,0,54},{255,0,48},
+    {255,0,42},{255,0,36},{255,0,30},{255,0,24},{255,0,18},{255,0,12},{255,0,6},{255,0,0}
+};
+
+// Key color waypoints for hold-and-transition animation
+// Red, Orange, Yellow, Green, Cyan, Blue, Magenta
+static const uint8_t rainbow_waypoints[7] = {0, 21, 43, 85, 127, 170, 212};
+
 void cb_mode_btn_interrupt(void);
 void cb_light_btn_interrupt(void);
 void cb_alarm_btn_interrupt(void);
@@ -145,6 +193,7 @@ void cb_mode_btn_timeout_interrupt(void);
 void cb_light_btn_timeout_interrupt(void);
 void cb_alarm_btn_timeout_interrupt(void);
 void cb_led_timeout_interrupt(void);
+void cb_rainbow_timeout_interrupt(void);
 void cb_resign_timeout_interrupt(void);
 void cb_sleep_timeout_interrupt(void);
 void cb_buzzer_start(void);
@@ -500,8 +549,42 @@ void movement_force_led_off(void) {
     movement_state.light_on = false;
     // The led timeout probably already triggered, but still disable just in case we are switching off the light by other means
     watch_rtc_disable_comp_callback_no_schedule(LED_TIMEOUT);
+    watch_rtc_disable_comp_callback_no_schedule(RAINBOW_TIMEOUT);
+    movement_volatile_state.rainbow_active = false;
     movement_volatile_state.schedule_next_comp = true;
     watch_set_led_off();
+}
+
+void movement_rainbow_led(void) {
+    // Start rainbow animation (4 seconds, hold-and-transition effect)
+    movement_state.light_on = true;
+    movement_volatile_state.rainbow_active = true;
+    movement_volatile_state.rainbow_index = 0;
+    movement_volatile_state.rainbow_ticks = 0;
+    movement_volatile_state.rainbow_waypoint = 0; // Start at first waypoint (red)
+    movement_volatile_state.rainbow_phase = 0;
+
+    // Disable any existing LED timeout
+    watch_rtc_disable_comp_callback_no_schedule(LED_TIMEOUT);
+
+    // Set first color (red)
+    RGB color = rainbow_lut[rainbow_waypoints[0]];
+    watch_set_led_color_rgb(color.r, color.g, color.b);
+
+    // Schedule first update (20ms intervals for smooth 3-second animation)
+    // At 32768 Hz, 20ms = 655 ticks
+    // 3000ms / 20ms = 150 updates
+    // 256 colors / 150 updates ≈ 1.7 colors per update (we'll increment by 2)
+    rtc_counter_t counter = watch_rtc_get_counter();
+    uint32_t freq = watch_rtc_get_frequency();
+    uint32_t update_interval = freq / 50; // 20ms intervals
+
+    watch_rtc_register_comp_callback_no_schedule(
+        cb_rainbow_timeout_interrupt,
+        counter + update_interval,
+        RAINBOW_TIMEOUT
+    );
+    movement_volatile_state.schedule_next_comp = true;
 }
 
 bool movement_default_loop_handler(movement_event_t event) {
@@ -510,11 +593,12 @@ bool movement_default_loop_handler(movement_event_t event) {
             movement_move_to_next_face();
             break;
         case EVENT_LIGHT_BUTTON_DOWN:
-            movement_illuminate_led();
+            movement_rainbow_led();
             break;
         case EVENT_LIGHT_BUTTON_UP:
         case EVENT_LIGHT_LONG_UP:
-            if (movement_state.settings.bit.led_duration == 0) {
+            // Don't turn off LED if rainbow is active
+            if (!movement_volatile_state.rainbow_active && movement_state.settings.bit.led_duration == 0) {
                 movement_force_led_off();
             }
             break;
@@ -1315,6 +1399,7 @@ void app_setup(void) {
                 break;
             }
         }
+        watch_register_interrupt_callback(HAL_GPIO_A3_pin(), cb_accelerometer_event, INTERRUPT_TRIGGER_RISING);
 #endif
     }
 
@@ -1773,6 +1858,65 @@ void cb_alarm_btn_timeout_interrupt(void) {
 
 void cb_led_timeout_interrupt(void) {
     movement_volatile_state.turn_led_off = true;
+}
+
+void cb_rainbow_timeout_interrupt(void) {
+    if (!movement_volatile_state.rainbow_active) return;
+
+    movement_volatile_state.rainbow_ticks++;
+    movement_volatile_state.rainbow_phase++;
+
+    // Check if 4 seconds have elapsed (200 ticks at 20ms each = 4000ms)
+    if (movement_volatile_state.rainbow_ticks >= 200) {
+        movement_volatile_state.rainbow_active = false;
+        movement_volatile_state.turn_led_off = true;
+        return;
+    }
+
+    // Each waypoint cycle is 29 ticks (580ms)
+    // Phase 0-14 (300ms): Hold on current waypoint color
+    // Phase 15-28 (280ms): Transition to next waypoint color
+    if (movement_volatile_state.rainbow_phase >= 29) {
+        movement_volatile_state.rainbow_phase = 0;
+        movement_volatile_state.rainbow_waypoint++;
+        if (movement_volatile_state.rainbow_waypoint >= 7) {
+            movement_volatile_state.rainbow_waypoint = 6; // Stay on last color
+        }
+    }
+
+    uint8_t current_waypoint_idx = rainbow_waypoints[movement_volatile_state.rainbow_waypoint];
+
+    if (movement_volatile_state.rainbow_phase < 15) {
+        // HOLD phase - stay on current waypoint color
+        movement_volatile_state.rainbow_index = current_waypoint_idx;
+    } else {
+        // TRANSITION phase - interpolate to next waypoint
+        uint8_t next_waypoint = movement_volatile_state.rainbow_waypoint + 1;
+        if (next_waypoint >= 7) next_waypoint = 6; // Don't go past last waypoint
+
+        uint8_t next_waypoint_idx = rainbow_waypoints[next_waypoint];
+        uint8_t transition_step = movement_volatile_state.rainbow_phase - 15; // 0-13
+
+        // Linear interpolation between waypoints
+        int16_t delta = next_waypoint_idx - current_waypoint_idx;
+        movement_volatile_state.rainbow_index = current_waypoint_idx + (delta * transition_step) / 14;
+    }
+
+    // Set the color
+    RGB color = rainbow_lut[movement_volatile_state.rainbow_index];
+    watch_set_led_color_rgb(color.r, color.g, color.b);
+
+    // Schedule next update (20ms intervals)
+    rtc_counter_t counter = watch_rtc_get_counter();
+    uint32_t freq = watch_rtc_get_frequency();
+    uint32_t update_interval = freq / 50; // 20ms
+
+    watch_rtc_register_comp_callback_no_schedule(
+        cb_rainbow_timeout_interrupt,
+        counter + update_interval,
+        RAINBOW_TIMEOUT
+    );
+    movement_volatile_state.schedule_next_comp = true;
 }
 
 void cb_resign_timeout_interrupt(void) {

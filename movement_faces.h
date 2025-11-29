@@ -24,6 +24,8 @@
 
 #pragma once
 
+#include "unit_counter_face.h"
+#include "atb_countdown_face.h"
 #include "clock_face.h"
 #include "beats_face.h"
 #include "world_clock_face.h"
@@ -78,6 +80,9 @@
 #include "higher_lower_game_face.h"
 #include "lander_face.h"
 #include "simon_face.h"
+#include "uptime_face.h"
+#include "fesk_demo_face.h"
+#include "fesk_lite_demo_face.h"
 #include "rtccount_face.h"
 #include "step_counter_face.h"
 // New includes go above this line.
