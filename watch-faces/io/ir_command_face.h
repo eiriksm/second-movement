@@ -35,6 +35,8 @@
  * Supported commands:
  * - ls                   : List files
  * - cat <filename>       : Display file contents
+ * - echo <text>          : Echo text to output
+ * - echo <text> > <file> : Write text to file
  * - df                   : Show filesystem usage
  *
  * Controls:
@@ -47,7 +49,8 @@
  */
 
 typedef struct {
-    uint8_t unused;  // Minimal state, just for allocation
+    char output_buffer[512];  // Buffer to store command output
+    size_t output_len;
 } ir_command_state_t;
 
 void ir_command_face_setup(uint8_t watch_face_index, void ** context_ptr);

@@ -24,20 +24,87 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
+#include <stdarg.h>
 #include "ir_command_face.h"
 #include "filesystem.h"
+#include "lfs.h"
 
 #include "uart.h"
 
+extern lfs_t eeprom_filesystem;
+
+static void buffer_printf(ir_command_state_t *state, const char *format, ...) {
+    va_list args;
+    va_start(args, format);
+    int written = vsnprintf(state->output_buffer + state->output_len,
+                           512 - state->output_len, format, args);
+    va_end(args);
+    if (written > 0) {
+        state->output_len += written;
+    }
+}
+
+static void flush_output(ir_command_state_t *state) {
+    if (state->output_len > 0) {
+        printf("%s", state->output_buffer);
+        state->output_len = 0;
+        state->output_buffer[0] = '\0';
+    }
+}
+
+// Custom echo implementation for simple parsing
+static void cmd_echo(ir_command_state_t *state, const char *cmd) {
+    // Skip "echo "
+    const char *text_start = cmd + 5;
+
+    // Check for redirect
+    const char *redirect = strstr(text_start, " > ");
+
+    if (redirect) {
+        // Extract text and filename
+        size_t text_len = redirect - text_start;
+        char text[128];
+        strncpy(text, text_start, text_len);
+        text[text_len] = '\0';
+
+        const char *filename = redirect + 3;
+
+        // Write to file
+        lfs_file_t file;
+        int err = lfs_file_open(&eeprom_filesystem, &file, filename,
+                               LFS_O_WRONLY | LFS_O_CREAT | LFS_O_TRUNC);
+        if (err >= 0) {
+            lfs_file_write(&eeprom_filesystem, &file, text, strlen(text));
+            lfs_file_close(&eeprom_filesystem, &file);
+            buffer_printf(state, "wrote to %s\n", filename);
+        } else {
+            buffer_printf(state, "error writing to %s\n", filename);
+        }
+    } else {
+        // Just echo the text
+        buffer_printf(state, "%s\n", text_start);
+    }
+}
+
 static void execute_command(ir_command_state_t *state, const char *cmd) {
-    (void)state;  // Unused
+    // Clear output buffer
+    state->output_len = 0;
+    state->output_buffer[0] = '\0';
 
     // Parse command into argc/argv format
     char cmd_copy[64];
     strncpy(cmd_copy, cmd, 63);
     cmd_copy[63] = '\0';
 
-    // Simple tokenizer to build argv
+    // Check for echo first (needs special handling)
+    if (strncmp(cmd, "echo ", 5) == 0) {
+        cmd_echo(state, cmd);
+        flush_output(state);
+        return;
+    }
+
+    // Simple tokenizer to build argv for other commands
     char *argv[10];
     int argc = 0;
 
@@ -50,6 +117,7 @@ static void execute_command(ir_command_state_t *state, const char *cmd) {
     if (argc == 0) return;
 
     // Dispatch to filesystem command functions
+    // Note: These print directly, we can't capture their output easily
     if (strcmp(argv[0], "ls") == 0) {
         filesystem_cmd_ls(argc, argv);
     } else if (strcmp(argv[0], "cat") == 0) {
@@ -57,7 +125,8 @@ static void execute_command(ir_command_state_t *state, const char *cmd) {
     } else if (strcmp(argv[0], "df") == 0) {
         filesystem_cmd_df(argc, argv);
     } else {
-        printf("%s: unknown command\n", argv[0]);
+        buffer_printf(state, "%s: unknown command\n", argv[0]);
+        flush_output(state);
     }
 }
 
