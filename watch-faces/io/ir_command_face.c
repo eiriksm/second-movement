@@ -25,7 +25,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <stdarg.h>
 #include "ir_command_face.h"
 #include "filesystem.h"
 #include "lfs.h"
@@ -34,23 +33,60 @@
 
 extern lfs_t eeprom_filesystem;
 
-static void buffer_printf(ir_command_state_t *state, const char *format, ...) {
-    va_list args;
-    va_start(args, format);
-    int written = vsnprintf(state->output_buffer + state->output_len,
-                           512 - state->output_len, format, args);
-    va_end(args);
-    if (written > 0) {
-        state->output_len += written;
+static void cmd_ls(ir_command_state_t *state) {
+    lfs_dir_t dir;
+    int err = lfs_dir_open(&eeprom_filesystem, &dir, "/");
+    if (err < 0) {
+        state->output_len += snprintf(state->output_buffer + state->output_len,
+                                      512 - state->output_len, "error opening dir\n");
+        return;
     }
+
+    struct lfs_info info;
+    while (lfs_dir_read(&eeprom_filesystem, &dir, &info) > 0) {
+        if (strcmp(info.name, ".") == 0 || strcmp(info.name, "..") == 0) continue;
+        if (info.type == LFS_TYPE_REG) {
+            state->output_len += snprintf(state->output_buffer + state->output_len,
+                                         512 - state->output_len,
+                                         "%s (%ld bytes)\n", info.name, (long)info.size);
+        }
+    }
+    lfs_dir_close(&eeprom_filesystem, &dir);
 }
 
-static void flush_output(ir_command_state_t *state) {
-    if (state->output_len > 0) {
-        printf("%s", state->output_buffer);
-        state->output_len = 0;
-        state->output_buffer[0] = '\0';
+static void cmd_cat(ir_command_state_t *state, const char *filename) {
+    lfs_file_t file;
+    int err = lfs_file_open(&eeprom_filesystem, &file, filename, LFS_O_RDONLY);
+    if (err < 0) {
+        state->output_len += snprintf(state->output_buffer + state->output_len,
+                                      512 - state->output_len, "%s: not found\n", filename);
+        return;
     }
+
+    lfs_soff_t size = lfs_file_size(&eeprom_filesystem, &file);
+    if (size > 0 && size < 400) {  // Limit to fit in buffer
+        int read = lfs_file_read(&eeprom_filesystem, &file,
+                                state->output_buffer + state->output_len,
+                                512 - state->output_len - 1);
+        if (read > 0) {
+            state->output_len += read;
+            state->output_buffer[state->output_len++] = '\n';
+        }
+    } else if (size == 0) {
+        state->output_len += snprintf(state->output_buffer + state->output_len,
+                                      512 - state->output_len, "(empty)\n");
+    } else {
+        state->output_len += snprintf(state->output_buffer + state->output_len,
+                                      512 - state->output_len, "file too large\n");
+    }
+    lfs_file_close(&eeprom_filesystem, &file);
+}
+
+static void cmd_df(ir_command_state_t *state) {
+    int32_t free_bytes = filesystem_get_free_space();
+    state->output_len += snprintf(state->output_buffer + state->output_len,
+                                  512 - state->output_len,
+                                  "free: %ld bytes\n", (long)free_bytes);
 }
 
 static void execute_command(ir_command_state_t *state, const char *cmd) {
@@ -70,14 +106,14 @@ static void execute_command(ir_command_state_t *state, const char *cmd) {
         // Look for redirect operators
         const char *redirect_write = strstr(text_start, " > ");
         const char *redirect_append = strstr(text_start, " >> ");
-        const char *redirect = redirect_append ? redirect_append : redirect_write;
 
-        if (redirect) {
+        if (redirect_write || redirect_append) {
             // Parse for filesystem_cmd_echo format: echo TEXT > FILE
             static char text[128];
             static char op[3];
             static char filename[32];
 
+            const char *redirect = redirect_append ? redirect_append : redirect_write;
             size_t text_len = redirect - text_start;
             strncpy(text, text_start, text_len);
             text[text_len] = '\0';
@@ -98,37 +134,43 @@ static void execute_command(ir_command_state_t *state, const char *cmd) {
 
             char *argv[4] = {"echo", text, op, filename};
             filesystem_cmd_echo(4, argv);
+            state->output_len += snprintf(state->output_buffer + state->output_len,
+                                         512 - state->output_len, "wrote to %s\n", filename);
         } else {
-            // Just print - not supported by filesystem_cmd_echo, do it ourselves
-            buffer_printf(state, "%s\n", text_start);
-            flush_output(state);
+            // Just echo the text
+            state->output_len += snprintf(state->output_buffer + state->output_len,
+                                         512 - state->output_len, "%s\n", text_start);
         }
-        return;
-    }
-
-    // Simple tokenizer to build argv for other commands
-    char *argv[10];
-    int argc = 0;
-
-    char *token = strtok(cmd_copy, " ");
-    while (token && argc < 10) {
-        argv[argc++] = token;
-        token = strtok(NULL, " ");
-    }
-
-    if (argc == 0) return;
-
-    // Dispatch to filesystem command functions
-    // Note: These print directly, we can't capture their output easily
-    if (strcmp(argv[0], "ls") == 0) {
-        filesystem_cmd_ls(argc, argv);
-    } else if (strcmp(argv[0], "cat") == 0) {
-        filesystem_cmd_cat(argc, argv);
-    } else if (strcmp(argv[0], "df") == 0) {
-        filesystem_cmd_df(argc, argv);
     } else {
-        buffer_printf(state, "%s: unknown command\n", argv[0]);
-        flush_output(state);
+        // Simple tokenizer to build argv for other commands
+        char *argv[10];
+        int argc = 0;
+
+        char *token = strtok(cmd_copy, " ");
+        while (token && argc < 10) {
+            argv[argc++] = token;
+            token = strtok(NULL, " ");
+        }
+
+        if (argc == 0) return;
+
+        // Dispatch to custom implementations that write to buffer
+        if (strcmp(argv[0], "ls") == 0) {
+            cmd_ls(state);
+        } else if (strcmp(argv[0], "cat") == 0 && argc > 1) {
+            cmd_cat(state, argv[1]);
+        } else if (strcmp(argv[0], "df") == 0) {
+            cmd_df(state);
+        } else {
+            state->output_len += snprintf(state->output_buffer + state->output_len,
+                                         512 - state->output_len,
+                                         "%s: unknown command\n", argv[0]);
+        }
+    }
+
+    // Print the buffered output
+    if (state->output_len > 0) {
+        printf("%s", state->output_buffer);
     }
 }
 
