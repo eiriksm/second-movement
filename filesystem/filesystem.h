@@ -80,6 +80,22 @@ bool filesystem_read_file(char *filename, char *buf, int32_t length);
   */
 bool filesystem_read_line(char *filename, char *buf, int32_t *offset, int32_t length);
 
+/** @brief Callback function type for filesystem_get_ls_entries
+  * @param type The type of the entry: "file", "dir", or "?"
+  * @param size The size of the entry in bytes
+  * @param name The name of the entry
+  * @param user_data User-provided data pointer passed through from filesystem_get_ls_entries
+  */
+typedef void (*filesystem_ls_callback_t)(const char *type, int32_t size, const char *name, void *user_data);
+
+/** @brief Iterates through directory entries and calls a callback for each one
+  * @param path The directory path to list (e.g., "/" for root)
+  * @param callback Function to call for each directory entry
+  * @param user_data Optional user data pointer that will be passed to each callback invocation
+  * @return 0 on success, negative error code on failure
+  */
+int filesystem_get_ls_entries(const char *path, filesystem_ls_callback_t callback, void *user_data);
+
 /** @brief Gets the contents of a file as a dynamically allocated string
   * @param filename the file you wish to read
   * @return A dynamically allocated null-terminated string containing the file contents,
@@ -88,6 +104,15 @@ bool filesystem_read_line(char *filename, char *buf, int32_t *offset, int32_t le
   * @note For empty files, this returns an allocated empty string (not NULL).
   */
 char* filesystem_get_cat_output(char *filename);
+
+/** @brief Gets the base64-encoded contents of a file as a dynamically allocated string
+  * @param filename the file you wish to encode
+  * @return A dynamically allocated null-terminated string containing the base64-encoded file contents,
+  *         or NULL if the file does not exist or an error occurred. The caller is responsible
+  *         for freeing the returned string.
+  * @note For empty files, this returns an allocated empty string (not NULL).
+  */
+char* filesystem_get_b64encode_output(char *filename);
 
 /** @brief Writes file to the filesystem
   * @param filename the file you wish to write
