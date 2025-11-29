@@ -20,6 +20,9 @@ TINYUSB_CDC=1
 # Now we're all set to include gossamer's make rules.
 include $(GOSSAMER_PATH)/make.mk
 
+# Don't add gossamer's rtc.c since we are using our own rtc32.c
+SRCS := $(filter-out $(GOSSAMER_PATH)/peripherals/rtc.c,$(SRCS))
+
 CFLAGS+=-D_POSIX_C_SOURCE=200112L
 
 define n
@@ -75,6 +78,7 @@ INCLUDES += \
   -I./lib/TOTP \
   -I./lib/chirpy_tx \
   -I./lib/base64 \
+  -I./lib/embedded_pedometer \
   -I./watch-library/shared/watch \
   -I./watch-library/shared/driver \
   -I./watch-faces/clock \
@@ -102,6 +106,7 @@ SRCS += \
   ./lib/TOTP/TOTP.c \
   ./lib/chirpy_tx/chirpy_tx.c \
   ./lib/base64/base64.c \
+  ./lib/embedded_pedometer/count_steps.c \
   ./watch-library/shared/driver/thermistor_driver.c \
   ./watch-library/shared/watch/watch_common_buzzer.c \
   ./watch-library/shared/watch/watch_common_display.c \
@@ -136,6 +141,7 @@ INCLUDES += \
   -I./watch-library/hardware/watch \
 
 SRCS += \
+  ./watch-library/hardware/watch/rtc32.c \
   ./watch-library/hardware/watch/watch.c \
   ./watch-library/hardware/watch/watch_adc.c \
   ./watch-library/hardware/watch/watch_deepsleep.c \

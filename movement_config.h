@@ -29,16 +29,19 @@
 
 const watch_face_t watch_faces[] = {
     clock_face,
+#ifdef I2C_SERCOM
+    step_counter_face,
+#endif
     world_clock_face,
     sunrise_sunset_face,
     moon_phase_face,
-    stopwatch_face,
+    fast_stopwatch_face,
     countdown_face,
     alarm_face,
     temperature_display_face,
     voltage_face,
     settings_face,
-    set_time_face
+    set_time_face,
 };
 
 #define MOVEMENT_NUM_FACES (sizeof(watch_faces) / sizeof(watch_face_t))
@@ -49,7 +52,7 @@ const watch_face_t watch_faces[] = {
  * Some folks also like to use this to hide the preferences and time set faces from the normal rotation.
  * If you don't want any faces to be excluded, set this to 0 and a long Mode press will have no effect.
  */
-#define MOVEMENT_SECONDARY_FACE_INDEX (MOVEMENT_NUM_FACES - 4)
+#define MOVEMENT_SECONDARY_FACE_INDEX (MOVEMENT_NUM_FACES - 5)
 
 /* Custom hourly chime tune. Check movement_custom_signal_tunes.h for options. */
 #define SIGNAL_TUNE_DEFAULT
@@ -68,6 +71,8 @@ const watch_face_t watch_faces[] = {
 #define MOVEMENT_DEFAULT_BUTTON_SOUND true
 
 #define MOVEMENT_DEFAULT_BUTTON_VOLUME WATCH_BUZZER_VOLUME_SOFT
+#define MOVEMENT_DEFAULT_SIGNAL_VOLUME WATCH_BUZZER_VOLUME_LOUD
+#define MOVEMENT_DEFAULT_ALARM_VOLUME WATCH_BUZZER_VOLUME_LOUD
 
 /* Set the timeout before switching back to the main watch face
  * Valid values are:
@@ -99,5 +104,26 @@ const watch_face_t watch_faces[] = {
  * 3: 5 seconds
  */
 #define MOVEMENT_DEFAULT_LED_DURATION 1
+
+/* Sets how steps are counted when on the clock_face
+ * Valid values are:
+ * MOVEMENT_SC_OFF: Don't count steps on clock_face
+ * MOVEMENT_SC_ALWAYS: Always count steps on clock_face
+ * MOVEMENT_SC_DAYTIME: Count steps between MOVEMENT_STEP_COUNT_START and MOVEMENT_STEP_COUNT_END
+ * MOVEMENT_SC_NOT_INSTALLED: The LIS2DW isn't installed (the code handles this without it needing to be manally set)
+ */
+#define MOVEMENT_DEFAULT_COUNT_STEPS MOVEMENT_SC_OFF
+
+/* If the settings are set to use this start and end hor,
+    We only count steps when the step counter face is on.
+*/
+#define MOVEMENT_STEP_COUNT_START 5
+#define MOVEMENT_STEP_COUNT_END 22
+
+/* Optionally debounce button presses (disable by default).
+ * A value of 4 is a good starting point if you have issues
+ * with multiple button presses firing.
+*/
+#define MOVEMENT_DEBOUNCE_TICKS 0
 
 #endif // MOVEMENT_CONFIG_H_
