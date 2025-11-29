@@ -59,7 +59,6 @@ SRCS += \
   ./watch-faces/complication/uptime_face.c \
   ./watch-faces/complication/step_counter_face.c \
   ./watch-faces/complication/blackjack_face.c \
-  ./watch-faces/complication/endless_runner_face.c \
   ./watch-faces/complication/higher_lower_game_face.c \
   ./watch-faces/complication/lander_face.c \
   ./watch-faces/complication/simon_face.c \
