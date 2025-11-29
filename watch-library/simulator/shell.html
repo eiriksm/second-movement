@@ -1560,6 +1560,21 @@
     </div>
   </form>
 
+  <div style="margin-top: 20px; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+    <h3 style="margin-top: 0;">IrDA/UART Upload Simulator</h3>
+    <p style="font-size: 0.9em; color: #666;">Upload files to test the IrDA upload face without physical hardware</p>
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      <div style="display: flex; gap: 10px; align-items: center;">
+        <input type="file" id="uart-file-input" style="flex-grow: 1" />
+        <button onclick="uploadViaUart()">Upload File</button>
+      </div>
+      <div style="display: flex; gap: 10px;">
+        <input id="uart-text-input" placeholder="Or enter raw UART data (hex or text)" style="flex-grow: 1" />
+        <button onclick="sendUartData()">Send Data</button>
+      </div>
+    </div>
+  </div>
+
   <p>
     <a href="https://github.com/alexisphilip/Casio-F-91W">Original F-91W SVG</a> is &copy; 2020 Alexis Philip, used here
     under the terms of the MIT license.
@@ -1607,6 +1622,7 @@
   lat = 0;
   lon = 0;
   tx = "";
+  uart_rx_data = "";
   temp_c = 25.0;
   function updateLocation(location) {
     lat = Math.round(location.coords.latitude * 100);
@@ -1616,6 +1632,116 @@
     var inputElement = document.getElementById('input');
     tx = inputElement.value + "\n";
     inputElement.value = "";
+  }
+
+  // IrDA packet format helpers
+  function calculateChecksum(data) {
+    let sum = 0;
+    for (let i = 0; i < data.length; i++) {
+      sum += data[i];
+    }
+    return sum & 0xFFFF;
+  }
+
+  function createIrdaPacket(filename, data) {
+    // Packet format: [Size(2), Filename(12), HeaderChecksum(2), Data[...], DataChecksum(2)]
+    const dataSize = data ? data.length : 0;
+
+    // Create filename bytes (12 bytes, null-padded)
+    const filenameBytes = new Uint8Array(12);
+    const encoder = new TextEncoder();
+    const encodedFilename = encoder.encode(filename.substring(0, 12));
+    filenameBytes.set(encodedFilename);
+
+    // Create header
+    const header = new Uint8Array(16);
+    header[0] = dataSize & 0xFF;         // Size low byte
+    header[1] = (dataSize >> 8) & 0xFF;  // Size high byte
+    header.set(filenameBytes, 2);        // Filename
+
+    const headerChecksum = calculateChecksum(header.slice(0, 14));
+    header[14] = headerChecksum & 0xFF;
+    header[15] = (headerChecksum >> 8) & 0xFF;
+
+    // If no data, return just the header (delete command)
+    if (!data || dataSize === 0) {
+      return header;
+    }
+
+    // Create full packet with data
+    const packet = new Uint8Array(16 + dataSize + 2);
+    packet.set(header);
+    packet.set(data, 16);
+
+    const dataChecksum = calculateChecksum(data);
+    packet[16 + dataSize] = dataChecksum & 0xFF;
+    packet[16 + dataSize + 1] = (dataChecksum >> 8) & 0xFF;
+
+    return packet;
+  }
+
+  function uploadViaUart() {
+    const fileInput = document.getElementById('uart-file-input');
+    const file = fileInput.files[0];
+
+    if (!file) {
+      alert('Please select a file first');
+      return;
+    }
+
+    if (file.name.length > 12) {
+      alert('Filename too long (max 12 characters). Please rename the file.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const data = new Uint8Array(e.target.result);
+      const packet = createIrdaPacket(file.name, data);
+
+      // Convert to string for injection into C code
+      let dataStr = '';
+      for (let i = 0; i < packet.length; i++) {
+        dataStr += String.fromCharCode(packet[i]);
+      }
+
+      uart_rx_data = dataStr;
+      console.log('Uploading file:', file.name, 'Size:', data.length, 'bytes');
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function sendUartData() {
+    const input = document.getElementById('uart-text-input');
+    let data = input.value;
+
+    if (!data) {
+      alert('Please enter some data first');
+      return;
+    }
+
+    // Check if it looks like hex data
+    if (/^[0-9a-fA-F\s]+$/.test(data)) {
+      // Convert hex string to bytes
+      const hexStr = data.replace(/\s/g, '');
+      if (hexStr.length % 2 !== 0) {
+        alert('Hex string must have even number of characters');
+        return;
+      }
+
+      let byteStr = '';
+      for (let i = 0; i < hexStr.length; i += 2) {
+        const byte = parseInt(hexStr.substr(i, 2), 16);
+        byteStr += String.fromCharCode(byte);
+      }
+      uart_rx_data = byteStr;
+    } else {
+      // Treat as raw text
+      uart_rx_data = data;
+    }
+
+    input.value = '';
+    console.log('Sent', uart_rx_data.length, 'bytes via UART');
   }
   function showError(error) {
     switch(error.code) {
