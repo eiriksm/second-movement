@@ -33,11 +33,11 @@
  * Results are sent back through UART (visible in simulator console or serial output).
  *
  * Supported commands:
- * - ls                   : List files
- * - cat <filename>       : Display file contents
- * - echo <text>          : Echo text to output
- * - echo <text> > <file> : Write text to file
- * - df                   : Show filesystem usage
+ * - ls                     : List files
+ * - cat <filename>         : Display file contents
+ * - echo <text>            : Echo text to output (quotes optional)
+ * - echo "text" > <file>   : Write text to file (quotes optional)
+ * - df                     : Show filesystem usage
  *
  * Controls:
  * - LIGHT button: Manually trigger "ls" command
