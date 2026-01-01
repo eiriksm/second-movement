@@ -229,7 +229,207 @@ static bool _build_sequence(fesk_session_t *session) {
 static void _fesk_transmission_complete(void);
 static void _fesk_countdown_step_done(void);
 
+// This ifded is there to make this library forward compatible with both the
+// current main branch (at the time of writing), and the counter-32 branch
+// (https://github.com/joeycastillo/second-movement/pull/65)
+// This may or may not be the best indication of which branch we are running
+// but hopefully this can be removed altogether in the not too distant future.
+#ifdef WATCH_BUZZER_PERIOD_REST
+// Raw source callback for 4-FSK on-the-fly dibit generation
+// Returns: true = done/stop, false = continue playing
+static bool _fesk_raw_source(uint16_t position, void* userdata, uint16_t* period, uint16_t* duration) {
+    (void)position;
+    fesk_session_t *session = (fesk_session_t *)userdata;
+    if (!session || !period || !duration) {
+        return true; // Error - stop playing
+    }
+
+    // Alternate between tone and rest
+    if (session->raw_is_tone) {
+        // Generate tone based on current dibit
+        uint8_t dibit = 0;
+        uint8_t code = 0;
+        uint8_t shift = 0;
+
+        switch (session->raw_phase) {
+            case FESK_RAW_PHASE_START_MARKER:
+                // 6-bit code = 3 dibits (positions 0,1,2 -> shifts 4,2,0)
+                shift = (2 - session->raw_dibit_pos) * 2;
+                dibit = (FESK_START_MARKER >> shift) & 0x03;
+                break;
+
+            case FESK_RAW_PHASE_DATA:
+                code = session->raw_current_code;
+                shift = (2 - session->raw_dibit_pos) * 2;
+                dibit = (code >> shift) & 0x03;
+                break;
+
+            case FESK_RAW_PHASE_CRC:
+                // 8-bit CRC = 4 dibits (positions 0,1,2,3 -> shifts 6,4,2,0)
+                shift = (3 - session->raw_dibit_pos) * 2;
+                dibit = (session->raw_crc >> shift) & 0x03;
+                break;
+
+            case FESK_RAW_PHASE_END_MARKER:
+                shift = (2 - session->raw_dibit_pos) * 2;
+                dibit = (FESK_END_MARKER >> shift) & 0x03;
+                break;
+
+            case FESK_RAW_PHASE_DONE:
+                return true; // Done - stop playing
+        }
+
+        // Set the tone period based on the dibit value
+        *period = NotePeriods[fesk_tone_map[dibit]];
+        *duration = FESK_TICKS_PER_SYMBOL;
+        session->raw_is_tone = false; // Next call will be rest
+
+    } else {
+        // Generate rest
+        *period = WATCH_BUZZER_PERIOD_REST;
+        *duration = FESK_TICKS_PER_REST;
+        session->raw_is_tone = true; // Next call will be tone
+
+        // Advance to next dibit
+        session->raw_dibit_pos++;
+
+        // Check if we've finished the current phase
+        bool advance_phase = false;
+
+        switch (session->raw_phase) {
+            case FESK_RAW_PHASE_START_MARKER:
+                if (session->raw_dibit_pos >= FESK_DIBITS_PER_CODE) {
+                    advance_phase = true;
+                }
+                break;
+
+            case FESK_RAW_PHASE_DATA:
+                if (session->raw_dibit_pos >= FESK_DIBITS_PER_CODE) {
+                    // Finished current character, move to next
+                    session->raw_char_pos++;
+                    session->raw_dibit_pos = 0;
+
+                    if (session->raw_char_pos >= session->raw_payload_length) {
+                        // Finished all data
+                        advance_phase = true;
+                    } else {
+                        // Load next character
+                        uint8_t code;
+                        if (!fesk_lookup_char_code((unsigned char)session->raw_payload[session->raw_char_pos], &code)) {
+                            return true; // Invalid character - stop playing
+                        }
+                        session->raw_current_code = code;
+                        session->raw_crc = fesk_crc8_update_code(session->raw_crc, code);
+                    }
+                }
+                break;
+
+            case FESK_RAW_PHASE_CRC:
+                if (session->raw_dibit_pos >= FESK_DIBITS_PER_CRC) {
+                    advance_phase = true;
+                }
+                break;
+
+            case FESK_RAW_PHASE_END_MARKER:
+                if (session->raw_dibit_pos >= FESK_DIBITS_PER_CODE) {
+                    advance_phase = true;
+                }
+                break;
+
+            case FESK_RAW_PHASE_DONE:
+                return true; // Done - stop playing
+        }
+
+        if (advance_phase) {
+            session->raw_dibit_pos = 0;
+            session->raw_phase++;
+            if (session->raw_phase == FESK_RAW_PHASE_DONE) {
+                return true; // Transmission complete - stop playing
+            }
+        }
+    }
+
+    return false; // Continue playing
+}
+
+// Initialize raw source state for transmission
+static bool _init_raw_source(fesk_session_t *session) {
+    const char *payload = session->config.static_message;
+    size_t payload_length = 0;
+
+    if (session->config.provide_payload) {
+        fesk_result_t callback_result = session->config.provide_payload(&payload,
+                                                                        &payload_length,
+                                                                        session->config.user_data);
+        if (callback_result != FESK_OK) {
+            _call_error(session->config.on_error, callback_result, session->config.user_data);
+            return false;
+        }
+    }
+
+    if (payload && payload_length == 0) {
+        payload_length = strlen(payload);
+    }
+
+    if (!payload || payload_length == 0) {
+        _call_error(session->config.on_error, FESK_ERR_INVALID_ARGUMENT, session->config.user_data);
+        return false;
+    }
+
+    // Validate all characters can be encoded
+    for (size_t i = 0; i < payload_length; i++) {
+        uint8_t code;
+        if (!fesk_lookup_char_code((unsigned char)payload[i], &code)) {
+            _call_error(session->config.on_error, FESK_ERR_UNSUPPORTED_CHARACTER, session->config.user_data);
+            return false;
+        }
+    }
+
+    // Initialize state
+    session->raw_payload = payload;
+    session->raw_payload_length = payload_length;
+    session->raw_phase = FESK_RAW_PHASE_START_MARKER;
+    session->raw_char_pos = 0;
+    session->raw_dibit_pos = 0;
+    session->raw_crc = 0;
+    session->raw_is_tone = true; // Start with a tone
+
+    // Load first character and update CRC
+    if (payload_length > 0) {
+        uint8_t code;
+        fesk_lookup_char_code((unsigned char)payload[0], &code);
+        session->raw_current_code = code;
+        session->raw_crc = fesk_crc8_update_code(0, code);
+    }
+
+    return true;
+}
+#endif
+
 static bool _start_transmission(fesk_session_t *session) {
+#ifdef WATCH_BUZZER_PERIOD_REST
+    // Use raw source for memory-efficient on-the-fly generation
+    if (!_init_raw_source(session)) {
+        _finish_session(session, false);
+        return false;
+    }
+
+    session->phase = FESK_SESSION_TRANSMITTING;
+
+    if (session->config.show_bell_indicator) {
+        watch_set_indicator(WATCH_INDICATOR_BELL);
+    }
+
+    if (_fesk_active_session && _fesk_active_session != session) {
+        _finish_session(_fesk_active_session, false);
+    }
+    _fesk_active_session = session;
+
+    _call_simple(session->config.on_transmission_start, session->config.user_data);
+    watch_buzzer_play_raw_source(_fesk_raw_source, session, _fesk_transmission_complete);
+    return true;
+#else
+    // Fallback to precomputed sequence for old buzzer code
     if (!_build_sequence(session)) {
         _finish_session(session, false);
         return false;
@@ -249,6 +449,7 @@ static bool _start_transmission(fesk_session_t *session) {
     _call_simple(session->config.on_transmission_start, session->config.user_data);
     watch_buzzer_play_sequence(session->sequence, _fesk_transmission_complete);
     return true;
+#endif
 }
 
 static void _start_countdown(fesk_session_t *session) {
