@@ -99,6 +99,7 @@ typedef struct {
     uint8_t countdown_seconds;                  /**< Countdown duration (default: 3 seconds) */
     bool countdown_beep;                        /**< Play beep during countdown */
     bool show_bell_indicator;                   /**< Show bell icon during countdown/transmission */
+    fesk_mode_t mode;                           /**< Modulation mode (default: FESK_MODE_4FSK) */
     const char *static_message;                 /**< Static message to transmit (or NULL if using provide_payload) */
     fesk_session_payload_cb provide_payload;    /**< Dynamic payload callback (overrides static_message) */
     fesk_session_simple_cb on_countdown_begin;  /**< Called when countdown starts */

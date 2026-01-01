@@ -106,6 +106,7 @@ fesk_session_config_t fesk_session_config_defaults(void) {
     config.countdown_seconds = FESK_SESSION_DEFAULT_COUNTDOWN_SECONDS;
     config.countdown_beep = true;
     config.show_bell_indicator = true;
+    config.mode = FESK_MODE_4FSK;  // Default to 4FSK mode
     config.on_countdown_tick = _fesk_default_on_countdown_tick;
     config.on_countdown_complete = _fesk_default_on_countdown_complete;
     config.on_transmission_start = _fesk_default_on_transmission_start;
@@ -209,6 +210,7 @@ static bool _build_sequence(fesk_session_t *session) {
     int8_t *sequence = NULL;
     size_t entries = 0;
     fesk_result_t encode_result = fesk_encode(payload,
+                                              session->config.mode,
                                               &sequence,
                                               &entries);
     if (encode_result != FESK_OK) {
@@ -235,7 +237,7 @@ static void _fesk_countdown_step_done(void);
 // This may or may not be the best indication of which branch we are running
 // but hopefully this can be removed altogether in the not too distant future.
 #ifdef WATCH_BUZZER_PERIOD_REST
-// Raw source callback for 4-FSK on-the-fly dibit generation
+// Raw source callback for 2-FSK/4-FSK on-the-fly symbol generation
 // Returns: true = done/stop, false = continue playing
 static bool _fesk_raw_source(uint16_t position, void* userdata, uint16_t* period, uint16_t* duration) {
     (void)position;
@@ -244,43 +246,48 @@ static bool _fesk_raw_source(uint16_t position, void* userdata, uint16_t* period
         return true; // Error - stop playing
     }
 
+    fesk_mode_t mode = session->config.mode;
+    int bits_per_symbol = (mode == FESK_MODE_2FSK) ? 1 : 2;
+    uint8_t symbol_mask = (mode == FESK_MODE_2FSK) ? 0x01u : 0x03u;
+    const watch_buzzer_note_t *tone_map = (mode == FESK_MODE_2FSK) ? fesk_tone_map_2fsk : fesk_tone_map_4fsk;
+
     // Alternate between tone and rest
     if (session->raw_is_tone) {
-        // Generate tone based on current dibit
-        uint8_t dibit = 0;
+        // Generate tone based on current symbol (bit for 2FSK, dibit for 4FSK)
+        uint8_t symbol = 0;
         uint8_t code = 0;
         uint8_t shift = 0;
 
         switch (session->raw_phase) {
             case FESK_RAW_PHASE_START_MARKER:
-                // 6-bit code = 3 dibits (positions 0,1,2 -> shifts 4,2,0)
-                shift = (2 - session->raw_dibit_pos) * 2;
-                dibit = (FESK_START_MARKER >> shift) & 0x03;
+                // 6-bit code: 2FSK=6 symbols, 4FSK=3 symbols
+                shift = (6 - bits_per_symbol) - (session->raw_dibit_pos * bits_per_symbol);
+                symbol = (FESK_START_MARKER >> shift) & symbol_mask;
                 break;
 
             case FESK_RAW_PHASE_DATA:
                 code = session->raw_current_code;
-                shift = (2 - session->raw_dibit_pos) * 2;
-                dibit = (code >> shift) & 0x03;
+                shift = (6 - bits_per_symbol) - (session->raw_dibit_pos * bits_per_symbol);
+                symbol = (code >> shift) & symbol_mask;
                 break;
 
             case FESK_RAW_PHASE_CRC:
-                // 8-bit CRC = 4 dibits (positions 0,1,2,3 -> shifts 6,4,2,0)
-                shift = (3 - session->raw_dibit_pos) * 2;
-                dibit = (session->raw_crc >> shift) & 0x03;
+                // 8-bit CRC: 2FSK=8 symbols, 4FSK=4 symbols
+                shift = (8 - bits_per_symbol) - (session->raw_dibit_pos * bits_per_symbol);
+                symbol = (session->raw_crc >> shift) & symbol_mask;
                 break;
 
             case FESK_RAW_PHASE_END_MARKER:
-                shift = (2 - session->raw_dibit_pos) * 2;
-                dibit = (FESK_END_MARKER >> shift) & 0x03;
+                shift = (6 - bits_per_symbol) - (session->raw_dibit_pos * bits_per_symbol);
+                symbol = (FESK_END_MARKER >> shift) & symbol_mask;
                 break;
 
             case FESK_RAW_PHASE_DONE:
                 return true; // Done - stop playing
         }
 
-        // Set the tone period based on the dibit value
-        *period = NotePeriods[fesk_tone_map[dibit]];
+        // Set the tone period based on the symbol value
+        *period = NotePeriods[tone_map[symbol]];
         *duration = FESK_TICKS_PER_SYMBOL;
         session->raw_is_tone = false; // Next call will be rest
 
@@ -290,21 +297,25 @@ static bool _fesk_raw_source(uint16_t position, void* userdata, uint16_t* period
         *duration = FESK_TICKS_PER_REST;
         session->raw_is_tone = true; // Next call will be tone
 
-        // Advance to next dibit
+        // Advance to next symbol
         session->raw_dibit_pos++;
+
+        // Calculate symbols per code/CRC based on mode
+        uint8_t symbols_per_code = (mode == FESK_MODE_2FSK) ? 6 : 3;
+        uint8_t symbols_per_crc = (mode == FESK_MODE_2FSK) ? 8 : 4;
 
         // Check if we've finished the current phase
         bool advance_phase = false;
 
         switch (session->raw_phase) {
             case FESK_RAW_PHASE_START_MARKER:
-                if (session->raw_dibit_pos >= FESK_DIBITS_PER_CODE) {
+                if (session->raw_dibit_pos >= symbols_per_code) {
                     advance_phase = true;
                 }
                 break;
 
             case FESK_RAW_PHASE_DATA:
-                if (session->raw_dibit_pos >= FESK_DIBITS_PER_CODE) {
+                if (session->raw_dibit_pos >= symbols_per_code) {
                     // Finished current character, move to next
                     session->raw_char_pos++;
                     session->raw_dibit_pos = 0;
@@ -325,13 +336,13 @@ static bool _fesk_raw_source(uint16_t position, void* userdata, uint16_t* period
                 break;
 
             case FESK_RAW_PHASE_CRC:
-                if (session->raw_dibit_pos >= FESK_DIBITS_PER_CRC) {
+                if (session->raw_dibit_pos >= symbols_per_crc) {
                     advance_phase = true;
                 }
                 break;
 
             case FESK_RAW_PHASE_END_MARKER:
-                if (session->raw_dibit_pos >= FESK_DIBITS_PER_CODE) {
+                if (session->raw_dibit_pos >= symbols_per_code) {
                     advance_phase = true;
                 }
                 break;
