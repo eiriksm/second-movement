@@ -24,13 +24,14 @@
 
 /**
  * @file fesk_tx.h
- * @brief FESK Audio Data Transmission Library
+ * @brief FESK Audio Data Transmission Library (4-FSK)
  *
- * FESK (Frequency Shift Keying) encodes text messages into dual-tone audio
- * sequences for transmission via the Sensor Watch piezo buzzer.
+ * FESK uses 4-tone FSK to encode 2 bits per symbol, providing efficient
+ * audio data transmission via the Sensor Watch piezo buzzer.
  *
  * Protocol Format:
  *   [START(6bit)] [PAYLOAD(N×6bit)] [CRC8(8bit)] [END(6bit)]
+ *   Transmitted as dibits (2 bits per symbol)
  *
  * Character Set:
  *   - Letters: a-z A-Z (case-insensitive, codes 0-25)
@@ -40,10 +41,11 @@
  *   - Newline: \n (code 41)
  *   - Total: 42 supported characters
  *
- * Tones:
- *   - Binary '0': D7# (~2489 Hz)
- *   - Binary '1': G7 (~3136 Hz)
- *   - Timing: 1 tick per bit tone, 2 ticks silence between bits
+ * Tones (4-FSK dibits):
+ *   - Dibit 00: D7  (~2349 Hz)
+ *   - Dibit 01: E7  (~2637 Hz)
+ *   - Dibit 10: F7# (~2960 Hz)
+ *   - Dibit 11: G7# (~3322 Hz)
  *
  * Example Usage:
  *   int8_t *sequence = NULL;
@@ -58,6 +60,7 @@
 #ifndef FESK_TX_H
 #define FESK_TX_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -71,27 +74,41 @@ typedef enum {
     FESK_ERR_ALLOCATION_FAILED,         /**< Memory allocation failed or overflow */
 } fesk_result_t;
 
-/** Timing: 1 tick tone + 2 ticks silence = 3 ticks per bit (~47ms @ 64Hz) */
-#define FESK_TICKS_PER_BIT 1
+// The c32 PR changed watch_buzzer_play_sequence to subtract 1 from durations.
+// Old code: duration N plays for N+1 callbacks
+// New code: duration N plays for N callbacks
+// To match timing, we add 1 to each duration when the new code is present.
+#ifdef WATCH_BUZZER_PERIOD_REST
+#define FESK_TICKS_PER_SYMBOL 2
+#define FESK_TICKS_PER_REST 3
+#else
+#define FESK_TICKS_PER_SYMBOL 1
 #define FESK_TICKS_PER_REST 2
+#endif
 
-/** 6-bit encoding allows 64 codes (0-63) */
 #define FESK_BITS_PER_CODE 6
+#define FESK_BITS_PER_SYMBOL 2
+#define FESK_DIBITS_PER_CODE 3   /**< 6 bits = 3 dibits */
+#define FESK_DIBITS_PER_CRC 4    /**< 8 bits = 4 dibits */
 
 /** Frame markers: codes 62 and 63 are reserved (not in character set) */
 #define FESK_START_MARKER 62u
 #define FESK_END_MARKER 63u
 
-/** FSK tone indices */
+/** 4-FSK tone indices (dibits) */
 enum {
-    FESK_TONE_ZERO = 0,     /**< Index for binary '0' tone */
-    FESK_TONE_ONE = 1,      /**< Index for binary '1' tone */
-    FESK_TONE_COUNT = 2,
+    FESK_TONE_00 = 0,  /**< Dibit 00 */
+    FESK_TONE_01 = 1,  /**< Dibit 01 */
+    FESK_TONE_10 = 2,  /**< Dibit 10 */
+    FESK_TONE_11 = 3,  /**< Dibit 11 */
+    FESK_TONE_COUNT = 4,
 };
 
-/** FSK tones: D7# and G7 chosen for 647Hz separation and good piezo response */
-#define FESK_TONE_LOW_NOTE  BUZZER_NOTE_D7SHARP_E7FLAT  /**< ~2489 Hz for binary '0' */
-#define FESK_TONE_HIGH_NOTE BUZZER_NOTE_G7               /**< ~3136 Hz for binary '1' */
+/** 4-FSK tones: D7, E7, F7#, G7# - evenly spaced for good discrimination */
+#define FESK_TONE_00_NOTE  BUZZER_NOTE_D7               /**< ~2349 Hz for dibit 00 */
+#define FESK_TONE_01_NOTE  BUZZER_NOTE_E7               /**< ~2637 Hz for dibit 01 */
+#define FESK_TONE_10_NOTE  BUZZER_NOTE_F7SHARP_G7FLAT   /**< ~2960 Hz for dibit 10 */
+#define FESK_TONE_11_NOTE  BUZZER_NOTE_G7SHARP_A7FLAT   /**< ~3322 Hz for dibit 11 */
 
 /** Mapping from tone index to buzzer note */
 extern const watch_buzzer_note_t fesk_tone_map[FESK_TONE_COUNT];
@@ -113,4 +130,8 @@ fesk_result_t fesk_encode(const char *text,
  */
 void fesk_free_sequence(int8_t *sequence);
 
-#endif
+// Helper functions for raw source generation
+bool fesk_lookup_char_code(unsigned char ch, uint8_t *out_code);
+uint8_t fesk_crc8_update_code(uint8_t crc, uint8_t code);
+
+#endif  // FESK_TX_H
