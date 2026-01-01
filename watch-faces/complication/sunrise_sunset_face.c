@@ -82,7 +82,6 @@ static void _sunrise_sunset_face_update(sunrise_sunset_state_t *state) {
     }
 
     watch_date_time_t date_time = movement_get_local_date_time(); // the current local date / time
-    watch_date_time_t utc_now = watch_utility_date_time_convert_zone(date_time, movement_get_current_timezone_offset(), 0); // the current date / time in UTC
     watch_date_time_t scratch_time; // scratchpad, contains different values at different times
     scratch_time.reg = date_time.reg;
 
