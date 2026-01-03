@@ -106,7 +106,7 @@ fesk_session_config_t fesk_session_config_defaults(void) {
     config.countdown_seconds = FESK_SESSION_DEFAULT_COUNTDOWN_SECONDS;
     config.countdown_beep = true;
     config.show_bell_indicator = true;
-    config.mode = FESK_MODE_4FSK;  // Default to 4FSK mode
+    config.mode = FESK_MODE_4FSK;
     config.on_countdown_tick = _fesk_default_on_countdown_tick;
     config.on_countdown_complete = _fesk_default_on_countdown_complete;
     config.on_transmission_start = _fesk_default_on_transmission_start;
