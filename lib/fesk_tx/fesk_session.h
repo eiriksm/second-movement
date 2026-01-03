@@ -120,7 +120,7 @@ typedef enum {
     FESK_SESSION_TRANSMITTING,      /**< Transmitting audio */
 } fesk_session_phase_t;
 
-// State for raw source generation (when WATCH_BUZZER_PERIOD_REST is available)
+// State for raw source generation.
 typedef enum {
     FESK_RAW_PHASE_START_MARKER = 0,
     FESK_RAW_PHASE_DATA,
@@ -136,7 +136,6 @@ typedef struct fesk_session_s {
     uint8_t seconds_remaining;      /**< Countdown seconds remaining */
     int8_t *sequence;               /**< Encoded sequence (managed internally) */
     size_t sequence_entries;        /**< Number of sequence entries */
-#ifdef WATCH_BUZZER_PERIOD_REST
     // Raw source generation state (4-FSK dibits)
     const char *raw_payload;
     size_t raw_payload_length;
@@ -146,7 +145,6 @@ typedef struct fesk_session_s {
     uint8_t raw_current_code;  // Current code being transmitted
     uint8_t raw_crc;           // CRC accumulator
     bool raw_is_tone;          // true = tone, false = rest
-#endif
 } fesk_session_t;
 
 /**

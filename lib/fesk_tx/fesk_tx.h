@@ -85,17 +85,9 @@ typedef enum {
     FESK_MODE_4FSK = 1,  /**< Quad FSK (4 tones, 2 bits per symbol, default) */
 } fesk_mode_t;
 
-// The c32 PR changed watch_buzzer_play_sequence to subtract 1 from durations.
-// Old code: duration N plays for N+1 callbacks
-// New code: duration N plays for N callbacks
-// To match timing, we add 1 to each duration when the new code is present.
-#ifdef WATCH_BUZZER_PERIOD_REST
+
 #define FESK_TICKS_PER_SYMBOL 2
 #define FESK_TICKS_PER_REST 3
-#else
-#define FESK_TICKS_PER_SYMBOL 1
-#define FESK_TICKS_PER_REST 2
-#endif
 
 #define FESK_BITS_PER_CODE 6
 #define FESK_BITS_PER_SYMBOL 2

@@ -231,12 +231,6 @@ static bool _build_sequence(fesk_session_t *session) {
 static void _fesk_transmission_complete(void);
 static void _fesk_countdown_step_done(void);
 
-// This ifded is there to make this library forward compatible with both the
-// current main branch (at the time of writing), and the counter-32 branch
-// (https://github.com/joeycastillo/second-movement/pull/65)
-// This may or may not be the best indication of which branch we are running
-// but hopefully this can be removed altogether in the not too distant future.
-#ifdef WATCH_BUZZER_PERIOD_REST
 // Raw source callback for 2-FSK/4-FSK on-the-fly symbol generation
 // Returns: true = done/stop, false = continue playing
 static bool _fesk_raw_source(uint16_t position, void* userdata, uint16_t* period, uint16_t* duration) {
@@ -415,10 +409,8 @@ static bool _init_raw_source(fesk_session_t *session) {
 
     return true;
 }
-#endif
 
 static bool _start_transmission(fesk_session_t *session) {
-#ifdef WATCH_BUZZER_PERIOD_REST
     // Use raw source for memory-efficient on-the-fly generation
     if (!_init_raw_source(session)) {
         _finish_session(session, false);
@@ -439,28 +431,6 @@ static bool _start_transmission(fesk_session_t *session) {
     _call_simple(session->config.on_transmission_start, session->config.user_data);
     watch_buzzer_play_raw_source(_fesk_raw_source, session, _fesk_transmission_complete);
     return true;
-#else
-    // Fallback to precomputed sequence for old buzzer code
-    if (!_build_sequence(session)) {
-        _finish_session(session, false);
-        return false;
-    }
-
-    session->phase = FESK_SESSION_TRANSMITTING;
-
-    if (session->config.show_bell_indicator) {
-        watch_set_indicator(WATCH_INDICATOR_BELL);
-    }
-
-    if (_fesk_active_session && _fesk_active_session != session) {
-        _finish_session(_fesk_active_session, false);
-    }
-    _fesk_active_session = session;
-
-    _call_simple(session->config.on_transmission_start, session->config.user_data);
-    watch_buzzer_play_sequence(session->sequence, _fesk_transmission_complete);
-    return true;
-#endif
 }
 
 static void _start_countdown(fesk_session_t *session) {
