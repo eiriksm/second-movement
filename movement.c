@@ -1412,6 +1412,9 @@ void app_setup(void) {
     watch_enable_display();
 
     if (!movement_volatile_state.is_sleeping) {
+        watch_disable_extwake_interrupt(HAL_GPIO_BTN_ALARM_pin());
+
+        watch_enable_external_interrupts();
         watch_register_interrupt_callback(HAL_GPIO_BTN_MODE_pin(), cb_mode_btn_interrupt, INTERRUPT_TRIGGER_BOTH);
         watch_register_interrupt_callback(HAL_GPIO_BTN_LIGHT_pin(), cb_light_btn_interrupt, INTERRUPT_TRIGGER_BOTH);
         watch_register_interrupt_callback(HAL_GPIO_BTN_ALARM_pin(), cb_alarm_btn_interrupt, INTERRUPT_TRIGGER_BOTH);
