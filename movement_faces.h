@@ -79,4 +79,5 @@
 #include "higher_lower_game_face.h"
 #include "lander_face.h"
 #include "simon_face.h"
+#include "ir_echo_face.h"
 // New includes go above this line.
