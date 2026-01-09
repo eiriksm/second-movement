@@ -40,7 +40,8 @@
  *   - Space: ' ' (code 36)
  *   - Punctuation: , : ' " (codes 37-40)
  *   - Newline: \n (code 41)
- *   - Total: 42 supported characters
+ *   - Extended: . ! ? ; - _ ( ) [ ] { } / \ @ # $ % & * (codes 42-61)
+ *   - Total: 62 supported characters
  *
  * Tones:
  *   2-FSK (bits):

@@ -75,7 +75,7 @@ void test_encode_all_characters() {
     int8_t *sequence = NULL;
     size_t entries = 0;
 
-    const char *test_str = "abcdefghijklmnopqrstuvwxyz0123456789 ,:'\"\n";
+    const char *test_str = "abcdefghijklmnopqrstuvwxyz0123456789 ,:'\"\n.!?;-_()[]{}/@#$%&*\\";
     fesk_result_t result = fesk_encode(test_str, FESK_MODE_4FSK, &sequence, &entries);
 
     TEST_ASSERT_EQUAL(FESK_OK, result);
@@ -89,8 +89,8 @@ void test_encode_unsupported_character() {
     int8_t *sequence = NULL;
     size_t entries = 0;
 
-    // '@' is not supported
-    fesk_result_t result = fesk_encode("hello@world", FESK_MODE_4FSK, &sequence, &entries);
+    // '~' is not supported
+    fesk_result_t result = fesk_encode("hello~world", FESK_MODE_4FSK, &sequence, &entries);
 
     TEST_ASSERT_EQUAL(FESK_ERR_UNSUPPORTED_CHARACTER, result);
     TEST_ASSERT_NULL(sequence);
@@ -302,7 +302,7 @@ void test_encode_2fsk_all_characters() {
     int8_t *sequence = NULL;
     size_t entries = 0;
 
-    const char *test_str = "abcdefghijklmnopqrstuvwxyz0123456789 ,:'\"\n";
+    const char *test_str = "abcdefghijklmnopqrstuvwxyz0123456789 ,:'\"\n.!?;-_()[]{}/@#$%&*\\";
     fesk_result_t result = fesk_encode(test_str, FESK_MODE_2FSK, &sequence, &entries);
 
     TEST_ASSERT_EQUAL(FESK_OK, result);
