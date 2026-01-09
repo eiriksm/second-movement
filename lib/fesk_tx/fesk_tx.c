@@ -43,21 +43,8 @@
 #define FESK_USE_LOG 0
 #endif
 
-typedef struct {
-    unsigned char character;
-    uint8_t code;
-} fesk_code_entry_t;
-
-static const fesk_code_entry_t _code_table[] = {
-    {'a', 0},  {'b', 1},  {'c', 2},  {'d', 3},  {'e', 4},  {'f', 5},  {'g', 6},  {'h', 7},
-    {'i', 8},  {'j', 9},  {'k', 10}, {'l', 11}, {'m', 12}, {'n', 13}, {'o', 14}, {'p', 15},
-    {'q', 16}, {'r', 17}, {'s', 18}, {'t', 19}, {'u', 20}, {'v', 21}, {'w', 22}, {'x', 23},
-    {'y', 24}, {'z', 25}, {'0', 26}, {'1', 27}, {'2', 28}, {'3', 29}, {'4', 30}, {'5', 31},
-    {'6', 32}, {'7', 33}, {'8', 34}, {'9', 35}, {' ', 36}, {',', 37}, {':', 38}, {'\'', 39},
-    {'"', 40}, {'\n', 41}, {'.', 42}, {'!', 43}, {'?', 44}, {';', 45}, {'-', 46}, {'_', 47},
-    {'(', 48}, {')', 49}, {'[', 50}, {']', 51}, {'{', 52}, {'}', 53}, {'/', 54}, {'\\', 55},
-    {'@', 56}, {'#', 57}, {'$', 58}, {'%', 59}, {'&', 60}, {'*', 61},
-};
+// ASCII characters (0-127) are used directly as codes
+// No lookup table needed
 
 const watch_buzzer_note_t fesk_tone_map_2fsk[FESK_2FSK_TONE_COUNT] = {
     [FESK_2FSK_TONE_0] = FESK_2FSK_TONE_0_NOTE,
@@ -123,16 +110,10 @@ static bool _lookup_code(unsigned char raw, uint8_t *out_code) {
         return false;
     }
 
-    unsigned char normalized = raw;
-    if (isalpha(raw)) {
-        normalized = (unsigned char)tolower(raw);
-    }
-
-    for (size_t i = 0; i < sizeof(_code_table) / sizeof(_code_table[0]); i++) {
-        if (_code_table[i].character == normalized) {
-            *out_code = _code_table[i].code;
-            return true;
-        }
+    // ASCII characters 0-127 are supported directly
+    if (raw <= 127) {
+        *out_code = raw;
+        return true;
     }
 
     return false;
@@ -216,8 +197,8 @@ static void _append_symbols_from_code(uint8_t code,
     uint8_t symbol_mask = (mode == FESK_MODE_2FSK) ? 0x01u : 0x03u;
 
     // Extract symbols from MSB to LSB
-    // 2FSK: 6 bits = 6 symbols (1 bit each)
-    // 4FSK: 6 bits = 3 symbols (2 bits each)
+    // 2FSK: 8 bits = 8 symbols (1 bit each)
+    // 4FSK: 8 bits = 4 symbols (2 bits each)
     for (int shift = FESK_BITS_PER_CODE - bits_per_symbol; shift >= 0; shift -= bits_per_symbol) {
         uint8_t symbol = (uint8_t)((code >> shift) & symbol_mask);
         _append_symbol(symbol, mode, sequence, pos, symbol_log, symbol_offset, symbol_capacity);
@@ -280,7 +261,7 @@ static fesk_result_t _encode_internal(const char *text,
 
     // Calculate total symbols based on mode
     // 2FSK: 1 bit per symbol, 4FSK: 2 bits per symbol
-    size_t symbols_per_code = (mode == FESK_MODE_2FSK) ? 6 : 3;
+    size_t symbols_per_code = (mode == FESK_MODE_2FSK) ? 8 : 4;
     size_t symbols_per_crc = (mode == FESK_MODE_2FSK) ? 8 : 4;
 
     size_t total_symbols = symbols_per_code              // start marker
@@ -340,9 +321,6 @@ static fesk_result_t _encode_internal(const char *text,
 
     for (size_t i = 0; i < payload_count; ++i) {
         unsigned char display_char = (unsigned char)text[i];
-        if (isalpha(display_char)) {
-            display_char = (unsigned char)tolower(display_char);
-        }
 
         if (code_log) {
             char label[8];

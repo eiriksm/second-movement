@@ -31,17 +31,14 @@
  *   - 4-FSK: 2 bits per symbol (faster, default mode)
  *
  * Protocol Format:
- *   [START(6bit)] [PAYLOAD(N×6bit)] [CRC8(8bit)] [END(6bit)]
+ *   [START(8bit)] [PAYLOAD(N×8bit)] [CRC8(8bit)] [END(8bit)]
  *   Transmitted as bits (2-FSK) or dibits (4-FSK)
+ *   Each character uses 7 bits (ASCII 0-127) + 1 padding bit = 8 bits total
  *
  * Character Set:
- *   - Letters: a-z A-Z (case-insensitive, codes 0-25)
- *   - Digits: 0-9 (codes 26-35)
- *   - Space: ' ' (code 36)
- *   - Punctuation: , : ' " (codes 37-40)
- *   - Newline: \n (code 41)
- *   - Extended: . ! ? ; - _ ( ) [ ] { } / \ @ # $ % & * (codes 42-61)
- *   - Total: 62 supported characters
+ *   - Full ASCII support (0-127)
+ *   - All printable and control characters supported
+ *   - Total: 128 characters
  *
  * Tones:
  *   2-FSK (bits):
@@ -90,14 +87,14 @@ typedef enum {
 #define FESK_TICKS_PER_SYMBOL 2
 #define FESK_TICKS_PER_REST 3
 
-#define FESK_BITS_PER_CODE 6
+#define FESK_BITS_PER_CODE 8
 #define FESK_BITS_PER_SYMBOL 2
-#define FESK_DIBITS_PER_CODE 3   /**< 6 bits = 3 dibits */
+#define FESK_DIBITS_PER_CODE 4   /**< 8 bits = 4 dibits */
 #define FESK_DIBITS_PER_CRC 4    /**< 8 bits = 4 dibits */
 
-/** Frame markers: codes 62 and 63 are reserved (not in character set) */
-#define FESK_START_MARKER 62u
-#define FESK_END_MARKER 63u
+/** Frame markers: outside ASCII range (128-255) */
+#define FESK_START_MARKER 254u
+#define FESK_END_MARKER 255u
 
 /** 2-FSK tone indices (bits) */
 #define FESK_2FSK_TONE_COUNT 2

@@ -49,8 +49,8 @@ void test_encode_simple_text() {
     fesk_free_sequence(sequence);
 }
 
-// Test encoding with mixed case (should be case-insensitive)
-void test_encode_case_insensitive() {
+// Test encoding with mixed case (should be case-sensitive now)
+void test_encode_case_sensitive() {
     int8_t *seq_lower = NULL;
     int8_t *seq_upper = NULL;
     size_t entries_lower = 0;
@@ -63,19 +63,26 @@ void test_encode_case_insensitive() {
     TEST_ASSERT_EQUAL(FESK_OK, result2);
     TEST_ASSERT_EQUAL(entries_lower, entries_upper);
 
-    // Sequences should be identical (case-insensitive)
-    TEST_ASSERT_EQUAL_INT8_ARRAY(seq_lower, seq_upper, entries_lower);
+    // Sequences should be different (case-sensitive)
+    int differences = 0;
+    for (size_t i = 0; i < entries_lower; i++) {
+        if (seq_lower[i] != seq_upper[i]) {
+            differences++;
+        }
+    }
+    TEST_ASSERT_GREATER_THAN(0, differences);
 
     fesk_free_sequence(seq_lower);
     fesk_free_sequence(seq_upper);
 }
 
-// Test all supported characters
+// Test printable ASCII characters
 void test_encode_all_characters() {
     int8_t *sequence = NULL;
     size_t entries = 0;
 
-    const char *test_str = "abcdefghijklmnopqrstuvwxyz0123456789 ,:'\"\n.!?;-_()[]{}/@#$%&*\\";
+    // Test printable ASCII (32-126) plus common control chars
+    const char *test_str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 !\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~\t\n\r";
     fesk_result_t result = fesk_encode(test_str, FESK_MODE_4FSK, &sequence, &entries);
 
     TEST_ASSERT_EQUAL(FESK_OK, result);
@@ -89,8 +96,9 @@ void test_encode_unsupported_character() {
     int8_t *sequence = NULL;
     size_t entries = 0;
 
-    // '~' is not supported
-    fesk_result_t result = fesk_encode("hello~world", FESK_MODE_4FSK, &sequence, &entries);
+    // Character with value > 127 (extended ASCII) is not supported
+    char test_str[] = "hello\xFFworld";  // \xFF = 255, outside ASCII range
+    fesk_result_t result = fesk_encode(test_str, FESK_MODE_4FSK, &sequence, &entries);
 
     TEST_ASSERT_EQUAL(FESK_ERR_UNSUPPORTED_CHARACTER, result);
     TEST_ASSERT_NULL(sequence);
@@ -132,9 +140,9 @@ void test_sequence_structure() {
 
     // Each dibit (2 bits) is encoded as: [TONE, TICKS, REST, TICKS]
     // So entries should be a multiple of 4
-    // Format: START(3 dibits) + 'a'(3 dibits) + CRC(4 dibits) + END(3 dibits) = 13 dibits
-    // 13 dibits * 4 entries/dibit = 52 entries
-    TEST_ASSERT_EQUAL(52, entries);
+    // Format: START(4 dibits) + 'a'(4 dibits) + CRC(4 dibits) + END(4 dibits) = 16 dibits
+    // 16 dibits * 4 entries/dibit = 64 entries
+    TEST_ASSERT_EQUAL(64, entries);
 
     fesk_free_sequence(sequence);
 }
@@ -280,10 +288,10 @@ void test_2fsk_vs_4fsk_sequence_length() {
     fesk_encode("a", FESK_MODE_4FSK, &seq_4fsk, &entries_4fsk);
 
     // 2FSK should produce twice as many symbols as 4FSK
-    // 4FSK: START(3) + 'a'(3) + CRC(4) + END(3) = 13 dibits = 52 entries
-    // 2FSK: START(6) + 'a'(6) + CRC(8) + END(6) = 26 bits = 104 entries
-    TEST_ASSERT_EQUAL(52, entries_4fsk);
-    TEST_ASSERT_EQUAL(104, entries_2fsk);
+    // 4FSK: START(4) + 'a'(4) + CRC(4) + END(4) = 16 dibits = 64 entries
+    // 2FSK: START(8) + 'a'(8) + CRC(8) + END(8) = 32 bits = 128 entries
+    TEST_ASSERT_EQUAL(64, entries_4fsk);
+    TEST_ASSERT_EQUAL(128, entries_2fsk);
     TEST_ASSERT_EQUAL(entries_4fsk * 2, entries_2fsk);
 
     fesk_free_sequence(seq_2fsk);
@@ -302,7 +310,8 @@ void test_encode_2fsk_all_characters() {
     int8_t *sequence = NULL;
     size_t entries = 0;
 
-    const char *test_str = "abcdefghijklmnopqrstuvwxyz0123456789 ,:'\"\n.!?;-_()[]{}/@#$%&*\\";
+    // Test printable ASCII (32-126) plus common control chars
+    const char *test_str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 !\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~\t\n\r";
     fesk_result_t result = fesk_encode(test_str, FESK_MODE_2FSK, &sequence, &entries);
 
     TEST_ASSERT_EQUAL(FESK_OK, result);
@@ -311,8 +320,8 @@ void test_encode_2fsk_all_characters() {
     fesk_free_sequence(sequence);
 }
 
-// Test 2FSK case insensitivity
-void test_encode_2fsk_case_insensitive() {
+// Test 2FSK case sensitivity
+void test_encode_2fsk_case_sensitive() {
     int8_t *seq_lower = NULL;
     int8_t *seq_upper = NULL;
     size_t entries_lower = 0;
@@ -322,7 +331,15 @@ void test_encode_2fsk_case_insensitive() {
     fesk_encode("HELLO", FESK_MODE_2FSK, &seq_upper, &entries_upper);
 
     TEST_ASSERT_EQUAL(entries_lower, entries_upper);
-    TEST_ASSERT_EQUAL_INT8_ARRAY(seq_lower, seq_upper, entries_lower);
+
+    // Sequences should be different (case-sensitive)
+    int differences = 0;
+    for (size_t i = 0; i < entries_lower; i++) {
+        if (seq_lower[i] != seq_upper[i]) {
+            differences++;
+        }
+    }
+    TEST_ASSERT_GREATER_THAN(0, differences);
 
     fesk_free_sequence(seq_lower);
     fesk_free_sequence(seq_upper);
@@ -333,7 +350,7 @@ int main(void) {
 
     // Basic functionality (4FSK)
     RUN_TEST(test_encode_simple_text);
-    RUN_TEST(test_encode_case_insensitive);
+    RUN_TEST(test_encode_case_sensitive);
     RUN_TEST(test_encode_all_characters);
 
     // Character support
@@ -361,7 +378,7 @@ int main(void) {
     RUN_TEST(test_2fsk_vs_4fsk_sequence_length);
     RUN_TEST(test_2fsk_tone_mapping);
     RUN_TEST(test_encode_2fsk_all_characters);
-    RUN_TEST(test_encode_2fsk_case_insensitive);
+    RUN_TEST(test_encode_2fsk_case_sensitive);
 
     return UNITY_END();
 }
