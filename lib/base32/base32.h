@@ -63,4 +63,27 @@ void base32_encode(const unsigned char *plain, size_t len, unsigned char *coded)
  **/
 size_t base32_decode(const unsigned char *coded, unsigned char *plain);
 
+/**
+ * Check if the given string contains only valid base32 characters.
+ * Valid characters are: A-Z, 2-7, and = (padding).
+ * Returns 1 if all characters are valid, 0 if any illegal character is found.
+ **/
+int base32_validate(const unsigned char *str);
+
+/**
+ * Decode with automatic encoding fallback. If the input contains illegal
+ * base32 characters, it will be treated as raw data and base32 encoded
+ * first, then the result is decoded. This ensures the payload is always
+ * valid base32.
+ *
+ * The "coded" argument should point to the input string.
+ * The "plain" argument should point to output buffer.
+ * The "temp_buffer" should be large enough to hold encoded version if needed.
+ *
+ * Returns the length of decoded data, or 0 on error.
+ **/
+size_t base32_decode_with_auto_encode(const unsigned char *coded,
+                                       unsigned char *plain,
+                                       unsigned char *temp_buffer);
+
 #endif
