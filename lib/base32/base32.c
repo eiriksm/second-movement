@@ -220,7 +220,7 @@ size_t base32_decode(const unsigned char *coded, unsigned char *plain)
 	}
 }
 
-int base32_validate(const unsigned char *str)
+int base32_validate_fesk_charset(const unsigned char *str)
 {
 	if (!str)
 		return 0;
@@ -228,15 +228,26 @@ int base32_validate(const unsigned char *str)
 	for (size_t i = 0; str[i] != '\0'; i++) {
 		unsigned char c = str[i];
 
-		// Check if character is valid base32 (A-Z, 2-7, or =)
-		if (!((c >= 'A' && c <= 'Z') ||
-		      (c >= '2' && c <= '7') ||
-		      (c == PADDING_CHAR))) {
-			return 0;  // Found illegal character
+		// Check if character is in FESK character set:
+		// - Letters: a-z, A-Z
+		// - Digits: 0-9
+		// - Space: ' '
+		// - Punctuation: , : ' "
+		// - Newline: \n
+		if (!((c >= 'a' && c <= 'z') ||
+		      (c >= 'A' && c <= 'Z') ||
+		      (c >= '0' && c <= '9') ||
+		      (c == ' ') ||
+		      (c == ',') ||
+		      (c == ':') ||
+		      (c == '\'') ||
+		      (c == '"') ||
+		      (c == '\n'))) {
+			return 0;  // Found character outside FESK set
 		}
 	}
 
-	return 1;  // All characters are valid
+	return 1;  // All characters are FESK-compatible
 }
 
 size_t base32_decode_with_auto_encode(const unsigned char *coded,
@@ -246,20 +257,20 @@ size_t base32_decode_with_auto_encode(const unsigned char *coded,
 	if (!coded || !plain || !temp_buffer)
 		return 0;
 
-	// Check if the input contains illegal characters
-	if (!base32_validate(coded)) {
+	// Check if the input contains characters outside FESK character set
+	if (!base32_validate_fesk_charset(coded)) {
 		// Input has illegal characters, treat it as raw data and encode it
 		size_t input_len = 0;
 		while (coded[input_len] != '\0')
 			input_len++;
 
-		// Encode the raw input
+		// Encode the raw input to base32
 		base32_encode(coded, input_len, temp_buffer);
 
 		// Now decode the encoded version
 		return base32_decode(temp_buffer, plain);
 	}
 
-	// Input is valid base32, decode normally
+	// Input is FESK-compatible, decode normally
 	return base32_decode(coded, plain);
 }

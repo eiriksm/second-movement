@@ -64,17 +64,22 @@ void base32_encode(const unsigned char *plain, size_t len, unsigned char *coded)
 size_t base32_decode(const unsigned char *coded, unsigned char *plain);
 
 /**
- * Check if the given string contains only valid base32 characters.
- * Valid characters are: A-Z, 2-7, and = (padding).
- * Returns 1 if all characters are valid, 0 if any illegal character is found.
+ * Check if the given string contains only FESK-compatible characters.
+ * FESK character set:
+ *   - Letters: a-z, A-Z (case-insensitive)
+ *   - Digits: 0-9
+ *   - Space: ' '
+ *   - Punctuation: , : ' "
+ *   - Newline: \n
+ * Returns 1 if all characters are FESK-compatible, 0 if any illegal character is found.
  **/
-int base32_validate(const unsigned char *str);
+int base32_validate_fesk_charset(const unsigned char *str);
 
 /**
- * Decode with automatic encoding fallback. If the input contains illegal
- * base32 characters, it will be treated as raw data and base32 encoded
- * first, then the result is decoded. This ensures the payload is always
- * valid base32.
+ * Decode with automatic encoding fallback for FESK compatibility.
+ * If the input contains characters outside the FESK character set,
+ * it will be treated as raw data and base32 encoded first, then decoded.
+ * This ensures the payload can always be transmitted via FESK.
  *
  * The "coded" argument should point to the input string.
  * The "plain" argument should point to output buffer.
