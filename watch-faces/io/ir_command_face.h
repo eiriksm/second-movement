@@ -29,22 +29,28 @@
 /*
  * IR COMMAND FACE
  *
- * Watch face that can receive IR commands and execute them.
- * Currently supports:
- * - ls: List files in the filesystem
+ * Watch face that receives IR/UART commands and outputs results via printf.
+ * Results are sent back through UART (visible in simulator console or serial output).
  *
- * In hardware mode: Receives commands via IR sensor
- * In simulator mode: Use ALARM button to cycle through commands,
- *                    LIGHT long-press to execute
+ * Supported commands:
+ * - ls                     : List files
+ * - cat <filename>         : Display file contents
+ * - echo <text>            : Echo text to output (quotes optional)
+ * - echo "text" > <file>   : Write text to file (quotes optional)
+ * - df                     : Show filesystem usage
+ *
+ * Controls:
+ * - LIGHT button: Manually trigger "ls" command
+ * - Watch display: Shows "IR Cmd" (output goes to UART, not display)
+ *
+ * IR/UART: Receives commands via IR sensor (hardware) or UART simulator
+ * In simulator mode: Use the IrDA/UART upload UI in shell.html to send commands
+ *                    Output appears in browser console
  */
 
 typedef struct {
-    uint8_t file_count;
-    uint8_t current_file;
-    char filenames[16][13];  // Up to 16 files, 12 chars + null terminator
-    int32_t file_sizes[16];
-    bool display_mode;  // false = showing command prompt, true = showing results
-    uint8_t selected_command;  // For simulator: which command is selected
+    char output_buffer[512];  // Buffer to store command output
+    size_t output_len;
 } ir_command_state_t;
 
 void ir_command_face_setup(uint8_t watch_face_index, void ** context_ptr);

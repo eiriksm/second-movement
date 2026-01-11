@@ -24,84 +24,150 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 #include "ir_command_face.h"
 #include "filesystem.h"
 #include "lfs.h"
 
-#ifdef HAS_IR_SENSOR
 #include "uart.h"
-#endif
 
-// External filesystem instance from filesystem.c
 extern lfs_t eeprom_filesystem;
 
-static const char *commands[] = {"ls"};
-static const uint8_t num_commands = 1;
-
-static void list_files(ir_command_state_t *state) {
+static void cmd_ls(ir_command_state_t *state) {
     lfs_dir_t dir;
     int err = lfs_dir_open(&eeprom_filesystem, &dir, "/");
     if (err < 0) {
-        state->file_count = 0;
+        state->output_len += snprintf(state->output_buffer + state->output_len,
+                                      512 - state->output_len, "error opening dir\n");
         return;
     }
 
     struct lfs_info info;
-    state->file_count = 0;
-
-    while (state->file_count < 16) {
-        int res = lfs_dir_read(&eeprom_filesystem, &dir, &info);
-        if (res <= 0) break;
-
-        // Skip . and .. entries
+    while (lfs_dir_read(&eeprom_filesystem, &dir, &info) > 0) {
         if (strcmp(info.name, ".") == 0 || strcmp(info.name, "..") == 0) continue;
-
-        // Only list files, not directories
         if (info.type == LFS_TYPE_REG) {
-            strncpy(state->filenames[state->file_count], info.name, 12);
-            state->filenames[state->file_count][12] = '\0';
-            state->file_sizes[state->file_count] = info.size;
-            state->file_count++;
+            state->output_len += snprintf(state->output_buffer + state->output_len,
+                                         512 - state->output_len,
+                                         "%s (%ld bytes)\n", info.name, (long)info.size);
         }
     }
-
     lfs_dir_close(&eeprom_filesystem, &dir);
 }
 
-static void display_file_list(ir_command_state_t *state) {
-    watch_clear_display();
-
-    if (state->file_count == 0) {
-        watch_display_text(WATCH_POSITION_TOP, "no    ");
-        watch_display_text(WATCH_POSITION_BOTTOM, "FILES ");
+static void cmd_cat(ir_command_state_t *state, const char *filename) {
+    lfs_file_t file;
+    int err = lfs_file_open(&eeprom_filesystem, &file, filename, LFS_O_RDONLY);
+    if (err < 0) {
+        state->output_len += snprintf(state->output_buffer + state->output_len,
+                                      512 - state->output_len, "%s: not found\n", filename);
         return;
     }
 
-    // Display current file number out of total
-    char buf[11];
-    snprintf(buf, 11, "%d/%d", state->current_file + 1, state->file_count);
-    watch_display_text(WATCH_POSITION_TOP, buf);
+    lfs_soff_t size = lfs_file_size(&eeprom_filesystem, &file);
+    if (size > 0 && size < 400) {  // Limit to fit in buffer
+        int read = lfs_file_read(&eeprom_filesystem, &file,
+                                state->output_buffer + state->output_len,
+                                512 - state->output_len - 1);
+        if (read > 0) {
+            state->output_len += read;
+            state->output_buffer[state->output_len++] = '\n';
+        }
+    } else if (size == 0) {
+        state->output_len += snprintf(state->output_buffer + state->output_len,
+                                      512 - state->output_len, "(empty)\n");
+    } else {
+        state->output_len += snprintf(state->output_buffer + state->output_len,
+                                      512 - state->output_len, "file too large\n");
+    }
+    lfs_file_close(&eeprom_filesystem, &file);
+}
 
-    // Display filename (truncated to 6 chars if needed)
-    char filename_display[7];
-    strncpy(filename_display, state->filenames[state->current_file], 6);
-    filename_display[6] = '\0';
-    watch_display_text(WATCH_POSITION_BOTTOM, filename_display);
+static void cmd_df(ir_command_state_t *state) {
+    int32_t free_bytes = filesystem_get_free_space();
+    state->output_len += snprintf(state->output_buffer + state->output_len,
+                                  512 - state->output_len,
+                                  "free: %ld bytes\n", (long)free_bytes);
 }
 
 static void execute_command(ir_command_state_t *state, const char *cmd) {
-    if (strcmp(cmd, "ls") == 0) {
-        movement_force_led_on(0, 48, 0);  // Green LED for success
-        list_files(state);
-        state->current_file = 0;
-        state->display_mode = true;
-        display_file_list(state);
+    // Clear output buffer
+    state->output_len = 0;
+    state->output_buffer[0] = '\0';
+
+    // Parse command into argc/argv format
+    char cmd_copy[64];
+    strncpy(cmd_copy, cmd, 63);
+    cmd_copy[63] = '\0';
+
+    // Check for echo - needs special parsing for redirect
+    if (strncmp(cmd, "echo ", 5) == 0) {
+        const char *text_start = cmd + 5;
+
+        // Look for redirect operators
+        const char *redirect_write = strstr(text_start, " > ");
+        const char *redirect_append = strstr(text_start, " >> ");
+
+        if (redirect_write || redirect_append) {
+            // Parse for filesystem_cmd_echo format: echo TEXT > FILE
+            static char text[128];
+            static char op[3];
+            static char filename[32];
+
+            const char *redirect = redirect_append ? redirect_append : redirect_write;
+            size_t text_len = redirect - text_start;
+            strncpy(text, text_start, text_len);
+            text[text_len] = '\0';
+
+            if (redirect_append) {
+                strcpy(op, ">>");
+                const char *file = redirect_append + 4;
+                while (*file == ' ') file++;
+                strncpy(filename, file, 31);
+                filename[31] = '\0';
+            } else {
+                strcpy(op, ">");
+                const char *file = redirect_write + 3;
+                while (*file == ' ') file++;
+                strncpy(filename, file, 31);
+                filename[31] = '\0';
+            }
+
+            char *argv[4] = {"echo", text, op, filename};
+            filesystem_cmd_echo(4, argv);
+            // No output for echo
+        }
+        // No output for plain echo either
+        return;
     } else {
-        // Unknown command
-        movement_force_led_on(48, 48, 0);  // Yellow LED for unknown
-        watch_clear_display();
-        watch_display_text(WATCH_POSITION_TOP, "UnKno ");
-        watch_display_text(WATCH_POSITION_BOTTOM, "Wn Cmd");
+        // Simple tokenizer to build argv for other commands
+        char *argv[10];
+        int argc = 0;
+
+        char *token = strtok(cmd_copy, " ");
+        while (token && argc < 10) {
+            argv[argc++] = token;
+            token = strtok(NULL, " ");
+        }
+
+        if (argc == 0) return;
+
+        // Dispatch to custom implementations that write to buffer
+        if (strcmp(argv[0], "ls") == 0) {
+            cmd_ls(state);
+        } else if (strcmp(argv[0], "cat") == 0 && argc > 1) {
+            cmd_cat(state, argv[1]);
+        } else if (strcmp(argv[0], "df") == 0) {
+            cmd_df(state);
+        } else {
+            state->output_len += snprintf(state->output_buffer + state->output_len,
+                                         512 - state->output_len,
+                                         "%s: unknown command\n", argv[0]);
+        }
+    }
+
+    // Print the buffered output
+    if (state->output_len > 0) {
+        printf("%s", state->output_buffer);
     }
 }
 
@@ -114,11 +180,7 @@ void ir_command_face_setup(uint8_t watch_face_index, void ** context_ptr) {
 }
 
 void ir_command_face_activate(void *context) {
-    ir_command_state_t *state = (ir_command_state_t *)context;
-    state->display_mode = false;
-    state->current_file = 0;
-    state->file_count = 0;
-    state->selected_command = 0;
+    (void)context;
 
 #ifdef HAS_IR_SENSOR
     // Initialize IR receiver on hardware
@@ -126,10 +188,11 @@ void ir_command_face_activate(void *context) {
     HAL_GPIO_IR_ENABLE_clr();
     HAL_GPIO_IRSENSE_in();
     HAL_GPIO_IRSENSE_pmuxen(HAL_GPIO_PMUX_SERCOM_ALT);
+#endif
+    // Initialize UART (works in both hardware and simulator)
     uart_init_instance(0, UART_TXPO_NONE, UART_RXPO_0, 900);
     uart_set_irda_mode_instance(0, true);
     uart_enable_instance(0);
-#endif
 }
 
 bool ir_command_face_loop(movement_event_t event, void *context) {
@@ -139,24 +202,13 @@ bool ir_command_face_loop(movement_event_t event, void *context) {
         case EVENT_ACTIVATE:
         case EVENT_NONE:
             watch_clear_display();
-            if (state->display_mode) {
-                display_file_list(state);
-            } else {
-#ifdef HAS_IR_SENSOR
-                watch_display_text(WATCH_POSITION_TOP, "IR    ");
-                watch_display_text(WATCH_POSITION_BOTTOM, "Cmd   ");
-#else
-                // In simulator, show selected command
-                watch_display_text(WATCH_POSITION_TOP, "Cmd   ");
-                watch_display_text(WATCH_POSITION_BOTTOM, (char *)commands[state->selected_command]);
-#endif
-            }
+            watch_display_text(WATCH_POSITION_TOP, "IR    ");
+            watch_display_text(WATCH_POSITION_BOTTOM, "Cmd   ");
             break;
 
         case EVENT_TICK:
         {
-#ifdef HAS_IR_SENSOR
-            // Hardware mode: read from IR sensor
+            // Read from UART (works in both hardware and simulator)
             char data[64];
             size_t bytes_read = uart_read_instance(0, data, 63);
 
@@ -173,82 +225,19 @@ bool ir_command_face_loop(movement_event_t event, void *context) {
                     execute_command(state, data);
                 }
             } else {
-                movement_force_led_off();
-                if (!state->display_mode) {
-                    // Blink indicator to show we're waiting
-                    if (watch_rtc_get_date_time().unit.second % 2 == 0) {
-                        watch_set_indicator(WATCH_INDICATOR_SIGNAL);
-                    } else {
-                        watch_clear_indicator(WATCH_INDICATOR_SIGNAL);
-                    }
-                }
-            }
-#else
-            // Simulator mode: blink to show we're active
-            if (!state->display_mode) {
+                // Blink indicator to show we're waiting for commands
                 if (watch_rtc_get_date_time().unit.second % 2 == 0) {
-                    watch_set_indicator(WATCH_INDICATOR_BELL);
+                    watch_set_indicator(WATCH_INDICATOR_SIGNAL);
                 } else {
-                    watch_clear_indicator(WATCH_INDICATOR_BELL);
+                    watch_clear_indicator(WATCH_INDICATOR_SIGNAL);
                 }
             }
-#endif
         }
             break;
 
         case EVENT_LIGHT_BUTTON_UP:
-#ifndef HAS_IR_SENSOR
-            // In simulator mode: cycle through available commands
-            if (!state->display_mode) {
-                state->selected_command = (state->selected_command + 1) % num_commands;
-                watch_display_text(WATCH_POSITION_BOTTOM, (char *)commands[state->selected_command]);
-            }
-#endif
-            break;
-
-        case EVENT_LIGHT_LONG_PRESS:
-#ifndef HAS_IR_SENSOR
-            // In simulator mode: execute selected command
-            if (!state->display_mode) {
-                execute_command(state, commands[state->selected_command]);
-            }
-#endif
-            break;
-
-        case EVENT_ALARM_BUTTON_UP:
-            if (state->display_mode && state->file_count > 0) {
-                // Navigate through file list
-                state->current_file = (state->current_file + 1) % state->file_count;
-                display_file_list(state);
-            }
-#ifndef HAS_IR_SENSOR
-            else if (!state->display_mode) {
-                // In simulator mode: also allow cycling commands with ALARM button
-                state->selected_command = (state->selected_command + 1) % num_commands;
-                watch_display_text(WATCH_POSITION_BOTTOM, (char *)commands[state->selected_command]);
-            }
-#endif
-            break;
-
-        case EVENT_ALARM_LONG_PRESS:
-            // Return to command mode
-            if (state->display_mode) {
-                state->display_mode = false;
-                watch_clear_display();
-#ifdef HAS_IR_SENSOR
-                watch_display_text(WATCH_POSITION_TOP, "IR    ");
-                watch_display_text(WATCH_POSITION_BOTTOM, "Cmd   ");
-#else
-                watch_display_text(WATCH_POSITION_TOP, "Cmd   ");
-                watch_display_text(WATCH_POSITION_BOTTOM, (char *)commands[state->selected_command]);
-#endif
-            }
-#ifndef HAS_IR_SENSOR
-            else {
-                // In simulator mode: execute command on long press
-                execute_command(state, commands[state->selected_command]);
-            }
-#endif
+            // Trigger "ls" command manually
+            execute_command(state, "ls");
             break;
 
         case EVENT_TIMEOUT:
@@ -267,9 +256,10 @@ bool ir_command_face_loop(movement_event_t event, void *context) {
 }
 
 void ir_command_face_resign(void *context) {
-    (void) context;
-#ifdef HAS_IR_SENSOR
+    (void)context;
+
     uart_disable_instance(0);
+#ifdef HAS_IR_SENSOR
     HAL_GPIO_IRSENSE_pmuxdis();
     HAL_GPIO_IRSENSE_off();
     HAL_GPIO_IR_ENABLE_off();
