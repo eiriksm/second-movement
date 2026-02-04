@@ -100,6 +100,7 @@ typedef struct {
     bool countdown_beep;                        /**< Play beep during countdown */
     bool show_bell_indicator;                   /**< Show bell icon during countdown/transmission */
     fesk_mode_t mode;                           /**< Modulation mode (default: FESK_MODE_4FSK) */
+    bool auto_base32_encode;                    /**< Auto base32-encode payloads with invalid characters (default: true) */
     const char *static_message;                 /**< Static message to transmit (or NULL if using provide_payload) */
     fesk_session_payload_cb provide_payload;    /**< Dynamic payload callback (overrides static_message) */
     fesk_session_simple_cb on_countdown_begin;  /**< Called when countdown starts */
@@ -136,6 +137,7 @@ typedef struct fesk_session_s {
     uint8_t seconds_remaining;      /**< Countdown seconds remaining */
     int8_t *sequence;               /**< Encoded sequence (managed internally) */
     size_t sequence_entries;        /**< Number of sequence entries */
+    char *encoded_payload;          /**< Base32-encoded payload (NULL if not used) */
     // Raw source generation state (4-FSK dibits)
     const char *raw_payload;
     size_t raw_payload_length;

@@ -25,8 +25,11 @@
 #include "fesk_session.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
+#include "base32.h"
 #include "movement.h"
 #include "watch.h"
 #include "watch_tcc.h"
@@ -107,6 +110,7 @@ fesk_session_config_t fesk_session_config_defaults(void) {
     config.countdown_beep = true;
     config.show_bell_indicator = true;
     config.mode = FESK_MODE_4FSK;
+    config.auto_base32_encode = true;
     config.on_countdown_tick = _fesk_default_on_countdown_tick;
     config.on_countdown_complete = _fesk_default_on_countdown_complete;
     config.on_transmission_start = _fesk_default_on_transmission_start;
@@ -176,6 +180,13 @@ static void _finish_session(fesk_session_t *session, bool notify) {
     watch_set_buzzer_off();
 
     _clear_sequence(session);
+
+    // Free encoded payload if allocated
+    if (session->encoded_payload) {
+        free(session->encoded_payload);
+        session->encoded_payload = NULL;
+    }
+
     session->phase = FESK_SESSION_IDLE;
     session->seconds_remaining = 0;
 
@@ -381,13 +392,52 @@ static bool _init_raw_source(fesk_session_t *session) {
         return false;
     }
 
-    // Validate all characters can be encoded
+    // Validate all characters can be encoded, or auto-encode if enabled
+    bool has_invalid_chars = false;
     for (size_t i = 0; i < payload_length; i++) {
         uint8_t code;
         if (!fesk_lookup_char_code((unsigned char)payload[i], &code)) {
+            has_invalid_chars = true;
+            break;
+        }
+    }
+
+    // If invalid characters found and auto-encoding enabled, base32 encode the payload
+    if (has_invalid_chars) {
+        if (!session->config.auto_base32_encode) {
             _call_error(session->config.on_error, FESK_ERR_UNSUPPORTED_CHARACTER, session->config.user_data);
             return false;
         }
+
+        // Calculate base32 encoded length
+        size_t encoded_len = BASE32_LEN(payload_length);
+
+        // Allocate buffer for encoded payload (+1 for null terminator)
+        session->encoded_payload = (char *)malloc(encoded_len + 1);
+        if (!session->encoded_payload) {
+            _call_error(session->config.on_error, FESK_ERR_INVALID_ARGUMENT, session->config.user_data);
+            return false;
+        }
+
+        // Encode to base32
+        base32_encode((const unsigned char *)payload, payload_length,
+                      (unsigned char *)session->encoded_payload);
+        session->encoded_payload[encoded_len] = '\0';
+
+        // Convert to lowercase and remove padding characters
+        size_t write_pos = 0;
+        for (size_t i = 0; i < encoded_len; i++) {
+            char ch = session->encoded_payload[i];
+            if (ch == '=') {
+                continue; // Skip padding
+            }
+            session->encoded_payload[write_pos++] = tolower((unsigned char)ch);
+        }
+        session->encoded_payload[write_pos] = '\0';
+
+        // Update payload reference to encoded version
+        payload = session->encoded_payload;
+        payload_length = write_pos;
     }
 
     // Initialize state
