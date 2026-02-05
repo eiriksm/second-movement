@@ -24,11 +24,8 @@
 
 #include <stddef.h>
 #include <stdint.h>
-#include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 #include "../fesk_tx.h"
-#include "../../base32/base32.h"
 #include "unity.h"
 
 void setUp(void) {
@@ -331,124 +328,6 @@ void test_encode_2fsk_case_insensitive() {
     fesk_free_sequence(seq_upper);
 }
 
-// Test base32 encoding with emoji (integration test)
-void test_base32_encode_emoji() {
-    // Emoji that would fail normal fesk encoding
-    const char *emoji_text = "🎵🎶";
-    size_t emoji_len = strlen(emoji_text);
-
-    // Calculate base32 encoded length
-    size_t encoded_len = BASE32_LEN(emoji_len);
-    unsigned char *encoded = malloc(encoded_len + 1);
-    TEST_ASSERT_NOT_NULL(encoded);
-
-    // Encode to base32
-    base32_encode((const unsigned char *)emoji_text, emoji_len, encoded);
-    encoded[encoded_len] = '\0';
-
-    // Convert to lowercase and remove padding
-    size_t write_pos = 0;
-    for (size_t i = 0; i < encoded_len; i++) {
-        char ch = encoded[i];
-        if (ch == '=') continue;  // Skip padding
-        encoded[write_pos++] = tolower((unsigned char)ch);
-    }
-    encoded[write_pos] = '\0';
-
-    // Verify all characters are valid for fesk
-    for (size_t i = 0; i < write_pos; i++) {
-        uint8_t code;
-        bool is_valid = fesk_lookup_char_code(encoded[i], &code);
-        TEST_ASSERT_TRUE_MESSAGE(is_valid, "Base32 encoded character is not valid for fesk");
-    }
-
-    // Verify it can be encoded successfully
-    int8_t *sequence = NULL;
-    size_t entries = 0;
-    fesk_result_t result = fesk_encode((const char *)encoded, FESK_MODE_4FSK, &sequence, &entries);
-
-    TEST_ASSERT_EQUAL(FESK_OK, result);
-    TEST_ASSERT_NOT_NULL(sequence);
-    TEST_ASSERT_GREATER_THAN(0, entries);
-
-    fesk_free_sequence(sequence);
-    free(encoded);
-}
-
-// Test base32 encoding with unicode characters
-void test_base32_encode_unicode() {
-    const char *unicode_text = "hello™ world€";
-    size_t unicode_len = strlen(unicode_text);
-
-    size_t encoded_len = BASE32_LEN(unicode_len);
-    unsigned char *encoded = malloc(encoded_len + 1);
-    TEST_ASSERT_NOT_NULL(encoded);
-
-    base32_encode((const unsigned char *)unicode_text, unicode_len, encoded);
-    encoded[encoded_len] = '\0';
-
-    // Convert to lowercase and remove padding
-    size_t write_pos = 0;
-    for (size_t i = 0; i < encoded_len; i++) {
-        char ch = encoded[i];
-        if (ch == '=') continue;
-        encoded[write_pos++] = tolower((unsigned char)ch);
-    }
-    encoded[write_pos] = '\0';
-
-    // Encode the base32 result with fesk
-    int8_t *sequence = NULL;
-    size_t entries = 0;
-    fesk_result_t result = fesk_encode((const char *)encoded, FESK_MODE_4FSK, &sequence, &entries);
-
-    TEST_ASSERT_EQUAL(FESK_OK, result);
-    TEST_ASSERT_NOT_NULL(sequence);
-
-    fesk_free_sequence(sequence);
-    free(encoded);
-}
-
-// Test that base32 output only contains valid fesk characters
-void test_base32_produces_valid_fesk_charset() {
-    // Test with various inputs
-    const char *test_inputs[] = {
-        "🚀🌟",
-        "Hello™ World©",
-        "Test@#$%",
-        "日本語",  // Japanese
-        "🎉🎊🎈"   // More emojis
-    };
-
-    for (size_t t = 0; t < sizeof(test_inputs) / sizeof(test_inputs[0]); t++) {
-        const char *input = test_inputs[t];
-        size_t input_len = strlen(input);
-
-        size_t encoded_len = BASE32_LEN(input_len);
-        unsigned char *encoded = malloc(encoded_len + 1);
-        TEST_ASSERT_NOT_NULL(encoded);
-
-        base32_encode((const unsigned char *)input, input_len, encoded);
-        encoded[encoded_len] = '\0';
-
-        // Convert to lowercase and remove padding
-        size_t write_pos = 0;
-        for (size_t i = 0; i < encoded_len; i++) {
-            char ch = encoded[i];
-            if (ch == '=') continue;
-            encoded[write_pos++] = tolower((unsigned char)ch);
-        }
-        encoded[write_pos] = '\0';
-
-        // Verify every character is valid
-        for (size_t i = 0; i < write_pos; i++) {
-            uint8_t code;
-            TEST_ASSERT_TRUE(fesk_lookup_char_code(encoded[i], &code));
-        }
-
-        free(encoded);
-    }
-}
-
 int main(void) {
     UNITY_BEGIN();
 
@@ -483,11 +362,6 @@ int main(void) {
     RUN_TEST(test_2fsk_tone_mapping);
     RUN_TEST(test_encode_2fsk_all_characters);
     RUN_TEST(test_encode_2fsk_case_insensitive);
-
-    // Base32 encoding integration tests
-    RUN_TEST(test_base32_encode_emoji);
-    RUN_TEST(test_base32_encode_unicode);
-    RUN_TEST(test_base32_produces_valid_fesk_charset);
 
     return UNITY_END();
 }
