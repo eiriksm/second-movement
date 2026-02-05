@@ -1,20 +1,23 @@
 # Makefile for fesk_tx tests
 
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c11 -I. -I..
+CFLAGS = -Wall -Wextra -std=c11 -I. -I.. -I../../base32
 LDFLAGS =
 
 # Directories
 SRC_DIR = ..
+BASE32_DIR = ../../base32
 TEST_DIR = .
 
 # Source files
 FESK_SRC = $(SRC_DIR)/fesk_tx.c
+BASE32_SRC = $(BASE32_DIR)/base32.c
 UNITY_SRC = unity.c
 TEST_SRC = test_main.c
 
 # Object files
 FESK_OBJ = fesk_tx.o
+BASE32_OBJ = base32.o
 UNITY_OBJ = unity.o
 TEST_OBJ = test_main.o
 
@@ -25,10 +28,13 @@ TEST_BIN = test_fesk
 
 all: $(TEST_BIN)
 
-$(TEST_BIN): $(FESK_OBJ) $(UNITY_OBJ) $(TEST_OBJ)
+$(TEST_BIN): $(FESK_OBJ) $(BASE32_OBJ) $(UNITY_OBJ) $(TEST_OBJ)
 	$(CC) $(LDFLAGS) -o $@ $^
 
 $(FESK_OBJ): $(FESK_SRC)
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+$(BASE32_OBJ): $(BASE32_SRC)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(UNITY_OBJ): $(UNITY_SRC)
@@ -43,4 +49,4 @@ test: $(TEST_BIN)
 run: test
 
 clean:
-	rm -f $(FESK_OBJ) $(UNITY_OBJ) $(TEST_OBJ) $(TEST_BIN)
+	rm -f $(FESK_OBJ) $(BASE32_OBJ) $(UNITY_OBJ) $(TEST_OBJ) $(TEST_BIN)
