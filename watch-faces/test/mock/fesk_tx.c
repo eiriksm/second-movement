@@ -5,8 +5,10 @@
 #include <string.h>
 
 fesk_result_t fesk_encode(const char *text,
+                          fesk_mode_t mode,
                           int8_t **out_sequence,
                           size_t *out_entries) {
+    (void)mode;
     if (!text || !out_sequence) {
         return FESK_ERR_INVALID_ARGUMENT;
     }
