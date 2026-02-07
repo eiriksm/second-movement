@@ -29,79 +29,80 @@
 #ifdef HAS_IR_SENSOR
 
 /*
- * 2-BIT LIGHT SENSING PROTOCOL
+ * BINARY LIGHT SENSING PROTOCOL
  *
- * Receives data via 4 discrete light levels sensed through the IR photodiode,
- * encoding 2 bits per symbol using Gray code for noise immunity.
+ * Receives data via 2 light levels (black/white) sensed through the IR
+ * photodiode. One bit per symbol, single adaptive threshold with hysteresis.
  *
  * Protocol overview:
- *   - 4 light levels map to 2-bit Gray-coded symbols: L0=00, L1=01, L2=11, L3=10
- *   - Auto-calibration phase measures ambient min/max to set adaptive thresholds
- *   - Frame: [SYNC x8] [START x4] [LEN x4] [DATA x4*N] [CRC8 x4]
- *     SYNC  = alternating 00,11 symbols (calibrates receiver)
- *     START = 01,10,01,10 (unique marker)
- *     LEN   = 1 byte (max 255 payload bytes), MSB-first, 4 symbols
- *     DATA  = N payload bytes, MSB-first, 4 symbols each
- *     CRC8  = XOR checksum of LEN+DATA bytes, 4 symbols
+ *   - 2 levels: dark=0, bright=1. Single threshold at midpoint of calibrated range.
+ *   - Hysteresis band around threshold prevents flickering near the boundary.
+ *   - Auto-calibration measures min/max to set the threshold adaptively.
+ *   - Frame format:
+ *       [SYNC x16] [START x4] [LEN x8] [DATA x8*N] [CRC8 x8]
+ *     SYNC  = alternating 0,1,0,1,... (16 symbols for clock recovery)
+ *     START = 1,1,0,0 (breaks the alternating pattern as a unique marker)
+ *     LEN   = 1 byte (max 128 payload bytes), MSB-first, 8 symbols
+ *     DATA  = N payload bytes, MSB-first, 8 symbols each
+ *     CRC8  = XOR checksum of LEN+DATA bytes, 8 symbols
  *
  * Symbol rates (configurable via ALARM button):
- *   - 64 Hz  (128 bps, 16 B/s)
- *   - 128 Hz (256 bps, 32 B/s) -- default
+ *   - 64 Hz  (64 bps, 8 B/s)
+ *   - 128 Hz (128 bps, 16 B/s) -- default
  *
  * Display:
- *   - Top: "Li 2b" (Light 2-bit) or mode indicator
- *   - Bottom: status/data depending on state
+ *   - Top: "LI bI" (Light Binary) or status
+ *   - Bottom: state/data depending on phase
  *
  * Buttons:
- *   - ALARM: cycle symbol rate / start-stop
+ *   - ALARM short press: recalibrate (in sync), cycle rate (in idle), reset (after done/error)
  *   - LIGHT: suppressed (interferes with photodiode)
  *   - MODE: next face
  */
 
-#define LIGHT_2BIT_MAX_PAYLOAD 128
-#define LIGHT_2BIT_SYNC_COUNT  8
-#define LIGHT_2BIT_START_LEN   4
+#define LIGHT_BIN_MAX_PAYLOAD  128
+#define LIGHT_BIN_SYNC_COUNT   16
+#define LIGHT_BIN_START_LEN    4
 
 typedef enum {
-    LIGHT_2BIT_STATE_IDLE,       // waiting, showing status
-    LIGHT_2BIT_STATE_CALIBRATE,  // measuring min/max for threshold calc
-    LIGHT_2BIT_STATE_SYNC,       // looking for sync pattern
-    LIGHT_2BIT_STATE_START,      // looking for start marker
-    LIGHT_2BIT_STATE_LENGTH,     // reading length byte
-    LIGHT_2BIT_STATE_DATA,       // reading payload bytes
-    LIGHT_2BIT_STATE_CRC,        // reading CRC byte
-    LIGHT_2BIT_STATE_DONE,       // frame received, showing result
-    LIGHT_2BIT_STATE_ERROR,      // error, showing what went wrong
-} light_2bit_state_t;
+    LIGHT_BIN_STATE_IDLE,
+    LIGHT_BIN_STATE_CALIBRATE,
+    LIGHT_BIN_STATE_SYNC,
+    LIGHT_BIN_STATE_START,
+    LIGHT_BIN_STATE_LENGTH,
+    LIGHT_BIN_STATE_DATA,
+    LIGHT_BIN_STATE_CRC,
+    LIGHT_BIN_STATE_DONE,
+    LIGHT_BIN_STATE_ERROR,
+} light_bin_state_t;
 
 typedef struct {
-    light_2bit_state_t state;
+    light_bin_state_t state;
 
     // calibration
     uint16_t cal_min;
     uint16_t cal_max;
     uint16_t cal_samples;
-    uint16_t thresholds[3]; // boundaries between levels 0-1, 1-2, 2-3
+    uint16_t threshold;     // midpoint between min and max
+    uint16_t hysteresis;    // half-width of dead zone around threshold
 
     // symbol rate: index into {64, 128}
     uint8_t rate_index;
 
+    // current decoded bit (with hysteresis applied)
+    uint8_t current_bit;
+
     // receive state machine
-    uint8_t sync_count;          // consecutive valid sync symbols seen
-    uint8_t start_index;         // position in start marker matching
-    uint8_t symbol_buf;          // accumulates symbols within a byte (4 symbols = 1 byte)
-    uint8_t symbol_count;        // symbols accumulated in current byte
-    uint8_t payload_len;         // expected payload length
-    uint16_t payload_index;      // bytes received so far
-    uint8_t crc_accum;           // running XOR checksum
-    uint8_t last_symbol;         // last decoded symbol (for display/debug)
+    uint8_t sync_count;
+    uint8_t start_index;
+    uint8_t bit_buf;         // accumulates bits within a byte
+    uint8_t bit_count;       // bits accumulated in current byte (0-7)
+    uint8_t payload_len;
+    uint16_t payload_index;
+    uint8_t crc_accum;
 
     // receive buffer
-    uint8_t payload[LIGHT_2BIT_MAX_PAYLOAD];
-
-    // burst mode: tight-loop ADC reads within one tick
-    bool burst_mode;
-    uint16_t burst_count;        // samples taken in burst
+    uint8_t payload[LIGHT_BIN_MAX_PAYLOAD];
 } light_2bit_context_t;
 
 void light_2bit_face_setup(uint8_t watch_face_index, void ** context_ptr);
