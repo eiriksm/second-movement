@@ -1550,6 +1550,18 @@
       <input type="number" min="-100" max="120" id="temp-c" />C
       <button onclick="setTemp()">Set</button>
     </div>
+    <h2>Light</h2>
+    <div style="display: flex; gap: 6px; align-items: center;">
+      <div class="light-swatch" onclick="setLight(0)" title="Dark (0 lux)"
+           style="width:36px;height:36px;background:#000;border:2px solid #555;border-radius:4px;cursor:pointer;"></div>
+      <div class="light-swatch" onclick="setLight(5)" title="Dim (5 lux)"
+           style="width:36px;height:36px;background:#444;border:2px solid #555;border-radius:4px;cursor:pointer;"></div>
+      <div class="light-swatch" onclick="setLight(300)" title="Indoor (300 lux)"
+           style="width:36px;height:36px;background:#aaa;border:2px solid #555;border-radius:4px;cursor:pointer;"></div>
+      <div class="light-swatch" onclick="setLight(10000)" title="Bright (10000 lux)"
+           style="width:36px;height:36px;background:#fff;border:2px solid #555;border-radius:4px;cursor:pointer;"></div>
+      <span id="light-lux-display" style="font-size:0.85em;">0 lux</span>
+    </div>
   </div>
 
   <form onSubmit="sendText(); return false" style="display: flex; flex-direction: column; width: 100%">
@@ -1608,6 +1620,7 @@
   lon = 0;
   tx = "";
   temp_c = 25.0;
+  light_lux = 0.0;
   function updateLocation(location) {
     lat = Math.round(location.coords.latitude * 100);
     lon = Math.round(location.coords.longitude * 100);
@@ -1700,6 +1713,21 @@
       return console.warn("input value is not a valid float:", tempInput.value,  e);
     }
   }
+
+  function setLight(lux) {
+    light_lux = lux;
+    var display = document.getElementById("light-lux-display");
+    if (display) display.textContent = lux + " lux";
+    // Highlight the active swatch
+    var swatches = document.querySelectorAll(".light-swatch");
+    swatches.forEach(function(s) { s.style.outline = "none"; });
+    var luxValues = [0, 5, 300, 10000];
+    var idx = luxValues.indexOf(lux);
+    if (idx >= 0 && swatches[idx]) {
+      swatches[idx].style.outline = "2px solid #0e57a9";
+    }
+  }
+
   loadPrefs();
 </script>
 {{{ SCRIPT }}}
