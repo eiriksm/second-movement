@@ -25,12 +25,17 @@
 #include <stdlib.h>
 #include <string.h>
 #include "light_sensor_face.h"
+
+#if __EMSCRIPTEN__
+#include <emscripten.h>
+#else
 #include "tc.h"
 #include "eic.h"
 #include "usb.h"
 #include "adc.h"
+#endif
 
-#ifdef HAS_IR_SENSOR
+#if defined(HAS_IR_SENSOR) || defined(__EMSCRIPTEN__)
 
 void light_sensor_face_setup(uint8_t watch_face_index, void ** context_ptr) {
     (void) watch_face_index;
@@ -39,12 +44,16 @@ void light_sensor_face_setup(uint8_t watch_face_index, void ** context_ptr) {
 
 void light_sensor_face_activate(void *context) {
     (void) context;
+#if __EMSCRIPTEN__
+    movement_request_tick_frequency(8);
+#else
     HAL_GPIO_IR_ENABLE_out();
     HAL_GPIO_IR_ENABLE_clr();
     HAL_GPIO_IRSENSE_pmuxen(HAL_GPIO_PMUX_ADC);
     adc_init();
     adc_enable();
     movement_request_tick_frequency(8);
+#endif
 }
 
 bool light_sensor_face_loop(movement_event_t event, void *context) {
@@ -56,7 +65,17 @@ bool light_sensor_face_loop(movement_event_t event, void *context) {
         case EVENT_TICK:
         {
             char buf[7];
+#if __EMSCRIPTEN__
+            // Read the simulated light level from the JavaScript global.
+            // Map lux to a 0-65535 ADC-like range for display.
+            double lux = EM_ASM_DOUBLE({
+                return window.light_lux || 0.0;
+            });
+            // OPT3001 range is 0-83865 lux; scale to 16-bit ADC range.
+            uint16_t light_level = (uint16_t)(lux * 65535.0 / 83865.0);
+#else
             uint16_t light_level = adc_get_analog_value(HAL_GPIO_IRSENSE_pin());
+#endif
             snprintf(buf, 7, "%-6d", light_level);
             watch_display_text_with_fallback(WATCH_POSITION_TOP, "LIGHT", "LL");
             watch_display_text(WATCH_POSITION_BOTTOM, buf);
@@ -78,10 +97,12 @@ bool light_sensor_face_loop(movement_event_t event, void *context) {
 void light_sensor_face_resign(void *context) {
     (void) context;
 
+#if !__EMSCRIPTEN__
     adc_disable();
     HAL_GPIO_IRSENSE_pmuxdis();
     HAL_GPIO_IRSENSE_off();
     HAL_GPIO_IR_ENABLE_off();
+#endif
 }
 
-#endif // HAS_IR_SENSOR
+#endif // HAS_IR_SENSOR || __EMSCRIPTEN__
