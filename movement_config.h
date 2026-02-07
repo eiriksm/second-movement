@@ -28,7 +28,7 @@
 #include "movement_faces.h"
 
 const watch_face_t watch_faces[] = {
-    clock_face,
+    light_sensor_face,
     unit_counter_face,
     atb_countdown_face,
     fast_stopwatch_face,
