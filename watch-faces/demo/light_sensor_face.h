@@ -26,7 +26,7 @@
 
 #include "movement.h"
 
-#if defined(HAS_IR_SENSOR) || defined(__EMSCRIPTEN__)
+#ifdef HAS_IR_SENSOR
 
 /*
  * LIGHT SENSOR PLAYGROUND
@@ -36,7 +36,6 @@
  * such as the temperature logger. More improvement and testing needs to be done before this is can
  * be considered a production-ready watch face.
  *
- * In the simulator, light level is controlled via the grayscale swatches in the UI.
  */
 
 void light_sensor_face_setup(uint8_t watch_face_index, void ** context_ptr);
@@ -52,4 +51,4 @@ void light_sensor_face_resign(void *context);
     NULL, \
 })
 
-#endif // HAS_IR_SENSOR || __EMSCRIPTEN__
+#endif // HAS_IR_SENSOR

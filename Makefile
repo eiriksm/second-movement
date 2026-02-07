@@ -121,6 +121,11 @@ SRCS += ./watch-library/shared/driver/opt3001.c
 
 ifdef EMSCRIPTEN
 
+DEFINES += -DHAS_IR_SENSOR
+
+# Replace gossamer's ADC with our simulator stub (which provides adc_get_analog_value).
+SRCS := $(filter-out $(GOSSAMER_PATH)/peripherals/adc.c,$(SRCS))
+
 INCLUDES += \
   -I./watch-library/simulator/watch \
 

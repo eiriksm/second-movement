@@ -33,63 +33,35 @@ THE SOFTWARE.
 #include "opt3001.h"
 #include "watch_utility.h"
 
-#if __EMSCRIPTEN__
-#include <emscripten.h>
-#endif
-
 uint16_t opt3001_readManufacturerID(uint8_t devaddr) {
-#if __EMSCRIPTEN__
-    (void) devaddr;
-    return 0x5449; // "TI" - Texas Instruments
-#else
 	uint8_t buf[2];
-	buf[0] = (uint8_t) OPT3001_MANUFACTURER_ID;
+	buf[0] = (uint8_t) OPT3001_MANUFACTURER_ID; 
 	watch_i2c_send(devaddr, buf, 1);
 	watch_i2c_receive(devaddr, buf, 2);
     return ((uint16_t) buf[0] << 8) | ((uint16_t) buf[1]);
-#endif
 }
 
 uint16_t opt3001_readDeviceID(uint8_t devaddr) {
-#if __EMSCRIPTEN__
-    (void) devaddr;
-    return 0x3001;
-#else
 	uint8_t buf[2];
-   	buf[0] = (uint8_t) OPT3001_DEVICE_ID;
+   	buf[0] = (uint8_t) OPT3001_DEVICE_ID; 
 	watch_i2c_send(devaddr, buf, 1);
 	watch_i2c_receive(devaddr, buf, 2);
     return ((uint16_t) buf[0] << 8) | ((uint16_t) buf[1]);
-#endif
 }
 
 opt3001_Config_t opt3001_readConfig(uint8_t devaddr) {
-#if __EMSCRIPTEN__
-    (void) devaddr;
-    // Always report conversion ready so watch faces can read results immediately.
-    opt3001_Config_t config;
-    config.rawData = 0;
-    config.ConversionReady = 1;
-    return config;
-#else
 	opt3001_Config_t config;
 	uint8_t buf[2];
-	buf[0] = (uint8_t) OPT3001_CONFIG;
+	buf[0] = (uint8_t) OPT3001_CONFIG; 
 	watch_i2c_send(devaddr, buf, 1);
 	watch_i2c_receive(devaddr, buf, 2);
     config.rawData = ((uint16_t) buf[0] << 8) | ((uint16_t) buf[1]);
 	return config;
-#endif
 }
 
 void opt3001_writeConfig(uint8_t devaddr, opt3001_Config_t config) {
-#if __EMSCRIPTEN__
-    (void) devaddr;
-    (void) config;
-#else
     uint8_t buf[3] = {OPT3001_CONFIG, (uint8_t)(config.rawData >> 8), (uint8_t)(config.rawData & 0x00FF)};
     watch_i2c_send(devaddr, buf, 3);
-#endif
 	return;
 }
 
@@ -108,38 +80,12 @@ opt3001_t opt3001_readLowLimit(uint8_t devaddr) {
 opt3001_t opt3001_readRegister(uint8_t devaddr, opt3001_Command_t command) {
     opt3001_t result;
     opt3001_ER_t er;
-#if __EMSCRIPTEN__
-    (void) devaddr;
-    (void) command;
-    // Read the simulated lux value from the JavaScript global variable.
-    float lux = EM_ASM_DOUBLE({
-        return window.light_lux || 0.0;
-    });
-    result.lux = lux;
-    // Encode lux into the OPT3001 raw format (4-bit exponent + 12-bit mantissa).
-    // lux = 0.01 * 2^exp * mantissa
-    if (lux <= 0) {
-        er.Exponent = 0;
-        er.Result = 0;
-    } else {
-        uint8_t exp = 0;
-        while (exp < 11 && lux > 40.95 * pow(2, exp)) {
-            exp++;
-        }
-        uint16_t mantissa = (uint16_t)(lux / (0.01 * pow(2, exp)));
-        if (mantissa > 4095) mantissa = 4095;
-        er.Exponent = exp;
-        er.Result = mantissa;
-    }
-    result.raw = er;
-#else
-    uint8_t buf[2];
-	buf[0] = (uint8_t) command;
+    uint8_t buf[2]; 
+	buf[0] = (uint8_t) command; 
 	watch_i2c_send(devaddr, buf, 1);
 	watch_i2c_receive(devaddr, buf, 2);
     er.rawData = ((uint16_t) buf[0] << 8) | ((uint16_t) buf[1]);
     result.raw = er;
     result.lux = 0.01*pow(2, er.Exponent)*er.Result;
-#endif
     return result;
 }
