@@ -26,14 +26,15 @@
 #include <emscripten.h>
 
 static uint16_t _sim_get_light_adc_value(void) {
-    // Read the simulated lux value and map it to a 16-bit ADC range.
-    // OPT3001 max range is ~83865 lux; we scale proportionally.
-    double lux = EM_ASM_DOUBLE({
-        return window.light_lux || 0.0;
+    // Return the simulated light level directly as the ADC reading.
+    // UI presets approximate an IR photodiode's response across the
+    // 16-bit ADC range (0 = dark, 65535 = saturated).
+    double level = EM_ASM_DOUBLE({
+        return window.light_level || 0.0;
     });
-    if (lux <= 0) return 0;
-    if (lux >= 83865.0) return 65535;
-    return (uint16_t)(lux * 65535.0 / 83865.0);
+    if (level <= 0) return 0;
+    if (level >= 65535.0) return 65535;
+    return (uint16_t)level;
 }
 
 void watch_enable_adc(void) {}
