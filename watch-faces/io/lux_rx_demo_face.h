@@ -57,18 +57,18 @@ typedef struct {
     lux_rx_threshold_t threshold;
     lux_rx_decoder_t decoder;
     uint8_t rate_index;
-} lux_rx_face_context_t;
+} lux_rx_demo_context_t;
 
-void light_2bit_face_setup(uint8_t watch_face_index, void ** context_ptr);
-void light_2bit_face_activate(void *context);
-bool light_2bit_face_loop(movement_event_t event, void *context);
-void light_2bit_face_resign(void *context);
+void lux_rx_demo_face_setup(uint8_t watch_face_index, void ** context_ptr);
+void lux_rx_demo_face_activate(void *context);
+bool lux_rx_demo_face_loop(movement_event_t event, void *context);
+void lux_rx_demo_face_resign(void *context);
 
-#define light_2bit_face ((const watch_face_t){ \
-    light_2bit_face_setup, \
-    light_2bit_face_activate, \
-    light_2bit_face_loop, \
-    light_2bit_face_resign, \
+#define lux_rx_demo_face ((const watch_face_t){ \
+    lux_rx_demo_face_setup, \
+    lux_rx_demo_face_activate, \
+    lux_rx_demo_face_loop, \
+    lux_rx_demo_face_resign, \
     NULL, \
 })
 

@@ -25,7 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include "light_2bit_face.h"
+#include "lux_rx_demo_face.h"
 #include "adc.h"
 
 #ifdef HAS_IR_SENSOR
@@ -37,16 +37,16 @@ static uint16_t read_light(void) {
     return adc_get_analog_value(HAL_GPIO_IRSENSE_pin());
 }
 
-void light_2bit_face_setup(uint8_t watch_face_index, void ** context_ptr) {
+void lux_rx_demo_face_setup(uint8_t watch_face_index, void ** context_ptr) {
     (void) watch_face_index;
     if (*context_ptr == NULL) {
-        *context_ptr = malloc(sizeof(lux_rx_face_context_t));
-        memset(*context_ptr, 0, sizeof(lux_rx_face_context_t));
+        *context_ptr = malloc(sizeof(lux_rx_demo_context_t));
+        memset(*context_ptr, 0, sizeof(lux_rx_demo_context_t));
     }
 }
 
-void light_2bit_face_activate(void *context) {
-    lux_rx_face_context_t *ctx = (lux_rx_face_context_t *)context;
+void lux_rx_demo_face_activate(void *context) {
+    lux_rx_demo_context_t *ctx = (lux_rx_demo_context_t *)context;
 
     HAL_GPIO_IR_ENABLE_out();
     HAL_GPIO_IR_ENABLE_clr();
@@ -61,8 +61,8 @@ void light_2bit_face_activate(void *context) {
     movement_request_tick_frequency(symbol_rates[ctx->rate_index]);
 }
 
-bool light_2bit_face_loop(movement_event_t event, void *context) {
-    lux_rx_face_context_t *ctx = (lux_rx_face_context_t *)context;
+bool lux_rx_demo_face_loop(movement_event_t event, void *context) {
+    lux_rx_demo_context_t *ctx = (lux_rx_demo_context_t *)context;
     char buf[7];
 
     switch (event.event_type) {
@@ -169,7 +169,7 @@ bool light_2bit_face_loop(movement_event_t event, void *context) {
     return false;
 }
 
-void light_2bit_face_resign(void *context) {
+void lux_rx_demo_face_resign(void *context) {
     (void) context;
     movement_force_led_off();
     adc_disable();
