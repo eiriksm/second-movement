@@ -54,8 +54,8 @@
 #include "lux_rx.h"
 
 typedef struct {
-    lux_rx_threshold_t threshold;
-    lux_rx_decoder_t decoder;
+    lux_rx_t rx;
+    lux_rx_status_t last_status;
     uint8_t rate_index;
 } lux_rx_demo_context_t;
 

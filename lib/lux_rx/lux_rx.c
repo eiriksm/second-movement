@@ -23,229 +23,217 @@
  */
 
 #include "lux_rx.h"
+#include <string.h>
 
-// Start marker: 1,1,0,0 — breaks the alternating sync pattern uniquely.
-static const uint8_t start_marker[LUX_RX_START_BITS] = {1, 1, 0, 0};
+// Protocol constants (internal)
+#define SYNC_BITS         16
+#define START_BITS        4
+#define CAL_SAMPLES       64
+#define HYSTERESIS_DIV    8
+#define MIN_RANGE         50
 
-// ============================================================================
-// Threshold
-// ============================================================================
+// Internal states (packed into rx->state)
+enum {
+    ST_CAL,
+    ST_SYNC,
+    ST_START,
+    ST_LENGTH,
+    ST_DATA,
+    ST_CRC,
+    ST_DONE,
+    ST_ERROR,
+};
 
-void lux_rx_threshold_init(lux_rx_threshold_t *thr) {
-    thr->cal_min = 65535;
-    thr->cal_max = 0;
-    thr->cal_samples = 0;
-    thr->threshold = 32768;
-    thr->hysteresis = 25;
-    thr->current_bit = 0;
-    thr->calibrated = false;
+static const uint8_t start_marker[START_BITS] = {1, 1, 0, 0};
+
+// --- threshold (internal) ---
+
+static void cal_feed(lux_rx_t *rx, uint16_t adc_val) {
+    if (adc_val < rx->cal_min) rx->cal_min = adc_val;
+    if (adc_val > rx->cal_max) rx->cal_max = adc_val;
+    rx->cal_samples++;
+    uint16_t range = rx->cal_max - rx->cal_min;
+    rx->threshold = rx->cal_min + range / 2;
+    if (range >= MIN_RANGE) rx->hysteresis = range / HYSTERESIS_DIV;
+    if (!rx->calibrated && rx->cal_samples >= CAL_SAMPLES) rx->calibrated = true;
 }
 
-bool lux_rx_threshold_feed(lux_rx_threshold_t *thr, uint16_t adc_val) {
-    if (adc_val < thr->cal_min) thr->cal_min = adc_val;
-    if (adc_val > thr->cal_max) thr->cal_max = adc_val;
-    thr->cal_samples++;
-
-    uint16_t range = thr->cal_max - thr->cal_min;
-    thr->threshold = thr->cal_min + range / 2;
-    if (range >= LUX_RX_MIN_RANGE) {
-        thr->hysteresis = range / LUX_RX_HYSTERESIS_DIV;
-    }
-
-    if (!thr->calibrated && thr->cal_samples >= LUX_RX_CAL_SAMPLE_TARGET) {
-        thr->calibrated = true;
-        return true;
-    }
-    return false;
+static uint8_t decode_bit(lux_rx_t *rx, uint16_t adc_val) {
+    if (adc_val > rx->threshold + rx->hysteresis) rx->current_bit = 1;
+    else if (adc_val < rx->threshold - rx->hysteresis) rx->current_bit = 0;
+    return rx->current_bit;
 }
 
-uint8_t lux_rx_threshold_decode(lux_rx_threshold_t *thr, uint16_t adc_val) {
-    if (adc_val > thr->threshold + thr->hysteresis) {
-        thr->current_bit = 1;
-    } else if (adc_val < thr->threshold - thr->hysteresis) {
-        thr->current_bit = 0;
-    }
-    return thr->current_bit;
+// --- bit accumulator (internal) ---
+
+static bool push_bit(lux_rx_t *rx, uint8_t bit) {
+    rx->bit_buf = (rx->bit_buf << 1) | (bit & 1);
+    rx->bit_count++;
+    return (rx->bit_count >= 8);
 }
 
-void lux_rx_threshold_recalibrate(lux_rx_threshold_t *thr) {
-    thr->cal_min = 65535;
-    thr->cal_max = 0;
-    thr->cal_samples = 0;
-    thr->calibrated = false;
-}
-
-// ============================================================================
-// Decoder
-// ============================================================================
-
-void lux_rx_decoder_init(lux_rx_decoder_t *dec) {
-    dec->state = LUX_RX_STATE_SYNC;
-    dec->sync_count = 0;
-    dec->start_index = 0;
-    dec->bit_buf = 0;
-    dec->bit_count = 0;
-    dec->payload_len = 0;
-    dec->payload_index = 0;
-    dec->crc_accum = 0;
-}
-
-void lux_rx_decoder_reset(lux_rx_decoder_t *dec) {
-    lux_rx_decoder_init(dec);
-}
-
-static bool push_bit(lux_rx_decoder_t *dec, uint8_t bit) {
-    dec->bit_buf = (dec->bit_buf << 1) | (bit & 1);
-    dec->bit_count++;
-    return (dec->bit_count >= 8);
-}
-
-static uint8_t pop_byte(lux_rx_decoder_t *dec) {
-    uint8_t byte = dec->bit_buf;
-    dec->bit_buf = 0;
-    dec->bit_count = 0;
+static uint8_t pop_byte(lux_rx_t *rx) {
+    uint8_t byte = rx->bit_buf;
+    rx->bit_buf = 0;
+    rx->bit_count = 0;
     return byte;
 }
 
-lux_rx_decode_state_t lux_rx_decoder_push_bit(lux_rx_decoder_t *dec, uint8_t bit) {
-    switch (dec->state) {
-        case LUX_RX_STATE_SYNC: {
-            uint8_t expected = dec->sync_count & 1;
+// --- decoder (internal) ---
+
+static void process_bit(lux_rx_t *rx, uint8_t bit) {
+    switch (rx->state) {
+        case ST_SYNC: {
+            uint8_t expected = rx->sync_count & 1;
             if (bit == expected) {
-                dec->sync_count++;
-                if (dec->sync_count >= LUX_RX_SYNC_BITS) {
-                    dec->state = LUX_RX_STATE_START;
-                    dec->start_index = 0;
+                rx->sync_count++;
+                if (rx->sync_count >= SYNC_BITS) {
+                    rx->state = ST_START;
+                    rx->start_index = 0;
                 }
             } else if (bit == 0) {
-                dec->sync_count = 1;
+                rx->sync_count = 1;
             } else {
-                dec->sync_count = 0;
+                rx->sync_count = 0;
             }
             break;
         }
-
-        case LUX_RX_STATE_START: {
-            if (bit == start_marker[dec->start_index]) {
-                dec->start_index++;
-                if (dec->start_index >= LUX_RX_START_BITS) {
-                    dec->state = LUX_RX_STATE_LENGTH;
-                    dec->bit_buf = 0;
-                    dec->bit_count = 0;
+        case ST_START:
+            if (bit == start_marker[rx->start_index]) {
+                rx->start_index++;
+                if (rx->start_index >= START_BITS) {
+                    rx->state = ST_LENGTH;
+                    rx->bit_buf = 0;
+                    rx->bit_count = 0;
                 }
             } else {
-                dec->state = LUX_RX_STATE_SYNC;
-                dec->sync_count = 0;
-                dec->start_index = 0;
+                rx->state = ST_SYNC;
+                rx->sync_count = 0;
+                rx->start_index = 0;
             }
             break;
-        }
-
-        case LUX_RX_STATE_LENGTH: {
-            if (push_bit(dec, bit)) {
-                uint8_t len = pop_byte(dec);
+        case ST_LENGTH:
+            if (push_bit(rx, bit)) {
+                uint8_t len = pop_byte(rx);
                 if (len == 0 || len > LUX_RX_MAX_PAYLOAD) {
-                    dec->state = LUX_RX_STATE_ERROR;
+                    rx->state = ST_ERROR;
                     break;
                 }
-                dec->payload_len = len;
-                dec->payload_index = 0;
-                dec->crc_accum = len;
-                dec->state = LUX_RX_STATE_DATA;
+                rx->payload_len = len;
+                rx->payload_index = 0;
+                rx->crc_accum = len;
+                rx->state = ST_DATA;
             }
             break;
-        }
-
-        case LUX_RX_STATE_DATA: {
-            if (push_bit(dec, bit)) {
-                uint8_t byte = pop_byte(dec);
-                dec->payload[dec->payload_index++] = byte;
-                dec->crc_accum ^= byte;
-                if (dec->payload_index >= dec->payload_len) {
-                    dec->state = LUX_RX_STATE_CRC;
-                }
+        case ST_DATA:
+            if (push_bit(rx, bit)) {
+                uint8_t byte = pop_byte(rx);
+                rx->payload[rx->payload_index++] = byte;
+                rx->crc_accum ^= byte;
+                if (rx->payload_index >= rx->payload_len)
+                    rx->state = ST_CRC;
             }
             break;
-        }
-
-        case LUX_RX_STATE_CRC: {
-            if (push_bit(dec, bit)) {
-                uint8_t received_crc = pop_byte(dec);
-                if (received_crc == dec->crc_accum) {
-                    dec->state = LUX_RX_STATE_DONE;
-                } else {
-                    dec->state = LUX_RX_STATE_ERROR;
-                }
+        case ST_CRC:
+            if (push_bit(rx, bit)) {
+                uint8_t crc = pop_byte(rx);
+                rx->state = (crc == rx->crc_accum) ? ST_DONE : ST_ERROR;
             }
             break;
-        }
-
-        case LUX_RX_STATE_DONE:
-        case LUX_RX_STATE_ERROR:
+        default:
             break;
     }
-
-    return dec->state;
 }
 
-// ============================================================================
-// Encoder
-// ============================================================================
+// --- public API ---
 
-void lux_rx_encoder_init(lux_rx_encoder_t *enc, const uint8_t *payload, uint8_t len) {
-    enc->payload = payload;
+void lux_rx_init(lux_rx_t *rx) {
+    memset(rx, 0, sizeof(*rx));
+    rx->cal_min = 65535;
+    rx->threshold = 32768;
+    rx->hysteresis = 25;
+    rx->state = ST_CAL;
+}
+
+lux_rx_status_t lux_rx_feed(lux_rx_t *rx, uint16_t adc_val) {
+    if (rx->state == ST_DONE) return LUX_RX_DONE;
+    if (rx->state == ST_ERROR) return LUX_RX_ERROR;
+
+    // Calibration phase
+    if (rx->state == ST_CAL) {
+        cal_feed(rx, adc_val);
+        if (rx->calibrated) rx->state = ST_SYNC;
+        return LUX_RX_BUSY;
+    }
+
+    // Live-update threshold during sync
+    if (rx->state == ST_SYNC) cal_feed(rx, adc_val);
+
+    uint8_t bit = decode_bit(rx, adc_val);
+    process_bit(rx, bit);
+
+    if (rx->state == ST_DONE) return LUX_RX_DONE;
+    if (rx->state == ST_ERROR) return LUX_RX_ERROR;
+    return LUX_RX_BUSY;
+}
+
+void lux_rx_reset(lux_rx_t *rx) {
+    bool was_calibrated = rx->calibrated;
+    uint16_t min = rx->cal_min, max = rx->cal_max;
+    uint16_t thr = rx->threshold, hys = rx->hysteresis;
+    uint16_t samples = rx->cal_samples;
+    uint8_t cur = rx->current_bit;
+
+    memset(rx, 0, sizeof(*rx));
+
+    // Preserve calibration so re-sync is fast
+    rx->calibrated = was_calibrated;
+    rx->cal_min = min;
+    rx->cal_max = max;
+    rx->cal_samples = samples;
+    rx->threshold = thr;
+    rx->hysteresis = hys;
+    rx->current_bit = cur;
+    rx->state = ST_SYNC;
+}
+
+// --- encoder ---
+
+#define ENC_SYNC_BITS  16
+#define ENC_START_BITS 4
+#define ENC_LEN_BITS   8
+#define ENC_CRC_BITS   8
+
+void lux_rx_encode(lux_rx_encoder_t *enc, const uint8_t *data, uint8_t len) {
+    enc->payload = data;
     enc->payload_len = len;
     enc->bit_index = 0;
-    enc->total_bits = lux_rx_frame_bits(len);
-
-    // Pre-compute CRC: XOR of length byte and all payload bytes
+    enc->total_bits = ENC_SYNC_BITS + ENC_START_BITS + ENC_LEN_BITS
+                    + (uint16_t)len * 8 + ENC_CRC_BITS;
     enc->crc = len;
-    for (uint8_t i = 0; i < len; i++) {
-        enc->crc ^= payload[i];
-    }
+    for (uint8_t i = 0; i < len; i++) enc->crc ^= data[i];
 }
 
-bool lux_rx_encoder_next_bit(lux_rx_encoder_t *enc, uint8_t *out_bit) {
+bool lux_rx_encode_next(lux_rx_encoder_t *enc, uint8_t *out_bit) {
     if (enc->bit_index >= enc->total_bits) return false;
-
     uint16_t i = enc->bit_index++;
 
-    // SYNC: alternating 0,1,0,1,...
-    if (i < LUX_RX_SYNC_BITS) {
-        *out_bit = i & 1;
-        return true;
-    }
-    i -= LUX_RX_SYNC_BITS;
+    if (i < ENC_SYNC_BITS) { *out_bit = i & 1; return true; }
+    i -= ENC_SYNC_BITS;
 
-    // START: 1,1,0,0
-    if (i < LUX_RX_START_BITS) {
-        *out_bit = start_marker[i];
-        return true;
-    }
-    i -= LUX_RX_START_BITS;
+    if (i < ENC_START_BITS) { *out_bit = start_marker[i]; return true; }
+    i -= ENC_START_BITS;
 
-    // LEN: 8 bits, MSB first
-    if (i < LUX_RX_LEN_BITS) {
-        *out_bit = (enc->payload_len >> (7 - i)) & 1;
-        return true;
-    }
-    i -= LUX_RX_LEN_BITS;
+    if (i < ENC_LEN_BITS) { *out_bit = (enc->payload_len >> (7 - i)) & 1; return true; }
+    i -= ENC_LEN_BITS;
 
-    // DATA: N*8 bits, MSB first per byte
     uint16_t data_bits = (uint16_t)enc->payload_len * 8;
     if (i < data_bits) {
-        uint16_t byte_idx = i / 8;
-        uint8_t bit_pos = 7 - (i % 8);
-        *out_bit = (enc->payload[byte_idx] >> bit_pos) & 1;
+        *out_bit = (enc->payload[i / 8] >> (7 - (i % 8))) & 1;
         return true;
     }
     i -= data_bits;
 
-    // CRC: 8 bits, MSB first
-    if (i < LUX_RX_CRC_BITS) {
-        *out_bit = (enc->crc >> (7 - i)) & 1;
-        return true;
-    }
-
+    if (i < ENC_CRC_BITS) { *out_bit = (enc->crc >> (7 - i)) & 1; return true; }
     return false;
 }

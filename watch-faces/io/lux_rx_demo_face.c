@@ -54,8 +54,7 @@ void lux_rx_demo_face_activate(void *context) {
     adc_init();
     adc_enable();
 
-    lux_rx_threshold_init(&ctx->threshold);
-    lux_rx_decoder_init(&ctx->decoder);
+    lux_rx_init(&ctx->rx);
     ctx->rate_index = 1;
 
     movement_request_tick_frequency(symbol_rates[ctx->rate_index]);
@@ -73,60 +72,26 @@ bool lux_rx_demo_face_loop(movement_event_t event, void *context) {
 
         case EVENT_TICK:
         {
-            uint16_t adc_val = read_light();
-            lux_rx_threshold_t *thr = &ctx->threshold;
-            lux_rx_decoder_t *dec = &ctx->decoder;
+            lux_rx_status_t status = lux_rx_feed(&ctx->rx, read_light());
+            ctx->last_status = status;
 
-            // Phase 1: calibration (before we've seen enough samples)
-            if (!thr->calibrated) {
-                lux_rx_threshold_feed(thr, adc_val);
-                snprintf(buf, 7, "C %4d", thr->cal_samples);
-                watch_display_text(WATCH_POSITION_BOTTOM, buf);
-                if (thr->calibrated) {
-                    watch_display_text(WATCH_POSITION_BOTTOM, "SYNC  ");
-                }
-                break;
-            }
-
-            // Phase 2: decode bit and feed to state machine
-            // Keep updating threshold during sync (transmitter sends both levels)
-            if (dec->state == LUX_RX_STATE_SYNC) {
-                lux_rx_threshold_feed(thr, adc_val);
-            }
-
-            uint8_t bit = lux_rx_threshold_decode(thr, adc_val);
-            lux_rx_decode_state_t state = lux_rx_decoder_push_bit(dec, bit);
-
-            switch (state) {
-                case LUX_RX_STATE_SYNC:
-                    snprintf(buf, 7, "Sy%2d %d", dec->sync_count, bit);
-                    watch_display_text(WATCH_POSITION_BOTTOM, buf);
-                    break;
-                case LUX_RX_STATE_START:
-                    snprintf(buf, 7, "St%2d %d", dec->start_index, bit);
-                    watch_display_text(WATCH_POSITION_BOTTOM, buf);
-                    break;
-                case LUX_RX_STATE_LENGTH:
-                    snprintf(buf, 7, "Ln %2d ", dec->bit_count);
-                    watch_display_text(WATCH_POSITION_BOTTOM, buf);
-                    break;
-                case LUX_RX_STATE_DATA:
-                    snprintf(buf, 7, "d%3d%2d", dec->payload_index, dec->bit_count);
-                    watch_display_text(WATCH_POSITION_BOTTOM, buf);
-                    break;
-                case LUX_RX_STATE_CRC:
-                    watch_display_text(WATCH_POSITION_BOTTOM, "CRC   ");
-                    break;
-                case LUX_RX_STATE_DONE:
+            switch (status) {
+                case LUX_RX_DONE:
                     watch_display_text_with_fallback(WATCH_POSITION_TOP, "RECV ", "RC");
-                    snprintf(buf, 7, "%4db ", dec->payload_len);
+                    snprintf(buf, 7, "%4db ", ctx->rx.payload_len);
                     watch_display_text(WATCH_POSITION_BOTTOM, buf);
                     movement_force_led_on(0, 48, 0);
                     break;
-                case LUX_RX_STATE_ERROR:
+                case LUX_RX_ERROR:
                     watch_display_text_with_fallback(WATCH_POSITION_TOP, "ERR  ", "ER");
                     watch_display_text(WATCH_POSITION_BOTTOM, "FAIL  ");
                     movement_force_led_on(48, 0, 0);
+                    break;
+                case LUX_RX_BUSY:
+                    if (!ctx->rx.calibrated) {
+                        snprintf(buf, 7, "C %4d", ctx->rx.cal_samples);
+                        watch_display_text(WATCH_POSITION_BOTTOM, buf);
+                    }
                     break;
             }
             break;
@@ -134,15 +99,15 @@ bool lux_rx_demo_face_loop(movement_event_t event, void *context) {
 
         case EVENT_ALARM_BUTTON_UP:
         {
-            lux_rx_decoder_t *dec = &ctx->decoder;
-            if (dec->state == LUX_RX_STATE_DONE || dec->state == LUX_RX_STATE_ERROR) {
+            if (ctx->last_status == LUX_RX_DONE || ctx->last_status == LUX_RX_ERROR) {
                 movement_force_led_off();
-                lux_rx_decoder_reset(dec);
+                lux_rx_reset(&ctx->rx);
                 watch_display_text_with_fallback(WATCH_POSITION_TOP, "LUX r", "Lr");
                 watch_display_text(WATCH_POSITION_BOTTOM, "SYNC  ");
-            } else if (dec->state == LUX_RX_STATE_SYNC || dec->state == LUX_RX_STATE_START) {
-                lux_rx_threshold_recalibrate(&ctx->threshold);
-                lux_rx_decoder_reset(dec);
+            } else {
+                // Recalibrate from scratch
+                lux_rx_init(&ctx->rx);
+                watch_display_text_with_fallback(WATCH_POSITION_TOP, "LUX r", "Lr");
                 watch_display_text(WATCH_POSITION_BOTTOM, "CAL   ");
             }
             break;
