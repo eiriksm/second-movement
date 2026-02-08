@@ -22,15 +22,15 @@
  * SOFTWARE.
  */
 
-#ifndef LIGHT_BINARY_PROTOCOL_H_
-#define LIGHT_BINARY_PROTOCOL_H_
+#ifndef LUX_RX_H_
+#define LUX_RX_H_
 
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
 
 /*
- * Binary light-sensing protocol library.
+ * lux_rx — binary light-sensing receiver protocol.
  *
  * Transfers arbitrary data (binary, UTF-8, anything) over a 1-bit optical
  * channel using two light levels (dark=0, bright=1).
@@ -54,14 +54,14 @@
 // Protocol constants
 // ============================================================================
 
-#define LBP_MAX_PAYLOAD       128
-#define LBP_SYNC_BITS         16
-#define LBP_START_BITS        4
-#define LBP_LEN_BITS          8
-#define LBP_CRC_BITS          8
-#define LBP_CAL_SAMPLE_TARGET 64
-#define LBP_HYSTERESIS_DIV    8   // hysteresis = range / 8 on each side
-#define LBP_MIN_RANGE         50  // minimum ADC range to consider calibrated
+#define LUX_RX_MAX_PAYLOAD       128
+#define LUX_RX_SYNC_BITS         16
+#define LUX_RX_START_BITS        4
+#define LUX_RX_LEN_BITS          8
+#define LUX_RX_CRC_BITS          8
+#define LUX_RX_CAL_SAMPLE_TARGET 64
+#define LUX_RX_HYSTERESIS_DIV    8   // hysteresis = range / 8 on each side
+#define LUX_RX_MIN_RANGE         50  // minimum ADC range to consider calibrated
 
 // ============================================================================
 // Threshold: ADC → bit with adaptive calibration and hysteresis
@@ -75,40 +75,40 @@ typedef struct {
     uint16_t hysteresis;
     uint8_t current_bit;
     bool calibrated;
-} lbp_threshold_t;
+} lux_rx_threshold_t;
 
 /// Initialize threshold state. Call once before use.
-void lbp_threshold_init(lbp_threshold_t *thr);
+void lux_rx_threshold_init(lux_rx_threshold_t *thr);
 
 /// Feed an ADC sample during calibration. Returns true when calibration is
-/// complete (after LBP_CAL_SAMPLE_TARGET samples). Once calibrated, further
-/// calls update the threshold live (useful during sync preamble).
-bool lbp_threshold_feed(lbp_threshold_t *thr, uint16_t adc_val);
+/// complete (after LUX_RX_CAL_SAMPLE_TARGET samples). Once calibrated,
+/// further calls update the threshold live (useful during sync preamble).
+bool lux_rx_threshold_feed(lux_rx_threshold_t *thr, uint16_t adc_val);
 
 /// Decode an ADC reading to 0 (dark) or 1 (bright) using the calibrated
 /// threshold with hysteresis. If the reading falls within the dead zone,
 /// the previous bit is retained.
-uint8_t lbp_threshold_decode(lbp_threshold_t *thr, uint16_t adc_val);
+uint8_t lux_rx_threshold_decode(lux_rx_threshold_t *thr, uint16_t adc_val);
 
 /// Reset calibration so it can be run again.
-void lbp_threshold_recalibrate(lbp_threshold_t *thr);
+void lux_rx_threshold_recalibrate(lux_rx_threshold_t *thr);
 
 // ============================================================================
 // Decoder: bit-driven receiver state machine
 // ============================================================================
 
 typedef enum {
-    LBP_STATE_SYNC,
-    LBP_STATE_START,
-    LBP_STATE_LENGTH,
-    LBP_STATE_DATA,
-    LBP_STATE_CRC,
-    LBP_STATE_DONE,
-    LBP_STATE_ERROR,
-} lbp_decode_state_t;
+    LUX_RX_STATE_SYNC,
+    LUX_RX_STATE_START,
+    LUX_RX_STATE_LENGTH,
+    LUX_RX_STATE_DATA,
+    LUX_RX_STATE_CRC,
+    LUX_RX_STATE_DONE,
+    LUX_RX_STATE_ERROR,
+} lux_rx_decode_state_t;
 
 typedef struct {
-    lbp_decode_state_t state;
+    lux_rx_decode_state_t state;
     uint8_t sync_count;
     uint8_t start_index;
     uint8_t bit_buf;
@@ -116,19 +116,19 @@ typedef struct {
     uint8_t payload_len;
     uint16_t payload_index;
     uint8_t crc_accum;
-    uint8_t payload[LBP_MAX_PAYLOAD];
-} lbp_decoder_t;
+    uint8_t payload[LUX_RX_MAX_PAYLOAD];
+} lux_rx_decoder_t;
 
 /// Initialize the decoder. Call once before use.
-void lbp_decoder_init(lbp_decoder_t *dec);
+void lux_rx_decoder_init(lux_rx_decoder_t *dec);
 
 /// Reset the decoder to start listening for a new frame (back to SYNC).
-void lbp_decoder_reset(lbp_decoder_t *dec);
+void lux_rx_decoder_reset(lux_rx_decoder_t *dec);
 
 /// Push one decoded bit into the state machine. Returns the current state
-/// after processing the bit. Check for LBP_STATE_DONE (frame received) or
-/// LBP_STATE_ERROR (bad length or CRC mismatch).
-lbp_decode_state_t lbp_decoder_push_bit(lbp_decoder_t *dec, uint8_t bit);
+/// after processing the bit. Check for LUX_RX_STATE_DONE (frame received)
+/// or LUX_RX_STATE_ERROR (bad length or CRC mismatch).
+lux_rx_decode_state_t lux_rx_decoder_push_bit(lux_rx_decoder_t *dec, uint8_t bit);
 
 // ============================================================================
 // Encoder: zero-allocation bit iterator for frame transmission
@@ -140,21 +140,21 @@ typedef struct {
     uint8_t crc;
     uint16_t bit_index;
     uint16_t total_bits;
-} lbp_encoder_t;
+} lux_rx_encoder_t;
 
 /// Prepare a frame for transmission. Does not allocate — stores a pointer
 /// to your payload buffer, which must remain valid until encoding is done.
-void lbp_encoder_init(lbp_encoder_t *enc, const uint8_t *payload, uint8_t len);
+void lux_rx_encoder_init(lux_rx_encoder_t *enc, const uint8_t *payload, uint8_t len);
 
 /// Get the next bit to transmit. Returns true and writes *out_bit (0 or 1).
 /// Returns false when the entire frame has been emitted.
 /// Call this once per symbol period (tick).
-bool lbp_encoder_next_bit(lbp_encoder_t *enc, uint8_t *out_bit);
+bool lux_rx_encoder_next_bit(lux_rx_encoder_t *enc, uint8_t *out_bit);
 
 /// Returns the total number of bits in the frame.
-static inline uint16_t lbp_frame_bits(uint8_t payload_len) {
-    return LBP_SYNC_BITS + LBP_START_BITS + LBP_LEN_BITS
-         + (uint16_t)payload_len * 8 + LBP_CRC_BITS;
+static inline uint16_t lux_rx_frame_bits(uint8_t payload_len) {
+    return LUX_RX_SYNC_BITS + LUX_RX_START_BITS + LUX_RX_LEN_BITS
+         + (uint16_t)payload_len * 8 + LUX_RX_CRC_BITS;
 }
 
-#endif // LIGHT_BINARY_PROTOCOL_H_
+#endif // LUX_RX_H_

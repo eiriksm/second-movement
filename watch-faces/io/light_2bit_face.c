@@ -40,13 +40,13 @@ static uint16_t read_light(void) {
 void light_2bit_face_setup(uint8_t watch_face_index, void ** context_ptr) {
     (void) watch_face_index;
     if (*context_ptr == NULL) {
-        *context_ptr = malloc(sizeof(light_2bit_context_t));
-        memset(*context_ptr, 0, sizeof(light_2bit_context_t));
+        *context_ptr = malloc(sizeof(lux_rx_face_context_t));
+        memset(*context_ptr, 0, sizeof(lux_rx_face_context_t));
     }
 }
 
 void light_2bit_face_activate(void *context) {
-    light_2bit_context_t *ctx = (light_2bit_context_t *)context;
+    lux_rx_face_context_t *ctx = (lux_rx_face_context_t *)context;
 
     HAL_GPIO_IR_ENABLE_out();
     HAL_GPIO_IR_ENABLE_clr();
@@ -54,32 +54,32 @@ void light_2bit_face_activate(void *context) {
     adc_init();
     adc_enable();
 
-    lbp_threshold_init(&ctx->threshold);
-    lbp_decoder_init(&ctx->decoder);
+    lux_rx_threshold_init(&ctx->threshold);
+    lux_rx_decoder_init(&ctx->decoder);
     ctx->rate_index = 1;
 
     movement_request_tick_frequency(symbol_rates[ctx->rate_index]);
 }
 
 bool light_2bit_face_loop(movement_event_t event, void *context) {
-    light_2bit_context_t *ctx = (light_2bit_context_t *)context;
+    lux_rx_face_context_t *ctx = (lux_rx_face_context_t *)context;
     char buf[7];
 
     switch (event.event_type) {
         case EVENT_ACTIVATE:
-            watch_display_text_with_fallback(WATCH_POSITION_TOP, "LI bI", "Lb");
+            watch_display_text_with_fallback(WATCH_POSITION_TOP, "LUX r", "Lr");
             watch_display_text(WATCH_POSITION_BOTTOM, "CAL   ");
             break;
 
         case EVENT_TICK:
         {
             uint16_t adc_val = read_light();
-            lbp_threshold_t *thr = &ctx->threshold;
-            lbp_decoder_t *dec = &ctx->decoder;
+            lux_rx_threshold_t *thr = &ctx->threshold;
+            lux_rx_decoder_t *dec = &ctx->decoder;
 
             // Phase 1: calibration (before we've seen enough samples)
             if (!thr->calibrated) {
-                lbp_threshold_feed(thr, adc_val);
+                lux_rx_threshold_feed(thr, adc_val);
                 snprintf(buf, 7, "C %4d", thr->cal_samples);
                 watch_display_text(WATCH_POSITION_BOTTOM, buf);
                 if (thr->calibrated) {
@@ -90,40 +90,40 @@ bool light_2bit_face_loop(movement_event_t event, void *context) {
 
             // Phase 2: decode bit and feed to state machine
             // Keep updating threshold during sync (transmitter sends both levels)
-            if (dec->state == LBP_STATE_SYNC) {
-                lbp_threshold_feed(thr, adc_val);
+            if (dec->state == LUX_RX_STATE_SYNC) {
+                lux_rx_threshold_feed(thr, adc_val);
             }
 
-            uint8_t bit = lbp_threshold_decode(thr, adc_val);
-            lbp_decode_state_t state = lbp_decoder_push_bit(dec, bit);
+            uint8_t bit = lux_rx_threshold_decode(thr, adc_val);
+            lux_rx_decode_state_t state = lux_rx_decoder_push_bit(dec, bit);
 
             switch (state) {
-                case LBP_STATE_SYNC:
+                case LUX_RX_STATE_SYNC:
                     snprintf(buf, 7, "Sy%2d %d", dec->sync_count, bit);
                     watch_display_text(WATCH_POSITION_BOTTOM, buf);
                     break;
-                case LBP_STATE_START:
+                case LUX_RX_STATE_START:
                     snprintf(buf, 7, "St%2d %d", dec->start_index, bit);
                     watch_display_text(WATCH_POSITION_BOTTOM, buf);
                     break;
-                case LBP_STATE_LENGTH:
+                case LUX_RX_STATE_LENGTH:
                     snprintf(buf, 7, "Ln %2d ", dec->bit_count);
                     watch_display_text(WATCH_POSITION_BOTTOM, buf);
                     break;
-                case LBP_STATE_DATA:
+                case LUX_RX_STATE_DATA:
                     snprintf(buf, 7, "d%3d%2d", dec->payload_index, dec->bit_count);
                     watch_display_text(WATCH_POSITION_BOTTOM, buf);
                     break;
-                case LBP_STATE_CRC:
+                case LUX_RX_STATE_CRC:
                     watch_display_text(WATCH_POSITION_BOTTOM, "CRC   ");
                     break;
-                case LBP_STATE_DONE:
+                case LUX_RX_STATE_DONE:
                     watch_display_text_with_fallback(WATCH_POSITION_TOP, "RECV ", "RC");
                     snprintf(buf, 7, "%4db ", dec->payload_len);
                     watch_display_text(WATCH_POSITION_BOTTOM, buf);
                     movement_force_led_on(0, 48, 0);
                     break;
-                case LBP_STATE_ERROR:
+                case LUX_RX_STATE_ERROR:
                     watch_display_text_with_fallback(WATCH_POSITION_TOP, "ERR  ", "ER");
                     watch_display_text(WATCH_POSITION_BOTTOM, "FAIL  ");
                     movement_force_led_on(48, 0, 0);
@@ -134,15 +134,15 @@ bool light_2bit_face_loop(movement_event_t event, void *context) {
 
         case EVENT_ALARM_BUTTON_UP:
         {
-            lbp_decoder_t *dec = &ctx->decoder;
-            if (dec->state == LBP_STATE_DONE || dec->state == LBP_STATE_ERROR) {
+            lux_rx_decoder_t *dec = &ctx->decoder;
+            if (dec->state == LUX_RX_STATE_DONE || dec->state == LUX_RX_STATE_ERROR) {
                 movement_force_led_off();
-                lbp_decoder_reset(dec);
-                watch_display_text_with_fallback(WATCH_POSITION_TOP, "LI bI", "Lb");
+                lux_rx_decoder_reset(dec);
+                watch_display_text_with_fallback(WATCH_POSITION_TOP, "LUX r", "Lr");
                 watch_display_text(WATCH_POSITION_BOTTOM, "SYNC  ");
-            } else if (dec->state == LBP_STATE_SYNC || dec->state == LBP_STATE_START) {
-                lbp_threshold_recalibrate(&ctx->threshold);
-                lbp_decoder_reset(dec);
+            } else if (dec->state == LUX_RX_STATE_SYNC || dec->state == LUX_RX_STATE_START) {
+                lux_rx_threshold_recalibrate(&ctx->threshold);
+                lux_rx_decoder_reset(dec);
                 watch_display_text(WATCH_POSITION_BOTTOM, "CAL   ");
             }
             break;

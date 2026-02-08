@@ -29,10 +29,10 @@
 #ifdef HAS_IR_SENSOR
 
 /*
- * BINARY LIGHT PROTOCOL FACE
+ * LUX RX DEMO FACE
  *
  * Receives arbitrary data (binary, UTF-8) via the IR photodiode using the
- * light binary protocol library (light_binary_protocol.h).
+ * lux_rx protocol library (lux_rx.h).
  *
  * Display:
  *   CAL    — calibrating (point light source at sensor, toggle on/off)
@@ -45,19 +45,19 @@
  *   FAIL   — CRC or length error (red LED)
  *
  * Buttons:
- *   ALARM short: recalibrate (during sync), reset (after done/error),
- *                cycle rate (during idle)
+ *   ALARM short: recalibrate (during sync), reset (after done/error)
+ *   ALARM long:  cycle symbol rate (64/128 Hz)
  *   LIGHT:       suppressed (interferes with sensor)
  *   MODE:        next face
  */
 
-#include "light_binary_protocol.h"
+#include "lux_rx.h"
 
 typedef struct {
-    lbp_threshold_t threshold;
-    lbp_decoder_t decoder;
+    lux_rx_threshold_t threshold;
+    lux_rx_decoder_t decoder;
     uint8_t rate_index;
-} light_2bit_context_t;
+} lux_rx_face_context_t;
 
 void light_2bit_face_setup(uint8_t watch_face_index, void ** context_ptr);
 void light_2bit_face_activate(void *context);
