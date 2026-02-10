@@ -30,7 +30,7 @@
 
 #ifdef HAS_IR_SENSOR
 
-static const uint8_t symbol_rates[] = {64, 128};
+static const uint8_t symbol_rates[] = {16, 32};
 #define NUM_RATES (sizeof(symbol_rates) / sizeof(symbol_rates[0]))
 
 static uint16_t read_light(void) {
@@ -55,7 +55,7 @@ void lux_rx_demo_face_activate(void *context) {
     adc_enable();
 
     lux_rx_init(&ctx->rx);
-    ctx->rate_index = 1;
+    ctx->rate_index = 0;
 
     movement_request_tick_frequency(symbol_rates[ctx->rate_index]);
 }
