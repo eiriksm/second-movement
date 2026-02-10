@@ -29,79 +29,82 @@
 #include <stdbool.h>
 
 /*
- * lux_rx — optical data receiver.
+ * lux_rx — 6-bit optical text receiver.
  *
- * Receives arbitrary bytes (binary, UTF-8, anything) over a 1-bit light
- * channel. Just feed ADC samples and check the return value.
+ * Frame: [START] [data symbols...] [CRC6] [END]
+ *   START = 0b111111 (6 bright bits, also calibrates bright level)
+ *   END   = 0b000000 (6 dark bits)
+ *   Data  = 6-bit symbols (values 1-62), mapped to ASCII
+ *   CRC   = 1 + (XOR of all data symbols) % 62
  *
- * Frame format:
- *   [SYNC x16] [START 1100] [LEN x8] [PAYLOAD N×8] [CRC8 x8]
+ * No sync preamble — the dark-to-bright edge at START aligns bit timing.
+ * 62-char alphabet: a-z, space, 0-9, common punctuation.
  *
  * Usage (receiver):
  *   lux_rx_t rx;
  *   lux_rx_init(&rx);
  *   // each tick:
  *   if (lux_rx_feed(&rx, adc_val) == LUX_RX_DONE) {
- *       use(rx.payload, rx.payload_len);
+ *       use(rx.payload);  // null-terminated string
  *       lux_rx_reset(&rx);
  *   }
  *
  * Usage (encoder):
  *   lux_rx_encoder_t enc;
- *   lux_rx_encode(&enc, data, len);
+ *   lux_rx_encode(&enc, "hello world");
  *   uint8_t bit;
  *   while (lux_rx_encode_next(&enc, &bit)) { transmit(bit); }
  */
 
 #define LUX_RX_MAX_PAYLOAD 128
 
+#define LUX_RX_SYM_END    0   // 0b000000
+#define LUX_RX_SYM_START  63  // 0b111111
+
 typedef enum {
-    LUX_RX_BUSY,    // calibrating, syncing, or receiving
-    LUX_RX_DONE,    // frame received — read payload and payload_len
-    LUX_RX_ERROR,   // CRC mismatch or invalid length
+    LUX_RX_BUSY,
+    LUX_RX_DONE,
+    LUX_RX_ERROR,
 } lux_rx_status_t;
 
 typedef struct {
     // --- public (read after LUX_RX_DONE) ---
-    uint8_t payload[LUX_RX_MAX_PAYLOAD];
+    char payload[LUX_RX_MAX_PAYLOAD + 1]; // null-terminated text
     uint8_t payload_len;
 
     // --- private ---
-    uint16_t cal_min, cal_max, cal_samples;
-    uint16_t threshold, hysteresis;
-    uint8_t current_bit;
-    bool calibrated;
+    uint16_t ambient;
+    uint16_t bright;
+    uint16_t threshold;
+    uint32_t bright_accum;
     uint8_t state;
-    uint8_t sync_count, start_index;
-    uint8_t bit_buf, bit_count;
-    uint16_t payload_index;
+    uint8_t start_count;
+    uint8_t bit_buf;
+    uint8_t bit_count;
+    uint8_t prev_symbol;
     uint8_t crc_accum;
+    bool has_prev;
 } lux_rx_t;
 
-/// Initialize receiver. Call once before feeding samples.
 void lux_rx_init(lux_rx_t *rx);
-
-/// Feed one ADC sample. Call once per tick.
-/// Returns LUX_RX_BUSY while working, LUX_RX_DONE when a valid frame
-/// arrives, or LUX_RX_ERROR on CRC/length failure.
 lux_rx_status_t lux_rx_feed(lux_rx_t *rx, uint16_t adc_val);
-
-/// Reset to listen for a new frame.
 void lux_rx_reset(lux_rx_t *rx);
 
-// --- Encoder (for building frames to transmit) ---
+// --- Encoder ---
 
 typedef struct {
-    const uint8_t *payload;
-    uint8_t payload_len;
+    const char *text;
+    uint8_t text_len;
     uint8_t crc;
     uint16_t bit_index, total_bits;
 } lux_rx_encoder_t;
 
-/// Prepare a frame for transmission.
-void lux_rx_encode(lux_rx_encoder_t *enc, const uint8_t *data, uint8_t len);
-
-/// Get next bit to transmit. Returns false when the frame is done.
+void lux_rx_encode(lux_rx_encoder_t *enc, const char *text);
 bool lux_rx_encode_next(lux_rx_encoder_t *enc, uint8_t *out_bit);
+
+// --- Character table ---
+
+char lux_rx_symbol_to_char(uint8_t symbol);
+uint8_t lux_rx_char_to_symbol(char c);
 
 #endif // LUX_RX_H_

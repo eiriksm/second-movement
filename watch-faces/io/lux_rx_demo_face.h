@@ -31,22 +31,16 @@
 /*
  * LUX RX DEMO FACE
  *
- * Receives arbitrary data (binary, UTF-8) via the IR photodiode using the
- * lux_rx protocol library (lux_rx.h).
+ * Receives text via the IR photodiode using the lux_rx 6-bit protocol.
  *
  * Display:
- *   CAL    — calibrating (point light source at sensor, toggle on/off)
- *   SYNC   — waiting for sync preamble
- *   St     — matching start marker
- *   Ln     — reading length byte
- *   dNNN   — receiving data (NNN = bytes so far)
- *   CRC    — reading checksum
- *   RECV   — frame received OK (green LED)
- *   FAIL   — CRC or length error (red LED)
+ *   WAIT   — idle, waiting for START symbol
+ *   RECV   — frame received OK (green LED), shows char count
+ *   FAIL   — CRC error (red LED)
  *
  * Buttons:
- *   ALARM short: recalibrate (during sync), reset (after done/error)
- *   ALARM long:  cycle symbol rate (64/128 Hz)
+ *   ALARM short: reset receiver (after done/error), re-init (during idle)
+ *   ALARM long:  cycle symbol rate (16/32 Hz)
  *   LIGHT:       suppressed (interferes with sensor)
  *   MODE:        next face
  */

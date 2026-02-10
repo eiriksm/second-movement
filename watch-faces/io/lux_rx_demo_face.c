@@ -67,7 +67,7 @@ bool lux_rx_demo_face_loop(movement_event_t event, void *context) {
     switch (event.event_type) {
         case EVENT_ACTIVATE:
             watch_display_text_with_fallback(WATCH_POSITION_TOP, "LUX r", "Lr");
-            watch_display_text(WATCH_POSITION_BOTTOM, "CAL   ");
+            watch_display_text(WATCH_POSITION_BOTTOM, "WAIT  ");
             break;
 
         case EVENT_TICK:
@@ -78,7 +78,7 @@ bool lux_rx_demo_face_loop(movement_event_t event, void *context) {
             switch (status) {
                 case LUX_RX_DONE:
                     watch_display_text_with_fallback(WATCH_POSITION_TOP, "RECV ", "RC");
-                    snprintf(buf, 7, "%4db ", ctx->rx.payload_len);
+                    snprintf(buf, 7, "%4dc ", ctx->rx.payload_len);
                     watch_display_text(WATCH_POSITION_BOTTOM, buf);
                     movement_force_led_on(0, 48, 0);
                     break;
@@ -88,30 +88,23 @@ bool lux_rx_demo_face_loop(movement_event_t event, void *context) {
                     movement_force_led_on(48, 0, 0);
                     break;
                 case LUX_RX_BUSY:
-                    if (!ctx->rx.calibrated) {
-                        snprintf(buf, 7, "C %4d", ctx->rx.cal_samples);
-                        watch_display_text(WATCH_POSITION_BOTTOM, buf);
-                    }
                     break;
             }
             break;
         }
 
         case EVENT_ALARM_BUTTON_UP:
-        {
             if (ctx->last_status == LUX_RX_DONE || ctx->last_status == LUX_RX_ERROR) {
                 movement_force_led_off();
                 lux_rx_reset(&ctx->rx);
                 watch_display_text_with_fallback(WATCH_POSITION_TOP, "LUX r", "Lr");
-                watch_display_text(WATCH_POSITION_BOTTOM, "SYNC  ");
+                watch_display_text(WATCH_POSITION_BOTTOM, "WAIT  ");
             } else {
-                // Recalibrate from scratch
                 lux_rx_init(&ctx->rx);
                 watch_display_text_with_fallback(WATCH_POSITION_TOP, "LUX r", "Lr");
-                watch_display_text(WATCH_POSITION_BOTTOM, "CAL   ");
+                watch_display_text(WATCH_POSITION_BOTTOM, "WAIT  ");
             }
             break;
-        }
 
         case EVENT_ALARM_LONG_PRESS:
             ctx->rate_index = (ctx->rate_index + 1) % NUM_RATES;
