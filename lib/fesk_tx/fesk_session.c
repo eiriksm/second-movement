@@ -415,7 +415,7 @@ static bool _init_raw_source(fesk_session_t *session) {
         // Allocate buffer for encoded payload (+1 for null terminator)
         session->encoded_payload = (char *)malloc(encoded_len + 1);
         if (!session->encoded_payload) {
-            _call_error(session->config.on_error, FESK_ERR_INVALID_ARGUMENT, session->config.user_data);
+            _call_error(session->config.on_error, FESK_ERR_ALLOCATION_FAILED, session->config.user_data);
             return false;
         }
 
