@@ -69,13 +69,6 @@ const watch_buzzer_note_t fesk_tone_map_4fsk[FESK_4FSK_TONE_COUNT] = {
     [FESK_4FSK_TONE_11] = FESK_4FSK_TONE_11_NOTE,
 };
 
-const watch_buzzer_note_t fesk_tone_map[FESK_TONE_COUNT] = {
-    [FESK_TONE_00] = FESK_TONE_00_NOTE,
-    [FESK_TONE_01] = FESK_TONE_01_NOTE,
-    [FESK_TONE_10] = FESK_TONE_10_NOTE,
-    [FESK_TONE_11] = FESK_TONE_11_NOTE,
-};
-
 #if FESK_USE_LOG
 static void _append_to_log(char *buffer,
                            size_t *offset,
@@ -185,7 +178,6 @@ static inline void _append_symbol(uint8_t symbol,
     }
 }
 
-
 static void _append_code_to_log(char *buffer,
                                 size_t *offset,
                                 size_t capacity,
@@ -222,7 +214,6 @@ static void _append_symbols_from_code(uint8_t code,
     }
 }
 
-
 static void _append_crc_symbols(uint8_t crc,
                                  fesk_mode_t mode,
                                  int8_t *sequence,
@@ -241,7 +232,6 @@ static void _append_crc_symbols(uint8_t crc,
         _append_symbol(symbol, mode, sequence, pos, symbol_log, symbol_offset, symbol_capacity);
     }
 }
-
 
 static fesk_result_t _encode_internal(const char *text,
                                       size_t length,
