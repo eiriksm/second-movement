@@ -85,7 +85,6 @@ typedef enum {
     FESK_MODE_4FSK = 1,  /**< Quad FSK (4 tones, 2 bits per symbol, default) */
 } fesk_mode_t;
 
-
 #define FESK_TICKS_PER_SYMBOL 2
 #define FESK_TICKS_PER_REST 3
 
