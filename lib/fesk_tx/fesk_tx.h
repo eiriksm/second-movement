@@ -90,9 +90,6 @@ typedef enum {
 #define FESK_TICKS_PER_REST 3
 
 #define FESK_BITS_PER_CODE 6
-#define FESK_BITS_PER_SYMBOL 2
-#define FESK_DIBITS_PER_CODE 3   /**< 6 bits = 3 dibits */
-#define FESK_DIBITS_PER_CRC 4    /**< 8 bits = 4 dibits */
 
 /** Frame markers: codes 62 and 63 are reserved (not in character set) */
 #define FESK_START_MARKER 62u

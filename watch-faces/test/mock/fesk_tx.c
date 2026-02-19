@@ -34,7 +34,7 @@ fesk_result_t fesk_encode_text(const char *text,
         return FESK_ERR_INVALID_ARGUMENT;
     }
 
-    return fesk_encode(text, 0, out_sequence, out_entries);
+    return fesk_encode(text, FESK_MODE_4FSK, out_sequence, out_entries);
 }
 
 fesk_result_t fesk_encode_cstr(const char *text,
