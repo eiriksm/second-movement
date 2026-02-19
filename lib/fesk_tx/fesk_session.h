@@ -138,7 +138,7 @@ typedef struct fesk_session_s {
     int8_t *sequence;               /**< Encoded sequence (managed internally) */
     size_t sequence_entries;        /**< Number of sequence entries */
     char *encoded_payload;          /**< Base32-encoded payload (NULL if not used) */
-    // Raw source generation state (4-FSK dibits)
+    // Raw source generation state (supports 2-FSK bits and 4-FSK dibits)
     const char *raw_payload;
     size_t raw_payload_length;
     fesk_raw_phase_t raw_phase;
