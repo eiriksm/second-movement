@@ -217,11 +217,11 @@ void test_encode_over_max_length() {
 // Test tone mapping (4-FSK)
 void test_tone_mapping() {
     // Verify 4 tones are correctly mapped
-    TEST_ASSERT_EQUAL(FESK_TONE_00_NOTE, fesk_tone_map[FESK_TONE_00]);
-    TEST_ASSERT_EQUAL(FESK_TONE_01_NOTE, fesk_tone_map[FESK_TONE_01]);
-    TEST_ASSERT_EQUAL(FESK_TONE_10_NOTE, fesk_tone_map[FESK_TONE_10]);
-    TEST_ASSERT_EQUAL(FESK_TONE_11_NOTE, fesk_tone_map[FESK_TONE_11]);
-    TEST_ASSERT_EQUAL(4, FESK_TONE_COUNT);
+    TEST_ASSERT_EQUAL(FESK_4FSK_TONE_00_NOTE, fesk_tone_map_4fsk[FESK_4FSK_TONE_00]);
+    TEST_ASSERT_EQUAL(FESK_4FSK_TONE_01_NOTE, fesk_tone_map_4fsk[FESK_4FSK_TONE_01]);
+    TEST_ASSERT_EQUAL(FESK_4FSK_TONE_10_NOTE, fesk_tone_map_4fsk[FESK_4FSK_TONE_10]);
+    TEST_ASSERT_EQUAL(FESK_4FSK_TONE_11_NOTE, fesk_tone_map_4fsk[FESK_4FSK_TONE_11]);
+    TEST_ASSERT_EQUAL(4, FESK_4FSK_TONE_COUNT);
 }
 
 // Test free with NULL (should be safe)

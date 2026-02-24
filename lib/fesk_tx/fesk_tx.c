@@ -69,13 +69,6 @@ const watch_buzzer_note_t fesk_tone_map_4fsk[FESK_4FSK_TONE_COUNT] = {
     [FESK_4FSK_TONE_11] = FESK_4FSK_TONE_11_NOTE,
 };
 
-const watch_buzzer_note_t fesk_tone_map[FESK_TONE_COUNT] = {
-    [FESK_TONE_00] = FESK_TONE_00_NOTE,
-    [FESK_TONE_01] = FESK_TONE_01_NOTE,
-    [FESK_TONE_10] = FESK_TONE_10_NOTE,
-    [FESK_TONE_11] = FESK_TONE_11_NOTE,
-};
-
 #if FESK_USE_LOG
 static void _append_to_log(char *buffer,
                            size_t *offset,
@@ -185,7 +178,6 @@ static inline void _append_symbol(uint8_t symbol,
     }
 }
 
-
 static void _append_code_to_log(char *buffer,
                                 size_t *offset,
                                 size_t capacity,
@@ -222,7 +214,6 @@ static void _append_symbols_from_code(uint8_t code,
     }
 }
 
-
 static void _append_crc_symbols(uint8_t crc,
                                  fesk_mode_t mode,
                                  int8_t *sequence,
@@ -241,7 +232,6 @@ static void _append_crc_symbols(uint8_t crc,
         _append_symbol(symbol, mode, sequence, pos, symbol_log, symbol_offset, symbol_capacity);
     }
 }
-
 
 static fesk_result_t _encode_internal(const char *text,
                                       size_t length,
@@ -305,22 +295,22 @@ static fesk_result_t _encode_internal(const char *text,
         return FESK_ERR_ALLOCATION_FAILED;
     }
 
-    size_t dibit_log_offset = 0;
+    size_t symbol_log_offset = 0;
     size_t code_log_offset = 0;
 #if FESK_USE_LOG
-    char dibit_log_storage[FESK_BIT_LOG_CAP];
+    char symbol_log_storage[FESK_BIT_LOG_CAP];
     char code_log_storage[FESK_CODE_LOG_CAP];
-    char *dibit_log = dibit_log_storage;
+    char *symbol_log = symbol_log_storage;
     char *code_log = code_log_storage;
-    dibit_log[0] = '\0';
+    symbol_log[0] = '\0';
     code_log[0] = '\0';
 #else
-    char *dibit_log = NULL;
+    char *symbol_log = NULL;
     char *code_log = NULL;
 #endif
-    size_t *dibit_log_offset_ptr = dibit_log ? &dibit_log_offset : NULL;
+    size_t *symbol_log_offset_ptr = symbol_log ? &symbol_log_offset : NULL;
     size_t *code_log_offset_ptr = code_log ? &code_log_offset : NULL;
-    size_t dibit_log_capacity = dibit_log ? FESK_BIT_LOG_CAP : 0;
+    size_t symbol_log_capacity = symbol_log ? FESK_BIT_LOG_CAP : 0;
     size_t code_log_capacity = code_log ? FESK_CODE_LOG_CAP : 0;
 
     size_t pos = 0;
@@ -332,9 +322,9 @@ static fesk_result_t _encode_internal(const char *text,
                               mode,
                               sequence,
                               &pos,
-                              dibit_log,
-                              dibit_log_offset_ptr,
-                              dibit_log_capacity);
+                              symbol_log,
+                              symbol_log_offset_ptr,
+                              symbol_log_capacity);
 
     for (size_t i = 0; i < payload_count; ++i) {
         unsigned char display_char = (unsigned char)text[i];
@@ -361,15 +351,15 @@ static fesk_result_t _encode_internal(const char *text,
                                   mode,
                                   sequence,
                                   &pos,
-                                  dibit_log,
-                                  dibit_log_offset_ptr,
-                                  dibit_log_capacity);
+                                  symbol_log,
+                                  symbol_log_offset_ptr,
+                                  symbol_log_capacity);
     }
 
     if (code_log) {
         _append_code_to_log(code_log, code_log_offset_ptr, code_log_capacity, "CRC", crc);
     }
-    _append_crc_symbols(crc, mode, sequence, &pos, dibit_log, dibit_log_offset_ptr, dibit_log_capacity);
+    _append_crc_symbols(crc, mode, sequence, &pos, symbol_log, symbol_log_offset_ptr, symbol_log_capacity);
 
     if (code_log) {
         _append_code_to_log(code_log, code_log_offset_ptr, code_log_capacity, "END", FESK_END_MARKER);
@@ -378,14 +368,14 @@ static fesk_result_t _encode_internal(const char *text,
                               mode,
                               sequence,
                               &pos,
-                              dibit_log,
-                              dibit_log_offset_ptr,
-                              dibit_log_capacity);
+                              symbol_log,
+                              symbol_log_offset_ptr,
+                              symbol_log_capacity);
 
     sequence[pos] = 0;
 
-    if (dibit_log && dibit_log[0] != '\0') {
-        printf("FESK dibits: %s\n", dibit_log);
+    if (symbol_log && symbol_log[0] != '\0') {
+        printf("FESK symbols: %s\n", symbol_log);
     }
     if (code_log && code_log[0] != '\0') {
         printf("FESK codes: %s\n", code_log);
