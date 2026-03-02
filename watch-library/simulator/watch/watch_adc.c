@@ -26,10 +26,13 @@
 #include <emscripten.h>
 
 static uint16_t _sim_get_light_adc_value(void) {
-    // Return the simulated light level directly as the ADC reading.
-    // UI presets approximate an IR photodiode's response across the
-    // 16-bit ADC range (0 = dark, 65535 = saturated).
+    // If light_tx_queue has entries, consume one per ADC read (for
+    // synchronized light-protocol transmission from the UI).
+    // Otherwise fall back to the static light_level set by the swatches.
     double level = EM_ASM_DOUBLE({
+        if (window.light_tx_queue && window.light_tx_queue.length > 0) {
+            return window.light_tx_queue.shift();
+        }
         return window.light_level || 0.0;
     });
     if (level <= 0) return 0;

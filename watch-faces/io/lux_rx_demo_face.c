@@ -57,7 +57,7 @@ void lux_rx_demo_face_activate(void *context) {
     lux_rx_init(&ctx->rx);
     ctx->rate_index = 0;
 
-    movement_request_tick_frequency(symbol_rates[ctx->rate_index]);
+    movement_request_tick_frequency(128);
 }
 
 bool lux_rx_demo_face_loop(movement_event_t event, void *context) {
@@ -78,7 +78,8 @@ bool lux_rx_demo_face_loop(movement_event_t event, void *context) {
             switch (status) {
                 case LUX_RX_DONE:
                     watch_display_text_with_fallback(WATCH_POSITION_TOP, "RECV ", "RC");
-                    snprintf(buf, 7, "%4dc ", ctx->rx.payload_len);
+                    // Pad the string, it will be one character.
+                    snprintf(buf, 7, " %s    ", ctx->rx.payload);
                     watch_display_text(WATCH_POSITION_BOTTOM, buf);
                     movement_force_led_on(0, 48, 0);
                     break;
