@@ -1794,6 +1794,10 @@
     var text = document.getElementById("light-tx-text").value;
     if (!text) return;
 
+    // Force dark baseline so the ADC fallback after queue drains is 0,
+    // not whatever bright swatch the user previously selected.
+    setLight(0);
+
     var bits = lightTxEncode(text);
     var status = document.getElementById("light-tx-status");
 
@@ -1805,6 +1809,8 @@
     for (var i = 0; i < 12; i++) queue.push(0);
     // Protocol bits
     for (var i = 0; i < bits.length; i++) queue.push(bits[i] ? 40000 : 0);
+    // Dark tail: give receiver time to process END before queue drains
+    for (var i = 0; i < 12; i++) queue.push(0);
 
     window.light_tx_queue = queue;
     status.textContent = "TX: " + bits.length + " bits queued";
