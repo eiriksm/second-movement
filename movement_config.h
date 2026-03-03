@@ -28,9 +28,10 @@
 #include "movement_faces.h"
 
 const watch_face_t watch_faces[] = {
+    clock_face,
+    unit_counter_face,
     light_sensor_face,
     lux_rx_demo_face,
-    unit_counter_face,
     atb_countdown_face,
     fast_stopwatch_face,
     countdown_face,
@@ -38,7 +39,6 @@ const watch_face_t watch_faces[] = {
   #ifndef __EMSCRIPTEN__
     irda_upload_face,
   #endif
-    chirpy_demo_face,
     uptime_face,
     fesk_demo_face,
     voltage_face,
