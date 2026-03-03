@@ -40,7 +40,6 @@
  *
  * Buttons:
  *   ALARM short: reset receiver (after done/error), re-init (during idle)
- *   ALARM long:  cycle symbol rate (16/32 Hz)
  *   LIGHT:       suppressed (interferes with sensor)
  *   MODE:        next face
  */
@@ -50,7 +49,6 @@
 typedef struct {
     lux_rx_t rx;
     lux_rx_status_t last_status;
-    uint8_t rate_index;
 } lux_rx_demo_context_t;
 
 void lux_rx_demo_face_setup(uint8_t watch_face_index, void ** context_ptr);

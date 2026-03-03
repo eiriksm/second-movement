@@ -24,6 +24,7 @@
 
 #include "lux_rx.h"
 #include <string.h>
+#include <stdio.h>
 
 // Internal states
 enum {
@@ -143,6 +144,7 @@ lux_rx_status_t lux_rx_feed(lux_rx_t *rx, uint16_t adc_val) {
                 if (symbol == LUX_RX_SYM_END) {
                     // Frame complete — verify CRC
                     if (!rx->has_prev) {
+                        printf("ERROR: empty frame\n");
                         rx->state = ST_ERROR; // empty frame
                         break;
                     }
@@ -154,17 +156,21 @@ lux_rx_status_t lux_rx_feed(lux_rx_t *rx, uint16_t adc_val) {
                         rx->payload[rx->payload_len] = '\0';
                         rx->state = ST_DONE;
                     } else {
+                        printf("ERROR: CRC mismatch (got %u, expected %u)\n", rx->prev_symbol, expected);
                         rx->state = ST_ERROR;
                     }
                 } else if (symbol == LUX_RX_SYM_START) {
+                    printf("ERROR: unexpected START symbol\n");
                     rx->state = ST_ERROR; // unexpected START in data
                 } else {
                     // Data symbol
                     if (rx->payload_len >= LUX_RX_MAX_PAYLOAD) {
+                        printf("ERROR: payload overflow\n");
                         rx->state = ST_ERROR; // overflow
                         break;
                     }
                     char c = sym_to_char[symbol];
+                    printf("DATA: symbol=%u char='%c' crc_accum=%u\n", symbol, c, rx->crc_accum);
                     rx->payload[rx->payload_len++] = c;
                     rx->crc_accum ^= symbol;
                     rx->prev_symbol = symbol;

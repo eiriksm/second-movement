@@ -30,9 +30,6 @@
 
 #ifdef HAS_IR_SENSOR
 
-static const uint8_t symbol_rates[] = {16, 32};
-#define NUM_RATES (sizeof(symbol_rates) / sizeof(symbol_rates[0]))
-
 static uint16_t read_light(void) {
     return adc_get_analog_value(HAL_GPIO_IRSENSE_pin());
 }
@@ -55,9 +52,8 @@ void lux_rx_demo_face_activate(void *context) {
     adc_enable();
 
     lux_rx_init(&ctx->rx);
-    ctx->rate_index = 0;
 
-    movement_request_tick_frequency(symbol_rates[ctx->rate_index]);
+    movement_request_tick_frequency(128);
 }
 
 bool lux_rx_demo_face_loop(movement_event_t event, void *context) {
@@ -78,7 +74,8 @@ bool lux_rx_demo_face_loop(movement_event_t event, void *context) {
             switch (status) {
                 case LUX_RX_DONE:
                     watch_display_text_with_fallback(WATCH_POSITION_TOP, "RECV ", "RC");
-                    snprintf(buf, 7, "%4dc ", ctx->rx.payload_len);
+                    // Pad the string, it will be one character.
+                    snprintf(buf, 7, " %s    ", ctx->rx.payload);
                     watch_display_text(WATCH_POSITION_BOTTOM, buf);
                     movement_force_led_on(0, 48, 0);
                     break;
@@ -104,13 +101,6 @@ bool lux_rx_demo_face_loop(movement_event_t event, void *context) {
                 watch_display_text_with_fallback(WATCH_POSITION_TOP, "LUX r", "Lr");
                 watch_display_text(WATCH_POSITION_BOTTOM, "WAIT  ");
             }
-            break;
-
-        case EVENT_ALARM_LONG_PRESS:
-            ctx->rate_index = (ctx->rate_index + 1) % NUM_RATES;
-            movement_request_tick_frequency(symbol_rates[ctx->rate_index]);
-            snprintf(buf, 7, "%3dHz ", symbol_rates[ctx->rate_index]);
-            watch_display_text(WATCH_POSITION_BOTTOM, buf);
             break;
 
         case EVENT_LIGHT_BUTTON_UP:

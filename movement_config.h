@@ -29,6 +29,7 @@
 
 const watch_face_t watch_faces[] = {
     light_sensor_face,
+    lux_rx_demo_face,
     unit_counter_face,
     atb_countdown_face,
     fast_stopwatch_face,
