@@ -110,7 +110,6 @@ lux_rx_status_t lux_rx_feed(lux_rx_t *rx, uint16_t adc_val) {
             break;
 
         case ST_START:
-            printf("START: ambient=%u bright=%u adc=%u\n", rx->ambient, rx->bright_accum / rx->start_count, adc_val);
             if (is_bright(adc_val, rx->ambient)) {
                 rx->start_count++;
                 rx->bright_accum += adc_val;
