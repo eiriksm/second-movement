@@ -106,8 +106,8 @@ int8_t watch_i2c_receive(int16_t addr, uint8_t *buf, uint16_t length) {
 }
 
 int8_t watch_i2c_write8(int16_t addr, uint8_t reg, uint8_t data) {
-    uint8_t buf[3] = {reg, 0, data};
-    return watch_i2c_send(addr, buf, 3);
+    uint8_t buf[2] = {reg, data};
+    return watch_i2c_send(addr, buf, 2);
 }
 
 uint8_t watch_i2c_read8(int16_t addr, uint8_t reg) {
