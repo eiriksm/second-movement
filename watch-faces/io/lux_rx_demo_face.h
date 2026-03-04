@@ -35,7 +35,7 @@
  *
  * Display:
  *   WAIT   — idle, waiting for START symbol
- *   RECV   — frame received OK (green LED), shows char count
+ *   RECV   — frame received OK (green LED), shows received text
  *   FAIL   — CRC error (red LED)
  *
  * Buttons:
