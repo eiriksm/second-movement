@@ -84,6 +84,7 @@ typedef struct {
     uint8_t prev_symbol;
     uint8_t crc_accum;
     bool has_prev;
+    uint16_t tick_count;
 } lux_rx_t;
 
 void lux_rx_init(lux_rx_t *rx);

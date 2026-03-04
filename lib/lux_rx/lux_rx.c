@@ -79,6 +79,9 @@ uint8_t lux_rx_char_to_symbol(char c) {
     return char_to_sym[(uint8_t)c];
 }
 
+// Max ticks before auto-reset (covers max 128-char frame at 8 Hz with margin)
+#define LUX_RX_TIMEOUT_TICKS 800
+
 // Bright detection margin: at least ambient/4 or 500 counts
 static bool is_bright(uint16_t sample, uint16_t ambient) {
     uint16_t margin = ambient >> 2;
@@ -98,6 +101,13 @@ lux_rx_status_t lux_rx_feed(lux_rx_t *rx, uint16_t adc_val) {
     if (rx->state == ST_DONE) return LUX_RX_DONE;
     if (rx->state == ST_ERROR) return LUX_RX_ERROR;
 
+    if (rx->state == ST_START || rx->state == ST_DATA) {
+        if (++rx->tick_count >= LUX_RX_TIMEOUT_TICKS) {
+            lux_rx_reset(rx);
+            return LUX_RX_BUSY;
+        }
+    }
+
     switch (rx->state) {
         case ST_IDLE:
             // Track ambient with exponential moving average
@@ -106,6 +116,7 @@ lux_rx_status_t lux_rx_feed(lux_rx_t *rx, uint16_t adc_val) {
                 rx->state = ST_START;
                 rx->start_count = 1;
                 rx->bright_accum = adc_val;
+                rx->tick_count = 1;
             }
             break;
 
