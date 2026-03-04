@@ -24,7 +24,9 @@
 
 #include "lux_rx.h"
 #include <string.h>
+#ifdef LUX_RX_DEBUG
 #include <stdio.h>
+#endif
 
 // Internal states
 enum {
