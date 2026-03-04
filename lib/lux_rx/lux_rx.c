@@ -155,7 +155,9 @@ lux_rx_status_t lux_rx_feed(lux_rx_t *rx, uint16_t adc_val) {
                 if (symbol == LUX_RX_SYM_END) {
                     // Frame complete — verify CRC
                     if (!rx->has_prev) {
+                        #ifdef LUX_RX_DEBUG
                         printf("ERROR: empty frame\n");
+                        #endif
                         rx->state = ST_ERROR; // empty frame
                         break;
                     }
@@ -167,21 +169,29 @@ lux_rx_status_t lux_rx_feed(lux_rx_t *rx, uint16_t adc_val) {
                         rx->payload[rx->payload_len] = '\0';
                         rx->state = ST_DONE;
                     } else {
+                        #ifdef LUX_RX_DEBUG
                         printf("ERROR: CRC mismatch (got %u, expected %u)\n", rx->prev_symbol, expected);
+                        #endif
                         rx->state = ST_ERROR;
                     }
                 } else if (symbol == LUX_RX_SYM_START) {
+                    #ifdef LUX_RX_DEBUG
                     printf("ERROR: unexpected START symbol\n");
+                    #endif
                     rx->state = ST_ERROR; // unexpected START in data
                 } else {
                     // Data symbol
                     if (rx->payload_len >= LUX_RX_MAX_PAYLOAD) {
+                        #ifdef LUX_RX_DEBUG
                         printf("ERROR: payload overflow\n");
+                        #endif
                         rx->state = ST_ERROR; // overflow
                         break;
                     }
                     char c = sym_to_char[symbol];
+                    #ifdef LUX_RX_DEBUG
                     printf("DATA: symbol=%u char='%c' crc_accum=%u\n", symbol, c, rx->crc_accum);
+                    #endif
                     rx->payload[rx->payload_len++] = c;
                     rx->crc_accum ^= symbol;
                     rx->prev_symbol = symbol;
