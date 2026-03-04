@@ -118,8 +118,9 @@ uint8_t watch_i2c_read8(int16_t addr, uint8_t reg) {
 }
 
 uint16_t watch_i2c_read16(int16_t addr, uint8_t reg) {
-    uint8_t buf[2] = {reg, 0};
-    watch_i2c_send(addr, buf, 1);
+    uint8_t buf[2] = {0, 0};
+    uint8_t reg_buf = reg;
+    watch_i2c_send(addr, &reg_buf, 1);
     watch_i2c_receive(addr, buf, 2);
     return ((uint16_t)buf[0] << 8) | buf[1];
 }
