@@ -61,7 +61,7 @@ static uint16_t opt3001_read_register(uint8_t reg) {
             return opt3001_lux_to_raw(lux);
         }
         case OPT3001_REG_CONFIG:
-            // Always report ConversionReady (bit 7 of high byte).
+            // Always report ConversionReady (bit 7 of low byte).
             return opt3001_config | 0x0080;
         case OPT3001_REG_LOW_LIMIT:
             return 0x0000;
