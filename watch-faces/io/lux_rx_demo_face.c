@@ -120,5 +120,6 @@ bool lux_rx_demo_face_loop(movement_event_t event, void *context) {
 
 void lux_rx_demo_face_resign(void *context) {
     (void) context;
+    movement_request_tick_frequency(1);
     movement_force_led_off();
 }
