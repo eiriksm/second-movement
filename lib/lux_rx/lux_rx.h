@@ -47,7 +47,7 @@
  * Usage (receiver):
  *   lux_rx_t rx;
  *   lux_rx_init(&rx);
- *   // each tick at 8 Hz:
+ *   // each tick at 16 Hz:
  *   if (lux_rx_feed(&rx, adc_val) == LUX_RX_DONE) {
  *       use(rx.payload);  // null-terminated string
  *       lux_rx_reset(&rx);
