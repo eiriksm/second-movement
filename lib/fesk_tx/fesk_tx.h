@@ -85,14 +85,10 @@ typedef enum {
     FESK_MODE_4FSK = 1,  /**< Quad FSK (4 tones, 2 bits per symbol, default) */
 } fesk_mode_t;
 
-
 #define FESK_TICKS_PER_SYMBOL 2
 #define FESK_TICKS_PER_REST 3
 
 #define FESK_BITS_PER_CODE 6
-#define FESK_BITS_PER_SYMBOL 2
-#define FESK_DIBITS_PER_CODE 3   /**< 6 bits = 3 dibits */
-#define FESK_DIBITS_PER_CRC 4    /**< 8 bits = 4 dibits */
 
 /** Frame markers: codes 62 and 63 are reserved (not in character set) */
 #define FESK_START_MARKER 62u
@@ -124,23 +120,9 @@ enum {
 #define FESK_4FSK_TONE_10_NOTE  BUZZER_NOTE_F7SHARP_G7FLAT   /**< ~2960 Hz for dibit 10 */
 #define FESK_4FSK_TONE_11_NOTE  BUZZER_NOTE_G7SHARP_A7FLAT   /**< ~3322 Hz for dibit 11 */
 
-/** Legacy definitions for backward compatibility */
-#define FESK_TONE_COUNT FESK_4FSK_TONE_COUNT
-#define FESK_TONE_00 FESK_4FSK_TONE_00
-#define FESK_TONE_01 FESK_4FSK_TONE_01
-#define FESK_TONE_10 FESK_4FSK_TONE_10
-#define FESK_TONE_11 FESK_4FSK_TONE_11
-#define FESK_TONE_00_NOTE FESK_4FSK_TONE_00_NOTE
-#define FESK_TONE_01_NOTE FESK_4FSK_TONE_01_NOTE
-#define FESK_TONE_10_NOTE FESK_4FSK_TONE_10_NOTE
-#define FESK_TONE_11_NOTE FESK_4FSK_TONE_11_NOTE
-
 /** Tone map arrays for both modes */
 extern const watch_buzzer_note_t fesk_tone_map_2fsk[FESK_2FSK_TONE_COUNT];
 extern const watch_buzzer_note_t fesk_tone_map_4fsk[FESK_4FSK_TONE_COUNT];
-
-/** Legacy tone map (points to 4FSK for backward compatibility) */
-extern const watch_buzzer_note_t fesk_tone_map[FESK_4FSK_TONE_COUNT];
 
 /**
  * @brief Encode null-terminated string into FESK audio sequence
