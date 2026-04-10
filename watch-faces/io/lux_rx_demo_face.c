@@ -70,7 +70,8 @@ bool lux_rx_demo_face_loop(movement_event_t event, void *context) {
 
         case EVENT_TICK:
         {
-            lux_rx_status_t status = lux_rx_feed(&ctx->rx, read_light());
+            uint16_t adc_val = read_light();
+            lux_rx_status_t status = lux_rx_feed(&ctx->rx, adc_val);
             ctx->last_status = status;
 
             switch (status) {
