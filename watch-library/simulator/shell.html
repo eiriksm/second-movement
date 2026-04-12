@@ -1814,8 +1814,9 @@
     // The ADC read function in watch_adc.c pops from this queue,
     // so timing is perfectly synchronized with the receiver's tick.
     var queue = [];
-    // Preamble: dark samples to flush receiver to ST_IDLE (one full bit window
-    // plus a little slack is plenty).
+    // Preamble: dark samples to help the receiver re-sync if it is mid-frame
+    // (e.g. ST_START/ST_DATA) and to establish a dark baseline before START;
+    // one full bit window plus a little slack is plenty.
     for (var i = 0; i < SAMPLES_PER_BIT + 4; i++) queue.push(DARK);
     // Protocol bits: SAMPLES_PER_BIT copies of BRIGHT/DARK per bit
     for (var i = 0; i < bits.length; i++) {
