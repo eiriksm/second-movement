@@ -86,9 +86,9 @@ uint8_t lux_rx_char_to_symbol(char c) {
 // longest frame is (6 + 128*6 + 6 + 6)*8 = 6288 samples (~98s).
 #define LUX_RX_TIMEOUT_TICKS 6400
 
-// Majority threshold: bit is 1 iff at least this many of the N samples in
-// the window are bright. For N=8 this is 4 (ties resolve to 1).
-#define LUX_RX_BIT_MAJORITY ((LUX_RX_SAMPLES_PER_BIT + 1) / 2)
+// Bit is decoded as 1 when at least this many of the N samples are bright.
+// Ties (N/2) resolve to 1, which maximizes phase tolerance at START sync.
+#define LUX_RX_BIT_THRESHOLD ((LUX_RX_SAMPLES_PER_BIT + 1) / 2)
 
 static bool is_bright(uint16_t sample) {
     return sample < LUX_RX_BRIGHT_THRESHOLD;
@@ -165,7 +165,7 @@ lux_rx_status_t lux_rx_feed(lux_rx_t *rx, uint16_t adc_val) {
             rx->sample_idx++;
             if (rx->sample_idx >= LUX_RX_SAMPLES_PER_BIT) {
                 // All six START bits must be 1 (majority bright).
-                if (rx->bright_count < LUX_RX_BIT_MAJORITY) {
+                if (rx->bright_count < LUX_RX_BIT_THRESHOLD) {
                     lux_rx_reset(rx);
                     break;
                 }
@@ -189,7 +189,7 @@ lux_rx_status_t lux_rx_feed(lux_rx_t *rx, uint16_t adc_val) {
             if (bright) rx->bright_count++;
             rx->sample_idx++;
             if (rx->sample_idx >= LUX_RX_SAMPLES_PER_BIT) {
-                uint8_t bit = (rx->bright_count >= LUX_RX_BIT_MAJORITY) ? 1 : 0;
+                uint8_t bit = (rx->bright_count >= LUX_RX_BIT_THRESHOLD) ? 1 : 0;
                 rx->sample_idx = 0;
                 rx->bright_count = 0;
                 rx->bit_buf = (rx->bit_buf << 1) | bit;

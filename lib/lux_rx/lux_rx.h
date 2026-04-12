@@ -33,8 +33,8 @@
  *
  * Each logical bit is transmitted as LUX_RX_SAMPLES_PER_BIT consecutive
  * samples at the same level: bright for 1, dark for 0. The receiver decodes
- * each bit by majority voting over the window, which tolerates small phase
- * offsets and isolated sample noise.
+ * each bit by thresholding the bright-sample count over the window (ties
+ * resolve to 1), which tolerates small phase offsets and sample noise.
  *
  * Frame: [START] [data symbols...] [CRC6] [END]
  *   START = 0b111111 (6 bright bits = LUX_RX_SAMPLES_PER_BIT*6 bright samples)
