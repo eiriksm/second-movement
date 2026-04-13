@@ -76,11 +76,28 @@ bool lux_rx_demo_face_loop(movement_event_t event, void *context) {
 
             switch (status) {
                 case LUX_RX_DONE:
+                {
+                    // Check if payload is a Unix timestamp (all digits, 10 chars)
+                    bool is_timestamp = (ctx->rx.payload_len == 10);
+                    for (uint8_t i = 0; i < ctx->rx.payload_len && is_timestamp; i++) {
+                        if (ctx->rx.payload[i] < '0' || ctx->rx.payload[i] > '9') {
+                            is_timestamp = false;
+                        }
+                    }
+                    if (is_timestamp) {
+                        uint32_t timestamp = strtoul(ctx->rx.payload, NULL, 10);
+                        movement_set_utc_timestamp(timestamp);
+                        watch_display_text_with_fallback(WATCH_POSITION_TOP, "RECV ", "RC");
+                        watch_display_text(WATCH_POSITION_BOTTOM, "SET   ");
+                        movement_force_led_on(0, 48, 0);
+                        break;
+                    }
                     watch_display_text_with_fallback(WATCH_POSITION_TOP, "RECV ", "RC");
                     snprintf(buf, 7, " %s    ", ctx->rx.payload);
                     watch_display_text(WATCH_POSITION_BOTTOM, buf);
                     movement_force_led_on(0, 48, 0);
                     break;
+                }
                 case LUX_RX_ERROR:
                     watch_display_text_with_fallback(WATCH_POSITION_TOP, "ERR  ", "ER");
                     watch_display_text(WATCH_POSITION_BOTTOM, "FAIL  ");
