@@ -27,6 +27,16 @@
 #include <stdio.h>
 #include "lux_rx_demo_face.h"
 #include "adc.h"
+#include "watch_tcc.h"
+
+static int8_t time_set_seq[] = {
+    BUZZER_NOTE_C7, 5,
+    BUZZER_NOTE_REST, 5,
+    BUZZER_NOTE_C7, 5,
+    BUZZER_NOTE_REST, 5,
+    BUZZER_NOTE_C7, 5,
+    0
+};
 
 static uint16_t read_light(void) {
     HAL_GPIO_IR_ENABLE_out();
@@ -90,6 +100,7 @@ bool lux_rx_demo_face_loop(movement_event_t event, void *context) {
                         watch_display_text_with_fallback(WATCH_POSITION_TOP, "RECV ", "RC");
                         watch_display_text(WATCH_POSITION_BOTTOM, "SET   ");
                         movement_force_led_on(0, 48, 0);
+                        watch_buzzer_play_sequence(time_set_seq, NULL);
                         break;
                     }
                     watch_display_text_with_fallback(WATCH_POSITION_TOP, "RECV ", "RC");
