@@ -93,6 +93,7 @@ typedef struct {
     uint8_t prev_symbol;
     uint8_t crc_accum;
     bool has_prev;
+    bool saw_dark;     // must see a dark sample before a bright one can start a frame
     uint16_t tick_count;
 } lux_rx_t;
 

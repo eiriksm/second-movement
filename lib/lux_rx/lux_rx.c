@@ -147,10 +147,13 @@ lux_rx_status_t lux_rx_feed(lux_rx_t *rx, uint16_t adc_val) {
 
     switch (rx->state) {
         case ST_IDLE:
-            // Wait for the first bright sample. The previous sample was dark,
-            // so this sample is treated as sample 0 of the first START bit
-            // window. Any phase offset vs. the transmitter is < 1 sample.
-            if (bright) {
+            // Require a dark sample before accepting a bright one as the start
+            // of a frame. This prevents ambient IR (which may read as "bright"
+            // indefinitely) from triggering a false START. The transmitter's
+            // leading dark padding provides this edge.
+            if (!bright) {
+                rx->saw_dark = true;
+            } else if (rx->saw_dark) {
                 rx->state = ST_START;
                 rx->start_count = 0;
                 rx->sample_idx = 1;   // sample 0 has just been consumed

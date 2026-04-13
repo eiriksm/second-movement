@@ -1827,6 +1827,10 @@
     for (var i = 0; i < SAMPLES_PER_BIT + 4; i++) queue.push(DARK);
 
     window._lux_tx_started = false;
+    // Payload boundary: remaining queue length after last leading-pad sample,
+    // and remaining queue length after last payload sample (= trailing pad size).
+    window._lux_tx_payload_start_remaining = bits.length * SAMPLES_PER_BIT + (SAMPLES_PER_BIT + 4);
+    window._lux_tx_payload_end_remaining = SAMPLES_PER_BIT + 4;
     window.light_tx_queue = queue;
     var bitStr = bits.join('');
     console.log("LUX TX raw (" + bits.length + "): " + bitStr);

@@ -31,13 +31,16 @@ static uint16_t _sim_get_light_adc_value(void) {
     // Otherwise fall back to the static light_level set by the swatches.
     double level = EM_ASM_DOUBLE({
         if (window.light_tx_queue && window.light_tx_queue.length > 0) {
-            if (!window._lux_tx_started) {
+            var val = window.light_tx_queue.shift();
+            var remaining = window.light_tx_queue.length;
+            // Start timer after leading padding has been consumed
+            if (!window._lux_tx_started && remaining <= window._lux_tx_payload_start_remaining) {
                 window._lux_tx_started = true;
                 window._lux_tx_start_ms = Date.now();
                 console.log("LUX TX start: " + window._lux_tx_start_ms + " ms");
             }
-            var val = window.light_tx_queue.shift();
-            if (window.light_tx_queue.length === 0) {
+            // Stop timer when trailing padding begins (payload fully consumed)
+            if (window._lux_tx_started && remaining <= window._lux_tx_payload_end_remaining) {
                 var now = Date.now();
                 console.log("LUX TX done: " + now + " ms (elapsed: " + (now - window._lux_tx_start_ms) + " ms)");
                 window._lux_tx_started = false;
@@ -45,7 +48,9 @@ static uint16_t _sim_get_light_adc_value(void) {
             }
             return val;
         }
-        return window.light_level || 0.0;
+        // Swatches use intuitive high=bright convention; ADC is active-low,
+        // so invert: light_level 0 (dark swatch) → ADC 65535 (dark), etc.
+        return 65535.0 - (window.light_level || 0.0);
     });
     if (level <= 0) return 0;
     if (level >= 65535.0) return 65535;
