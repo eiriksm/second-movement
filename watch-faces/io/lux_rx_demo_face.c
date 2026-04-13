@@ -90,6 +90,7 @@ bool lux_rx_demo_face_loop(movement_event_t event, void *context) {
         {
             uint16_t adc_val = read_light();
             lux_rx_status_t status = lux_rx_feed(&ctx->rx, adc_val);
+            bool just_changed = (status != ctx->last_status);
             ctx->last_status = status;
 
             switch (status) {
@@ -98,13 +99,15 @@ bool lux_rx_demo_face_loop(movement_event_t event, void *context) {
                     snprintf(buf, 7, " %s    ", ctx->rx.payload);
                     watch_display_text(WATCH_POSITION_BOTTOM, buf);
                     movement_force_led_on(0, 48, 0);
-                    movement_play_sequence(triumph_sound, BUZZER_PRIORITY_ALARM);
+                    if (just_changed)
+                        movement_play_sequence(triumph_sound, BUZZER_PRIORITY_ALARM);
                     break;
                 case LUX_RX_ERROR:
                     watch_display_text_with_fallback(WATCH_POSITION_TOP, "ERR  ", "ER");
                     watch_display_text(WATCH_POSITION_BOTTOM, "FAIL  ");
                     movement_force_led_on(48, 0, 0);
-                    movement_play_sequence(fail_sound, BUZZER_PRIORITY_ALARM);
+                    if (just_changed)
+                        movement_play_sequence(fail_sound, BUZZER_PRIORITY_ALARM);
                     break;
                 case LUX_RX_BUSY:
                     break;
