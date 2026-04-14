@@ -27,6 +27,19 @@
 #include <stdio.h>
 #include "lux_rx_demo_face.h"
 #include "adc.h"
+#include "watch_tcc.h"
+
+// Westminster-style descending clock chime (E-D-C-G) for "time set"
+static int8_t time_set_seq[] = {
+    BUZZER_NOTE_E6, 6,
+    BUZZER_NOTE_REST, 1,
+    BUZZER_NOTE_D6, 6,
+    BUZZER_NOTE_REST, 1,
+    BUZZER_NOTE_C6, 6,
+    BUZZER_NOTE_REST, 1,
+    BUZZER_NOTE_G5, 14,
+    0
+};
 
 // Descending two-tone fail sound
 static int8_t fail_sound[] = {
@@ -95,6 +108,27 @@ bool lux_rx_demo_face_loop(movement_event_t event, void *context) {
 
             switch (status) {
                 case LUX_RX_DONE:
+                {
+                    // Check if payload is a Unix timestamp (all digits, 10 chars)
+                    bool is_timestamp = (ctx->rx.payload_len == 10);
+                    for (uint8_t i = 0; i < ctx->rx.payload_len && is_timestamp; i++) {
+                        if (ctx->rx.payload[i] < '0' || ctx->rx.payload[i] > '9') {
+                            is_timestamp = false;
+                        }
+                    }
+                    if (is_timestamp) {
+                        if (just_changed) {
+                            uint32_t timestamp = strtoul(ctx->rx.payload, NULL, 10);
+                            // Compensate for transmission time (tick_count is at 64 Hz)
+                            timestamp += ctx->rx.tick_count / 64;
+                            movement_set_utc_timestamp(timestamp);
+                            movement_play_sequence(time_set_seq, BUZZER_PRIORITY_ALARM);
+                        }
+                        watch_display_text_with_fallback(WATCH_POSITION_TOP, "RECV ", "RC");
+                        watch_display_text(WATCH_POSITION_BOTTOM, "SET   ");
+                        movement_force_led_on(0, 48, 0);
+                        break;
+                    }
                     watch_display_text_with_fallback(WATCH_POSITION_TOP, "RECV ", "RC");
                     snprintf(buf, 7, " %s    ", ctx->rx.payload);
                     watch_display_text(WATCH_POSITION_BOTTOM, buf);
@@ -102,6 +136,7 @@ bool lux_rx_demo_face_loop(movement_event_t event, void *context) {
                     if (just_changed)
                         movement_play_sequence(triumph_sound, BUZZER_PRIORITY_ALARM);
                     break;
+                }
                 case LUX_RX_ERROR:
                     watch_display_text_with_fallback(WATCH_POSITION_TOP, "ERR  ", "ER");
                     watch_display_text(WATCH_POSITION_BOTTOM, "FAIL  ");
