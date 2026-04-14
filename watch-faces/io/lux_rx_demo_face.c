@@ -123,9 +123,7 @@ bool lux_rx_demo_face_loop(movement_event_t event, void *context) {
                         watch_display_text_with_fallback(WATCH_POSITION_TOP, "RECV ", "RC");
                         watch_display_text(WATCH_POSITION_BOTTOM, "SET   ");
                         movement_force_led_on(0, 48, 0);
-                        if (movement_button_should_sound()) {
-                            watch_buzzer_play_sequence(time_set_seq, NULL);
-                        }
+                        watch_buzzer_play_sequence(time_set_seq, NULL);
                         break;
                     }
                     watch_display_text_with_fallback(WATCH_POSITION_TOP, "RECV ", "RC");
