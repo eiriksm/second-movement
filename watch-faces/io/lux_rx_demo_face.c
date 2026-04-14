@@ -30,7 +30,13 @@
 #include "watch_tcc.h"
 
 static int8_t time_set_seq[] = {
-    BUZZER_NOTE_C7, 5,
+    BUZZER_NOTE_C7, 20,
+    BUZZER_NOTE_REST, 10,
+    BUZZER_NOTE_C7, 20,
+    BUZZER_NOTE_REST, 10,
+    BUZZER_NOTE_C7, 20,
+    BUZZER_NOTE_REST, 10,
+    BUZZER_NOTE_C7, 20,
     0
 };
 
