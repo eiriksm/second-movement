@@ -29,14 +29,15 @@
 #include "adc.h"
 #include "watch_tcc.h"
 
+// Westminster-style descending clock chime (E-D-C-G) for "time set"
 static int8_t time_set_seq[] = {
-    BUZZER_NOTE_C7, 20,
-    BUZZER_NOTE_REST, 10,
-    BUZZER_NOTE_C7, 20,
-    BUZZER_NOTE_REST, 10,
-    BUZZER_NOTE_C7, 20,
-    BUZZER_NOTE_REST, 10,
-    BUZZER_NOTE_C7, 20,
+    BUZZER_NOTE_E6, 6,
+    BUZZER_NOTE_REST, 1,
+    BUZZER_NOTE_D6, 6,
+    BUZZER_NOTE_REST, 1,
+    BUZZER_NOTE_C6, 6,
+    BUZZER_NOTE_REST, 1,
+    BUZZER_NOTE_G5, 14,
     0
 };
 
