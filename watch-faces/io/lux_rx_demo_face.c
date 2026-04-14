@@ -116,15 +116,16 @@ bool lux_rx_demo_face_loop(movement_event_t event, void *context) {
                         }
                     }
                     if (is_timestamp) {
-                        uint32_t timestamp = strtoul(ctx->rx.payload, NULL, 10);
-                        // Compensate for transmission time (tick_count is at 64 Hz)
-                        timestamp += ctx->rx.tick_count / 64;
-                        movement_set_utc_timestamp(timestamp);
+                        if (just_changed) {
+                            uint32_t timestamp = strtoul(ctx->rx.payload, NULL, 10);
+                            // Compensate for transmission time (tick_count is at 64 Hz)
+                            timestamp += ctx->rx.tick_count / 64;
+                            movement_set_utc_timestamp(timestamp);
+                            movement_play_sequence(time_set_seq, BUZZER_PRIORITY_ALARM);
+                        }
                         watch_display_text_with_fallback(WATCH_POSITION_TOP, "RECV ", "RC");
                         watch_display_text(WATCH_POSITION_BOTTOM, "SET   ");
                         movement_force_led_on(0, 48, 0);
-                        if (just_changed)
-                            movement_play_sequence(time_set_seq, BUZZER_PRIORITY_ALARM);
                         break;
                     }
                     watch_display_text_with_fallback(WATCH_POSITION_TOP, "RECV ", "RC");
