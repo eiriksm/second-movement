@@ -28,6 +28,24 @@
 #include "lux_rx_demo_face.h"
 #include "adc.h"
 
+// Descending two-tone fail sound
+static int8_t fail_sound[] = {
+    BUZZER_NOTE_E5, 6,
+    BUZZER_NOTE_REST, 2,
+    BUZZER_NOTE_C4, 12,
+    0
+};
+
+// Ascending three-tone triumph sound
+static int8_t triumph_sound[] = {
+    BUZZER_NOTE_C5, 4,
+    BUZZER_NOTE_REST, 1,
+    BUZZER_NOTE_E5, 4,
+    BUZZER_NOTE_REST, 1,
+    BUZZER_NOTE_G6, 8,
+    0
+};
+
 static uint16_t read_light(void) {
     HAL_GPIO_IR_ENABLE_out();
     HAL_GPIO_IR_ENABLE_clr();
@@ -72,6 +90,7 @@ bool lux_rx_demo_face_loop(movement_event_t event, void *context) {
         {
             uint16_t adc_val = read_light();
             lux_rx_status_t status = lux_rx_feed(&ctx->rx, adc_val);
+            bool just_changed = (status != ctx->last_status);
             ctx->last_status = status;
 
             switch (status) {
@@ -80,11 +99,15 @@ bool lux_rx_demo_face_loop(movement_event_t event, void *context) {
                     snprintf(buf, 7, " %s    ", ctx->rx.payload);
                     watch_display_text(WATCH_POSITION_BOTTOM, buf);
                     movement_force_led_on(0, 48, 0);
+                    if (just_changed)
+                        movement_play_sequence(triumph_sound, BUZZER_PRIORITY_ALARM);
                     break;
                 case LUX_RX_ERROR:
                     watch_display_text_with_fallback(WATCH_POSITION_TOP, "ERR  ", "ER");
                     watch_display_text(WATCH_POSITION_BOTTOM, "FAIL  ");
                     movement_force_led_on(48, 0, 0);
+                    if (just_changed)
+                        movement_play_sequence(fail_sound, BUZZER_PRIORITY_ALARM);
                     break;
                 case LUX_RX_BUSY:
                     break;
