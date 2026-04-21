@@ -26,8 +26,12 @@
 #include <string.h>
 #include <stdio.h>
 #include "lux_rx_demo_face.h"
+#include "fesk_session.h"
 #include "adc.h"
 #include "watch_tcc.h"
+#include "lfs.h"
+
+extern lfs_t eeprom_filesystem;
 
 // Westminster-style descending clock chime (E-D-C-G) for "time set"
 static int8_t time_set_seq[] = {
@@ -58,6 +62,30 @@ static int8_t triumph_sound[] = {
     BUZZER_NOTE_G6, 8,
     0
 };
+
+static fesk_result_t _provide_tx_payload(const char **out_text,
+                                         size_t *out_length,
+                                         void *user_data) {
+    lux_rx_demo_context_t *ctx = (lux_rx_demo_context_t *)user_data;
+    *out_text = ctx->tx_buf;
+    *out_length = ctx->tx_buf_len;
+    return FESK_OK;
+}
+
+static void _start_tx(lux_rx_demo_context_t *ctx) {
+    if (ctx->tx_buf_len == 0) return;
+    fesk_session_config_t config = fesk_session_config_defaults();
+    config.enable_countdown = false;
+    config.show_bell_indicator = false;
+    config.on_transmission_start = NULL;
+    config.on_transmission_end = NULL;
+    config.on_cancelled = NULL;
+    config.on_error = NULL;
+    config.provide_payload = _provide_tx_payload;
+    config.user_data = ctx;
+    fesk_session_init(&ctx->session, &config);
+    fesk_session_start(&ctx->session);
+}
 
 static uint16_t read_light(void) {
     HAL_GPIO_IR_ENABLE_out();
@@ -129,6 +157,51 @@ bool lux_rx_demo_face_loop(movement_event_t event, void *context) {
                         movement_force_led_on(0, 48, 0);
                         break;
                     }
+                    // Check for "echo " command
+                    if (ctx->rx.payload_len > 5 && strncmp(ctx->rx.payload, "echo ", 5) == 0) {
+                        const char *msg = ctx->rx.payload + 5;
+                        watch_display_text_with_fallback(WATCH_POSITION_TOP, "ECHO ", "EC");
+                        snprintf(buf, 7, " %s    ", msg);
+                        watch_display_text(WATCH_POSITION_BOTTOM, buf);
+                        movement_force_led_on(0, 48, 0);
+                        if (just_changed && fesk_session_is_idle(&ctx->session)) {
+                            size_t len = ctx->rx.payload_len - 5;
+                            if (len > LUX_RX_DEMO_TX_BUF_LEN) len = LUX_RX_DEMO_TX_BUF_LEN;
+                            memcpy(ctx->tx_buf, msg, len);
+                            ctx->tx_buf_len = len;
+                            _start_tx(ctx);
+                        }
+                        break;
+                    }
+                    // Check for "ls" command
+                    if (ctx->rx.payload_len == 2 && strncmp(ctx->rx.payload, "ls", 2) == 0) {
+                        watch_display_text_with_fallback(WATCH_POSITION_TOP, "LS   ", "LS");
+                        watch_display_text(WATCH_POSITION_BOTTOM, "LIST  ");
+                        movement_force_led_on(0, 48, 0);
+                        if (just_changed && fesk_session_is_idle(&ctx->session)) {
+                            size_t off = 0;
+                            lfs_dir_t dir;
+                            if (lfs_dir_open(&eeprom_filesystem, &dir, "/") >= 0) {
+                                struct lfs_info info;
+                                while (lfs_dir_read(&eeprom_filesystem, &dir, &info) > 0) {
+                                    if (info.name[0] == '.') continue;
+                                    size_t name_len = strlen(info.name);
+                                    size_t needed = 1 + 2 + name_len + 1;
+                                    if (off + needed > LUX_RX_DEMO_TX_BUF_LEN) break;
+                                    ctx->tx_buf[off++] = (info.type == LFS_TYPE_DIR) ? 'd' : 'f';
+                                    ctx->tx_buf[off++] = (char)(info.size & 0xFF);
+                                    ctx->tx_buf[off++] = (char)((info.size >> 8) & 0xFF);
+                                    memcpy(ctx->tx_buf + off, info.name, name_len);
+                                    off += name_len;
+                                    ctx->tx_buf[off++] = '\0';
+                                }
+                                lfs_dir_close(&eeprom_filesystem, &dir);
+                            }
+                            ctx->tx_buf_len = off;
+                            _start_tx(ctx);
+                        }
+                        break;
+                    }
                     watch_display_text_with_fallback(WATCH_POSITION_TOP, "RECV ", "RC");
                     snprintf(buf, 7, " %s    ", ctx->rx.payload);
                     watch_display_text(WATCH_POSITION_BOTTOM, buf);
@@ -178,7 +251,8 @@ bool lux_rx_demo_face_loop(movement_event_t event, void *context) {
 }
 
 void lux_rx_demo_face_resign(void *context) {
-    (void) context;
+    lux_rx_demo_context_t *ctx = (lux_rx_demo_context_t *)context;
     movement_request_tick_frequency(1);
     movement_force_led_off();
+    fesk_session_dispose(&ctx->session);
 }
