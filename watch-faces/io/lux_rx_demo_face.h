@@ -43,10 +43,16 @@
  */
 
 #include "lux_rx.h"
+#include "fesk_session.h"
+
+#define LUX_RX_DEMO_TX_BUF_LEN 256
 
 typedef struct {
     lux_rx_t rx;
     lux_rx_status_t last_status;
+    fesk_session_t session;
+    char tx_buf[LUX_RX_DEMO_TX_BUF_LEN];
+    size_t tx_buf_len;
 } lux_rx_demo_context_t;
 
 void lux_rx_demo_face_setup(uint8_t watch_face_index, void ** context_ptr);
