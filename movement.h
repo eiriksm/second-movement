@@ -89,7 +89,7 @@ typedef union {
         // global settings for watch faces to check. The 12/24 hour preference could inform a clock or a
         // time-oriented complication like a sunrise/sunset timer, and a simple locale preference could tell an
         // altimeter to display feet or meters as easily as it tells a thermometer to display degrees in F or C.
-        bool clock_mode_24h : 1;            // indicates whether clock should use 12 or 24 hour mode.
+        uint8_t clock_mode_24h : 2;         // 0=12h, 1=24h, 2=24h with leading zero (movement_clock_mode_t)
         bool use_imperial_units : 1;        // indicates whether to use metric units (the default) or imperial.
 
         bool button_volume : 1;             // 0 for soft beep, 1 for loud beep. If button_should_sound (above) is false, this is ignored.
