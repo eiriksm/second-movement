@@ -188,9 +188,10 @@ bool close_enough_face_loop(movement_event_t event, void *context) {
             char first_word[3];
             char second_word[3];
             char third_word[3];
+            bool set_leading_zero = movement_clock_mode_24h() == MOVEMENT_CLOCK_MODE_024H;
             if (five_minute_period == 0) { // "  HH OC",
                 sprintf(first_word, "  ");
-                sprintf(second_word, "%2d", close_enough_hour);
+                sprintf(second_word, set_leading_zero ? "%02d" : "%2d", close_enough_hour);
                 strncpy(third_word, oclock_word, 3);
             } else { // "MM P HH" or "MM 2 HH+1"
                 int words_length = sizeof(words) / sizeof(words[0]);
@@ -207,7 +208,7 @@ bool close_enough_face_loop(movement_event_t event, void *context) {
                     show_next_hour ? to_word : past_word,
                     3
                 );
-                sprintf(third_word, "%2d", close_enough_hour);
+                sprintf(third_word, set_leading_zero ? "%02d" : "%2d", close_enough_hour);
             }
 
             watch_display_text_with_fallback(
