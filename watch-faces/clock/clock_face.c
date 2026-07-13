@@ -171,20 +171,27 @@ static void clock_display_clock(clock_state_t *state, watch_date_time_t current)
     }
 }
 
+// A one-segment "pulse" that hops top -> middle -> bottom -> middle each minute, so the seconds
+// units digit isn't just dead space while the watch sleeps. Position 8 (seconds tens digit) is
+// left untouched: the classic LCD's autonomous tick-tock animation already owns those segments.
+static const char clock_low_energy_pulse_frames[] = {'~', '-', '_', '-'};
+
 static void clock_display_low_energy(watch_date_time_t date_time) {
     if (movement_clock_mode_24h() == MOVEMENT_CLOCK_MODE_12H) {
         clock_indicate_pm(date_time);
         date_time = clock_24h_to_12h(date_time);
     }
     char buf[8 + 1];
+    char pulse = clock_low_energy_pulse_frames[date_time.unit.minute % 4];
 
     snprintf(
         buf,
         sizeof(buf),
-        movement_clock_mode_24h() == MOVEMENT_CLOCK_MODE_024H ? "%02d%02d%02d  " : "%2d%2d%02d  ",
+        movement_clock_mode_24h() == MOVEMENT_CLOCK_MODE_024H ? "%02d%02d%02d %c" : "%2d%2d%02d %c",
         date_time.unit.day,
         date_time.unit.hour,
-        date_time.unit.minute
+        date_time.unit.minute,
+        pulse
     );
 
     watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, watch_utility_get_long_weekday(date_time), watch_utility_get_weekday(date_time));
