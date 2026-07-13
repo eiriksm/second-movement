@@ -919,11 +919,11 @@ void movement_set_alarm_volume(watch_buzzer_volume_t value) {
 }
 
 movement_clock_mode_t movement_clock_mode_24h(void) {
-    return movement_state.settings.bit.clock_mode_24h ? MOVEMENT_CLOCK_MODE_24H : MOVEMENT_CLOCK_MODE_12H;
+    return (movement_clock_mode_t)movement_state.settings.bit.clock_mode_24h;
 }
 
 void movement_set_clock_mode_24h(movement_clock_mode_t value) {
-    movement_state.settings.bit.clock_mode_24h = (value == MOVEMENT_CLOCK_MODE_24H);
+    movement_state.settings.bit.clock_mode_24h = value % MOVEMENT_NUM_CLOCK_MODES;
 }
 
 bool movement_use_imperial_units(void) {

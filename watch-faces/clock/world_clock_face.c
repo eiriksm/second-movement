@@ -205,7 +205,8 @@ static bool world_clock_face_do_display_mode(movement_event_t event, world_clock
                 if (watch_get_lcd_type() == WATCH_LCD_TYPE_CUSTOM) {
                     watch_display_character(state->settings.bit.char_2, 10);
                 }
-                sprintf(buf, "%2d%2d%02d%02d", date_time.unit.day, date_time.unit.hour, date_time.unit.minute, date_time.unit.second);
+                bool set_leading_zero = movement_clock_mode_24h() == MOVEMENT_CLOCK_MODE_024H;
+                sprintf(buf, set_leading_zero ? "%2d%02d%02d%02d" : "%2d%2d%02d%02d", date_time.unit.day, date_time.unit.hour, date_time.unit.minute, date_time.unit.second);
                 watch_display_text(WATCH_POSITION_TOP_RIGHT, buf);
                 watch_display_text(WATCH_POSITION_HOURS, buf + 2);
                 watch_display_text(WATCH_POSITION_MINUTES, buf + 4);

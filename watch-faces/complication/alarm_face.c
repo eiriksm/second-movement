@@ -45,7 +45,8 @@ static void _alarm_face_display_alarm_time(alarm_face_state_t *state) {
     }
 
     static char lcdbuf[7];
-    sprintf(lcdbuf, "%2d%02d  ", hour, state->minute);
+    bool set_leading_zero = movement_clock_mode_24h() == MOVEMENT_CLOCK_MODE_024H;
+    sprintf(lcdbuf, set_leading_zero ? "%02d%02d  " : "%2d%02d  ", hour, state->minute);
 
     watch_display_text(WATCH_POSITION_BOTTOM, lcdbuf);
 }
