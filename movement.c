@@ -1527,7 +1527,7 @@ void app_setup(void) {
             }
 
             if (movement_state.tap_enabled) {
-                movement_enable_tap_detection_if_available();
+                movement_enable_tap_detection_if_available(true);
             }
         }
     }
