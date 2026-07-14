@@ -262,11 +262,13 @@ bool clock_face_loop(movement_event_t event, void *context) {
         case EVENT_ALARM_LONG_PRESS:
             clock_toggle_time_signal(state);
             break;
+#if __EMSCRIPTEN__
         case EVENT_LIGHT_LONG_PRESS:
             // DEBUG HACK: force low energy mode immediately, so we don't have to wait out the
             // real timeout to test EVENT_LOW_ENERGY_UPDATE in the simulator. Remove before merging.
             movement_request_sleep();
             break;
+#endif
         case EVENT_BACKGROUND_TASK:
             // uncomment this line to snap back to the clock face when the hour signal sounds:
             // movement_move_to_face(state->watch_face_index);
