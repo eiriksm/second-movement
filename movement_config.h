@@ -33,6 +33,7 @@ const watch_face_t watch_faces[] = {
     sunrise_sunset_face,
     secret_face,
     fast_stopwatch_face,
+    timer_face,
     voltage_face,
     set_time_face,
     settings_face,

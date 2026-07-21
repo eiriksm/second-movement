@@ -28,36 +28,27 @@
 #include "watch.h"
 #include "watch_utility.h"
 
-static const uint32_t _default_timer_values[] = {0x000200, 0x000500, 0x000A00, 0x001400, 0x002D02}; // default timers: 2 min, 5 min, 10 min, 20 min, 2 h 45 min
+static const uint32_t _default_timer_values[] = {0x1E0000, 0x280000, 0x000100, 0x000700}; // default timers: 30 sec, 40 sec, 1 min, 7 min
 
-// sound sequence for a single beeping sequence
-static const int8_t _sound_seq_beep[] = {BUZZER_NOTE_C8, 3, BUZZER_NOTE_REST, 3, -2, 2, BUZZER_NOTE_C8, 5, BUZZER_NOTE_REST, 25, 0};
-static const int8_t _sound_seq_start[] = {BUZZER_NOTE_C8, 2, 0};
+// same as the hourly chime (SIGNAL_TUNE_DEFAULT), but 2 octaves lower
+static const int8_t _sound_seq_beep[] = {BUZZER_NOTE_C6, 5, BUZZER_NOTE_REST, 6, BUZZER_NOTE_C6, 5, 0};
 
-static uint8_t _beeps_to_play;    // temporary counter for ring signals playing
+static uint8_t _beeps_to_play;    // flag: ring signal currently playing
 
-static void _signal_callback() {
-    if (_beeps_to_play) {
-        _beeps_to_play--;
-        watch_buzzer_play_sequence((int8_t *)_sound_seq_beep, _signal_callback);
-    }
-}
-
-static void _start(timer_state_t *state, bool with_beep) {
+static void _start(timer_state_t *state) {
     if (state->timers[state->current_timer].value == 0) return;
     watch_date_time_t now = watch_rtc_get_date_time();
     state->now_ts = watch_utility_date_time_to_unix_time(now, movement_get_current_timezone_offset());
     if (state->mode == pausing)
         state->target_ts = state->now_ts + state->paused_left;
     else
-        state->target_ts = watch_utility_offset_timestamp(state->now_ts, 
-                                                          state->timers[state->current_timer].unit.hours, 
-                                                          state->timers[state->current_timer].unit.minutes, 
+        state->target_ts = watch_utility_offset_timestamp(state->now_ts,
+                                                          state->timers[state->current_timer].unit.hours,
+                                                          state->timers[state->current_timer].unit.minutes,
                                                           state->timers[state->current_timer].unit.seconds);
     watch_date_time_t target_dt = watch_utility_date_time_from_unix_time(state->target_ts, movement_get_current_timezone_offset());
     state->mode = running;
     movement_schedule_background_task_for_face(state->watch_face_index, target_dt);
-    if (with_beep) watch_buzzer_play_sequence((int8_t *)_sound_seq_start, NULL);
 }
 
 static void _draw(timer_state_t *state, uint8_t subsecond) {
@@ -270,16 +261,9 @@ bool timer_face_loop(movement_event_t event, void *context) {
                     movement_cancel_background_task();
                     break;
                 case pausing:
-                    _start(state, false);
+                case waiting:
+                    _start(state);
                     break;
-                case waiting: {
-                    uint8_t last_timer = state->current_timer;
-                    state->current_timer = (state->current_timer + 1) % TIMER_SLOTS;
-                    _set_next_valid_timer(state);
-                    // start the time immediately if there is only one valid timer slot
-                    if (last_timer == state->current_timer) _start(state, true);
-                    break;
-                }
                 case setting:
                     _settings_increment(state);
                     subsecond = 0;
@@ -301,10 +285,10 @@ bool timer_face_loop(movement_event_t event, void *context) {
             break;
         case EVENT_BACKGROUND_TASK:
             // play the alarm
-            _beeps_to_play = 4;
-            watch_buzzer_play_sequence((int8_t *)_sound_seq_beep, _signal_callback);
+            _beeps_to_play = 1;
+            movement_play_sequence((int8_t *)_sound_seq_beep, BUZZER_PRIORITY_SIGNAL);
             _reset(state);
-            if (state->timers[state->current_timer].unit.repeat) _start(state, false);
+            if (state->timers[state->current_timer].unit.repeat) _start(state);
             break;
         case EVENT_ALARM_LONG_PRESS:
             switch(state->mode) {
@@ -323,9 +307,14 @@ bool timer_face_loop(movement_event_t event, void *context) {
                             break;
                     }
                     break;
-                case waiting:
-                    _start(state, true);
+                case waiting: {
+                    uint8_t last_timer = state->current_timer;
+                    state->current_timer = (state->current_timer + 1) % TIMER_SLOTS;
+                    _set_next_valid_timer(state);
+                    // start the time immediately if there is only one valid timer slot
+                    if (last_timer == state->current_timer) _start(state);
                     break;
+                }
                 case pausing:
                 case running:
                     _reset(state);
