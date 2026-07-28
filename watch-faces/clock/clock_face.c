@@ -171,6 +171,21 @@ static void clock_display_clock(clock_state_t *state, watch_date_time_t current)
     }
 }
 
+// Silly two-letter "sleep talk" shown in the seconds space on LCDs where both digits are free.
+// Skips I, M, T and W: those characters only render correctly in position 0 of the display.
+static const char *const clock_low_energy_words[] = {
+    "ZZ", "SH", "HA", "HO", "GO", "NO", "SO", "DO", "OK", "UP",
+    "ON", "OF", "OR", "US", "BY", "AS", "BE", "AH", "OH", "EH",
+    "UH", "OO", "LO", "YA", "AY", "YE", "OZ", "ER", "XO", "JA",
+    "FA", "LA", "RE", "PS",
+};
+#define CLOCK_LOW_ENERGY_WORD_COUNT (sizeof(clock_low_energy_words) / sizeof(*clock_low_energy_words))
+
+// A one-segment "pulse" that hops top -> middle -> bottom -> middle each minute, for the classic
+// LCD, where only the seconds units digit is free (position 8 belongs to the autonomous tick-tock
+// animation, so we leave it alone).
+static const char clock_low_energy_pulse_frames[] = {'~', '-', '_', '-'};
+
 static void clock_display_low_energy(watch_date_time_t date_time) {
     if (movement_clock_mode_24h() == MOVEMENT_CLOCK_MODE_12H) {
         clock_indicate_pm(date_time);
@@ -178,14 +193,31 @@ static void clock_display_low_energy(watch_date_time_t date_time) {
     }
     char buf[8 + 1];
 
-    snprintf(
-        buf,
-        sizeof(buf),
-        movement_clock_mode_24h() == MOVEMENT_CLOCK_MODE_024H ? "%02d%02d%02d  " : "%2d%2d%02d  ",
-        date_time.unit.day,
-        date_time.unit.hour,
-        date_time.unit.minute
-    );
+    if (watch_get_lcd_type() == WATCH_LCD_TYPE_CUSTOM) {
+        const char *word = clock_low_energy_words[date_time.unit.minute % CLOCK_LOW_ENERGY_WORD_COUNT];
+
+        snprintf(
+            buf,
+            sizeof(buf),
+            movement_clock_mode_24h() == MOVEMENT_CLOCK_MODE_024H ? "%02d%02d%02d%s" : "%2d%2d%02d%s",
+            date_time.unit.day,
+            date_time.unit.hour,
+            date_time.unit.minute,
+            word
+        );
+    } else {
+        char pulse = clock_low_energy_pulse_frames[date_time.unit.minute % 4];
+
+        snprintf(
+            buf,
+            sizeof(buf),
+            movement_clock_mode_24h() == MOVEMENT_CLOCK_MODE_024H ? "%02d%02d%02d %c" : "%2d%2d%02d %c",
+            date_time.unit.day,
+            date_time.unit.hour,
+            date_time.unit.minute,
+            pulse
+        );
+    }
 
     watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, watch_utility_get_long_weekday(date_time), watch_utility_get_weekday(date_time));
     watch_display_text(WATCH_POSITION_TOP_RIGHT, buf);
@@ -255,6 +287,13 @@ bool clock_face_loop(movement_event_t event, void *context) {
         case EVENT_ALARM_LONG_PRESS:
             clock_toggle_time_signal(state);
             break;
+#if __EMSCRIPTEN__
+        case EVENT_LIGHT_LONG_PRESS:
+            // DEBUG HACK: force low energy mode immediately, so we don't have to wait out the
+            // real timeout to test EVENT_LOW_ENERGY_UPDATE in the simulator. Remove before merging.
+            movement_request_sleep();
+            break;
+#endif
         case EVENT_BACKGROUND_TASK:
             // uncomment this line to snap back to the clock face when the hour signal sounds:
             // movement_move_to_face(state->watch_face_index);
