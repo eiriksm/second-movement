@@ -102,17 +102,18 @@ int32_t filesystem_get_free_space(void) {
 	return (int32_t)available;
 }
 
-static int filesystem_ls(lfs_t *lfs, const char *path) {
+int filesystem_get_ls_entries(const char *path, filesystem_ls_callback_t callback, void *user_data) {
     lfs_dir_t dir;
-    int err = lfs_dir_open(lfs, &dir, path);
+    int err = lfs_dir_open(&eeprom_filesystem, &dir, path);
     if (err < 0) {
         return err;
     }
 
     struct lfs_info info;
     while (true) {
-        int res = lfs_dir_read(lfs, &dir, &info);
+        int res = lfs_dir_read(&eeprom_filesystem, &dir, &info);
         if (res < 0) {
+            lfs_dir_close(&eeprom_filesystem, &dir);
             return res;
         }
 
@@ -120,23 +121,34 @@ static int filesystem_ls(lfs_t *lfs, const char *path) {
             break;
         }
 
+        const char *type;
         switch (info.type) {
-            case LFS_TYPE_REG: printf("file "); break;
-            case LFS_TYPE_DIR: printf("dir  "); break;
-            default:           printf("?    "); break;
+            case LFS_TYPE_REG: type = "file"; break;
+            case LFS_TYPE_DIR: type = "dir"; break;
+            default:           type = "?"; break;
         }
 
-        printf("%4ld bytes ", info.size);
-
-        printf("%s\r\n", info.name);
+        if (callback != NULL) {
+            callback(type, info.size, info.name, user_data);
+        }
     }
 
-    err = lfs_dir_close(lfs, &dir);
+    err = lfs_dir_close(&eeprom_filesystem, &dir);
     if (err < 0) {
         return err;
     }
 
     return 0;
+}
+
+static void _ls_print_callback(const char *type, int32_t size, const char *name, void *user_data) {
+    (void) user_data;
+    printf("%-4s %4ld bytes %s\r\n", type, size, name);
+}
+
+static int filesystem_ls(lfs_t *lfs, const char *path) {
+    (void) lfs;
+    return filesystem_get_ls_entries(path, _ls_print_callback, NULL);
 }
 
 bool filesystem_init(void) {
@@ -233,19 +245,38 @@ bool filesystem_read_line(char *filename, char *buf, int32_t *offset, int32_t le
     return false;
 }
 
-static void filesystem_cat(char *filename) {
+char* filesystem_get_cat_output(char *filename) {
     info.type = 0;
     lfs_stat(&eeprom_filesystem, filename, &info);
     if (filesystem_file_exists(filename)) {
         if (info.size > 0) {
             char *buf = malloc(info.size + 1);
-            filesystem_read_file(filename, buf, info.size);
-            buf[info.size] = '\0';
-            printf("%s\r\n", buf);
+            if (buf == NULL) {
+                return NULL;
+            }
+            if (filesystem_read_file(filename, buf, info.size)) {
+                buf[info.size] = '\0';
+                return buf;
+            }
             free(buf);
+            return NULL;
         } else {
-            printf("\r\n");
+            // Empty file - return empty string
+            char *buf = malloc(1);
+            if (buf != NULL) {
+                buf[0] = '\0';
+            }
+            return buf;
         }
+    }
+    return NULL;
+}
+
+static void filesystem_cat(char *filename) {
+    char *output = filesystem_get_cat_output(filename);
+    if (output != NULL) {
+        printf("%s\r\n", output);
+        free(output);
     } else {
         printf("cat: %s: No such file\r\n", filename);
     }
@@ -292,29 +323,69 @@ int filesystem_cmd_cat(int argc, char *argv[]) {
     return 0;
 }
 
+char* filesystem_get_b64encode_output(char *filename) {
+    info.type = 0;
+    lfs_stat(&eeprom_filesystem, filename, &info);
+    if (!filesystem_file_exists(filename)) {
+        return NULL;
+    }
+
+    if (info.size == 0) {
+        char *empty = malloc(1);
+        if (empty != NULL) {
+            empty[0] = '\0';
+        }
+        return empty;
+    }
+
+    char *file_buf = malloc(info.size);
+    if (file_buf == NULL) {
+        return NULL;
+    }
+
+    if (!filesystem_read_file(filename, file_buf, info.size)) {
+        free(file_buf);
+        return NULL;
+    }
+
+    // Base64 encoding expands data by 4/3, plus null terminator and some padding
+    lfs_size_t b64_size = ((info.size + 2) / 3) * 4 + 1;
+    char *b64_buf = malloc(b64_size);
+    if (b64_buf == NULL) {
+        free(file_buf);
+        return NULL;
+    }
+
+    b64_encode((unsigned char *)file_buf, info.size, (unsigned char *)b64_buf);
+    free(file_buf);
+
+    return b64_buf;
+}
+
 int filesystem_cmd_b64encode(int argc, char *argv[]) {
     (void) argc;
-    info.type = 0;
-    lfs_stat(&eeprom_filesystem, argv[1], &info);
-    if (filesystem_file_exists(argv[1])) {
-        if (info.size > 0) {
-            char *buf = malloc(info.size + 1);
-            filesystem_read_file(argv[1], buf, info.size);
-            // print a base 64 encoding of the file, 12 bytes at a time
-            for (lfs_size_t i = 0; i < info.size; i += 12) {
-                lfs_size_t len = min(12, info.size - i);
-                char base64_line[17];
-                b64_encode((unsigned char *)buf + i, len, (unsigned char *)base64_line);
-                printf("%s\n", base64_line);
-                delay_ms(10);
-            }
-            free(buf);
-        } else {
-            printf("\r\n");
-        }
-    } else {
-        printf("b64encode: %s: No such file\r\n", argv[1]);
+    char *b64_output = filesystem_get_b64encode_output(argv[1]);
+
+    if (b64_output == NULL) {
+        printf("b64encode: %s: No such file or error occurred\r\n", argv[1]);
+        return -1;
     }
+
+    if (b64_output[0] == '\0') {
+        printf("\r\n");
+        free(b64_output);
+        return 0;
+    }
+
+    // Print in chunks with delays to avoid overwhelming serial output
+    size_t len = strlen(b64_output);
+    for (size_t i = 0; i < len; i += 16) {
+        size_t chunk_len = min(16, len - i);
+        printf("%.*s\n", (int)chunk_len, b64_output + i);
+        delay_ms(10);
+    }
+
+    free(b64_output);
     return 0;
 }
 
