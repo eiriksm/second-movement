@@ -76,6 +76,7 @@
 #include "deadline_face.h"
 #include "wordle_face.h"
 #include "fesk_demo_lite_face.h"
+#include "lux_rx_demo_face.h"
 #include "blackjack_face.h"
 #include "endless_runner_face.h"
 #include "higher_lower_game_face.h"
@@ -91,5 +92,6 @@
 #include "tomato_face.h"
 #include "solar_time_face.h"
 #include "tide_face.h"
-#include "lux_rx_demo_face.h"
+#include "world_clock2_face.h"
+#include "hydration_face.h"
 // New includes go above this line.
