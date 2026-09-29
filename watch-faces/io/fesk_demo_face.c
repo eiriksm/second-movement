@@ -28,9 +28,19 @@
 
 #include "fesk_demo_face.h"
 #include "fesk_session.h"
+#include "filesystem.h"
 #include "movement.h"
 #include "watch.h"
 #include "watch_tcc.h"
+
+#define FESK_DEMO_FILENAME "test"
+#define FESK_DEMO_MAX_FILE_SIZE 1024
+
+typedef enum {
+    FESK_DEMO_MODE_TEST = 0,    // Transmit the built-in test message
+    FESK_DEMO_MODE_FILE,        // Transmit the contents of FESK_DEMO_FILENAME
+    FESK_DEMO_MODE_COUNT
+} fesk_demo_mode_t;
 
 typedef struct {
     fesk_session_t session;
@@ -39,18 +49,71 @@ typedef struct {
     bool is_transmitting;
     bool is_debug_playing;
     uint8_t led_color;  // 0 = no LED, 1 = red, 2 = green
+    fesk_demo_mode_t mode;
+    char *file_buffer;  // Contents of FESK_DEMO_FILENAME while in FILE mode
 } fesk_demo_state_t;
 
-static const char test_message[] = "test";
-static const char red_pixel[] = "KJEUMRSKAAAAAV2FIJIFMUBYLAFAAAAAAAAAAAAAAAAAAAAAKZIDQIBMAAAABEABACOQCKQBAAAQAASAHAS2AATUXIAAHGAA73HIF7DPG6NNNN77WB377IHP75A572OAAAAA";
-static const char green_pixel[] = "KJEUMRR2AAAAAV2FIJIFMUBYEAXAAAAA2AAQBHIBFIAQAAIAAJADQJNAAJ2LUAPYAAB3AAH65OHF77EC4WC5OVS77VHD6JY7SOH6WKAAAA";
+static const char test_message[] = "test 😎";
 
 static fesk_demo_state_t *sequence_callback_state = NULL;
 
 static void _fesk_demo_display_ready(fesk_demo_state_t *state) {
-    (void)state;
     watch_display_text_with_fallback(WATCH_POSITION_TOP, "FESK", "FK");
-    watch_display_text(WATCH_POSITION_BOTTOM, " TEST ");
+    if (state->mode == FESK_DEMO_MODE_FILE) {
+        watch_display_text(WATCH_POSITION_BOTTOM, " FILE ");
+    } else {
+        watch_display_text(WATCH_POSITION_BOTTOM, " TEST ");
+    }
+}
+
+static void _fesk_demo_free_file_buffer(fesk_demo_state_t *state) {
+    if (state->file_buffer) {
+        free(state->file_buffer);
+        state->file_buffer = NULL;
+    }
+}
+
+// Like `cat test`: read the whole file so it can be transmitted.
+static fesk_result_t _fesk_demo_provide_payload(const char **out_text,
+                                                size_t *out_length,
+                                                void *user_data) {
+    fesk_demo_state_t *state = (fesk_demo_state_t *)user_data;
+
+    if (state->mode != FESK_DEMO_MODE_FILE) {
+        *out_text = test_message;
+        *out_length = 0;
+        return FESK_OK;
+    }
+
+    _fesk_demo_free_file_buffer(state);
+
+    int32_t size = filesystem_get_file_size(FESK_DEMO_FILENAME);
+    if (size <= 0 || size > FESK_DEMO_MAX_FILE_SIZE) {
+        return FESK_ERR_INVALID_ARGUMENT;
+    }
+
+    state->file_buffer = malloc(size + 1);
+    if (!state->file_buffer) {
+        return FESK_ERR_ALLOCATION_FAILED;
+    }
+    if (!filesystem_read_file(FESK_DEMO_FILENAME, state->file_buffer, size)) {
+        _fesk_demo_free_file_buffer(state);
+        return FESK_ERR_INVALID_ARGUMENT;
+    }
+    state->file_buffer[size] = '\0';
+
+    // Drop trailing newlines (as left by `echo`), so they don't force base32.
+    while (size > 0 && (state->file_buffer[size - 1] == '\n' || state->file_buffer[size - 1] == '\r')) {
+        state->file_buffer[--size] = '\0';
+    }
+    if (size == 0) {
+        _fesk_demo_free_file_buffer(state);
+        return FESK_ERR_INVALID_ARGUMENT;
+    }
+
+    *out_text = state->file_buffer;
+    *out_length = (size_t)size;
+    return FESK_OK;
 }
 
 static void _fesk_demo_on_ready(void *user_data) {
@@ -73,13 +136,7 @@ static void _fesk_demo_on_transmission_start(void *user_data) {
     if (!state) return;
 
     const char *mode_name;
-    if (state->led_color == 0) {
-        mode_name = "TEST (no LED)";
-    } else if (state->led_color == 1) {
-        mode_name = "RED";
-    } else {
-        mode_name = "GREEN";
-    }
+    mode_name = state->mode == FESK_DEMO_MODE_FILE ? "FILE " FESK_DEMO_FILENAME : "TEST";
     printf("Transmitting: %s\n", mode_name);
 
     state->is_countdown = false;
@@ -91,6 +148,7 @@ static void _fesk_demo_on_transmission_end(void *user_data) {
     fesk_demo_state_t *state = (fesk_demo_state_t *)user_data;
     if (!state) return;
     state->is_transmitting = false;
+    _fesk_demo_free_file_buffer(state);
     _fesk_demo_display_ready(state);
 }
 
@@ -99,12 +157,19 @@ static void _fesk_demo_on_cancelled(void *user_data) {
     if (!state) return;
     state->is_countdown = false;
     state->is_transmitting = false;
+    _fesk_demo_free_file_buffer(state);
     _fesk_demo_display_ready(state);
 }
 
 static void _fesk_demo_on_error(fesk_result_t error, void *user_data) {
-    (void)user_data;
+    fesk_demo_state_t *state = (fesk_demo_state_t *)user_data;
     printf("FESK error: %d\n", (int)error);
+    if (!state) return;
+    // The session ends without calling on_transmission_end, so reset here.
+    state->is_countdown = false;
+    state->is_transmitting = false;
+    _fesk_demo_free_file_buffer(state);
+    watch_display_text(WATCH_POSITION_BOTTOM, " ERROR");
 }
 
 // Debug sequence tick values adjusted for buzzer code version
@@ -149,6 +214,7 @@ void fesk_demo_face_setup(uint8_t watch_face_index, void **context_ptr) {
     fesk_session_config_t config = fesk_session_config_defaults();
     state->config = config;
     state->config.static_message = test_message;
+    state->config.provide_payload = _fesk_demo_provide_payload;
     state->config.on_countdown_begin = _fesk_demo_on_countdown_begin;
     state->config.on_transmission_start = _fesk_demo_on_transmission_start;
     state->config.on_transmission_end = _fesk_demo_on_transmission_end;
@@ -187,9 +253,17 @@ bool fesk_demo_face_loop(movement_event_t event, void *context) {
     switch (event.event_type) {
 
         case EVENT_LIGHT_BUTTON_DOWN:
-        case EVENT_LIGHT_LONG_PRESS:
         case EVENT_LIGHT_LONG_UP:
             // Do nothing.
+            handled = true;
+            break;
+
+        case EVENT_LIGHT_LONG_PRESS:
+            // Cycle between modes (what gets transmitted)
+            if (!state->is_debug_playing && fesk_session_is_idle(&state->session)) {
+                state->mode = (state->mode + 1) % FESK_DEMO_MODE_COUNT;
+                _fesk_demo_display_ready(state);
+            }
             handled = true;
             break;
 
@@ -197,24 +271,7 @@ bool fesk_demo_face_loop(movement_event_t event, void *context) {
             // Cycle between no LED, red, and green
             if (!state->is_debug_playing && fesk_session_is_idle(&state->session)) {
                 state->led_color = (state->led_color + 1) % 3;
-
-                // Update LED
-                if (state->led_color == 0) {
-                    watch_set_led_off();
-                } else if (state->led_color == 1) {
-                    watch_set_led_red();
-                } else {
-                    watch_set_led_green();
-                }
-
-                // Update static message for transmission in the session's config
-                if (state->led_color == 0) {
-                    state->session.config.static_message = test_message;
-                } else if (state->led_color == 1) {
-                    state->session.config.static_message = red_pixel;
-                } else {
-                    state->session.config.static_message = green_pixel;
-                }
+                state->session.config.static_message = test_message;
             }
             handled = true;
             break;
@@ -232,7 +289,9 @@ bool fesk_demo_face_loop(movement_event_t event, void *context) {
                 break;
             }
             if (fesk_session_is_idle(&state->session)) {
-                if (!state->is_countdown && !state->is_transmitting) {
+                if (state->mode == FESK_DEMO_MODE_FILE && !filesystem_file_exists(FESK_DEMO_FILENAME)) {
+                    watch_display_text(WATCH_POSITION_BOTTOM, "NOFILE");
+                } else if (!state->is_countdown && !state->is_transmitting) {
                     fesk_session_start(&state->session);
                 }
             } else {
@@ -284,6 +343,7 @@ void fesk_demo_face_resign(void *context) {
     }
 
     fesk_session_cancel(&state->session);
+    _fesk_demo_free_file_buffer(state);
 
     // Turn off LED when leaving face
     watch_set_led_off();

@@ -29,6 +29,7 @@
 #include "fesk_session.h"
 #include "adc.h"
 #include "watch_tcc.h"
+#include "filesystem.h"
 #include "lfs.h"
 
 extern lfs_t eeprom_filesystem;
@@ -85,6 +86,47 @@ static void _start_tx(lux_rx_demo_context_t *ctx) {
     config.user_data = ctx;
     fesk_session_init(&ctx->session, &config);
     fesk_session_start(&ctx->session);
+}
+
+// Handles "echo <text> > <file>" and "echo <text> >> <file>", like the shell's
+// echo: writes (or appends) the text plus a newline. `args` is everything after
+// "echo ". Returns false if there is no redirect, otherwise sets *ok to whether
+// the write succeeded.
+static bool _handle_echo_redirect(const char *args, bool *ok) {
+    const char *redirect = strchr(args, '>');
+    if (!redirect) return false;
+
+    *ok = false;
+    bool append = (redirect[1] == '>');
+
+    // Text: everything before the redirect, minus surrounding spaces/quotes.
+    const char *text = args;
+    const char *text_end = redirect;
+    while (text < text_end && *text == ' ') text++;
+    while (text_end > text && text_end[-1] == ' ') text_end--;
+    if (text_end - text >= 2 && (*text == '"' || *text == '\'') && text_end[-1] == *text) {
+        text++;
+        text_end--;
+    }
+
+    // Filename: everything after the redirect, minus surrounding spaces.
+    char filename[LUX_RX_MAX_PAYLOAD + 1];
+    const char *name = redirect + (append ? 2 : 1);
+    while (*name == ' ') name++;
+    size_t name_len = strlen(name);
+    while (name_len > 0 && name[name_len - 1] == ' ') name_len--;
+    if (name_len == 0 || memchr(name, ' ', name_len) || memchr(name, '/', name_len)) return true;
+    memcpy(filename, name, name_len);
+    filename[name_len] = '\0';
+
+    int32_t text_len = (int32_t)(text_end - text);
+    if (append) {
+        *ok = filesystem_append_file(filename, (char *)text, text_len);
+    } else {
+        *ok = filesystem_write_file(filename, (char *)text, text_len);
+    }
+    if (*ok) *ok = filesystem_append_file(filename, "\n", 1);
+    return true;
 }
 
 static uint16_t read_light(void) {
@@ -155,6 +197,25 @@ bool lux_rx_demo_face_loop(movement_event_t event, void *context) {
                         watch_display_text_with_fallback(WATCH_POSITION_TOP, "RECV ", "RC");
                         watch_display_text(WATCH_POSITION_BOTTOM, "SET   ");
                         movement_force_led_on(0, 48, 0);
+                        break;
+                    }
+                    printf("%s\n", ctx->rx.payload);
+                    // Check for "echo <text> > <file>" / "echo <text> >> <file>" command
+                    if (ctx->rx.payload_len > 5 && strncmp(ctx->rx.payload, "echo ", 5) == 0 &&
+                        strchr(ctx->rx.payload + 5, '>')) {
+                        if (just_changed) {
+                            _handle_echo_redirect(ctx->rx.payload + 5, &ctx->file_write_ok);
+                            movement_play_sequence(ctx->file_write_ok ? triumph_sound : fail_sound,
+                                                   BUZZER_PRIORITY_ALARM);
+                        }
+                        watch_display_text_with_fallback(WATCH_POSITION_TOP, "ECHO ", "EC");
+                        if (ctx->file_write_ok) {
+                            watch_display_text(WATCH_POSITION_BOTTOM, "SAVED ");
+                            movement_force_led_on(0, 48, 0);
+                        } else {
+                            watch_display_text(WATCH_POSITION_BOTTOM, "FAIL  ");
+                            movement_force_led_on(48, 0, 0);
+                        }
                         break;
                     }
                     // Check for "echo " command

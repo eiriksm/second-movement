@@ -47,7 +47,8 @@
  * receiver and transmitter are aligned to within a single sample period.
  *
  * Bright/dark determined by fixed ADC threshold (LUX_RX_BRIGHT_THRESHOLD).
- * 62-char alphabet: a-z, space, 0-9, common punctuation.
+ * 62-char alphabet: a-z, space, 0-9, common punctuation (including '>' for
+ * shell-style redirects). See sym_to_char in lux_rx.c.
  *
  * Usage (receiver):
  *   lux_rx_t rx;

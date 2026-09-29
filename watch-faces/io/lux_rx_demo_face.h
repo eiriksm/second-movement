@@ -36,6 +36,16 @@
  *   RECV   — frame received OK (green LED), shows received text
  *   FAIL   — CRC error (red LED)
  *
+ * Commands:
+ *   <10 digits>              — set the time from a Unix timestamp
+ *   echo <text>              — send <text> back via FESK
+ *   echo <text> > <file>     — write <text> + newline to <file> (SAVED / FAIL)
+ *   echo <text> >> <file>    — append <text> + newline to <file>
+ *   ls                       — send the file listing back via FESK
+ *
+ * Note: the lux_rx alphabet has no uppercase C-Z, so file contents and names
+ * arrive lowercase (except A and B).
+ *
  * Buttons:
  *   ALARM short: reset receiver (after done/error), re-init (during idle)
  *   LIGHT:       suppressed (interferes with sensor)
@@ -53,6 +63,7 @@ typedef struct {
     fesk_session_t session;
     char tx_buf[LUX_RX_DEMO_TX_BUF_LEN];
     size_t tx_buf_len;
+    bool file_write_ok;     // result of the last "echo ... > file" command
 } lux_rx_demo_context_t;
 
 void lux_rx_demo_face_setup(uint8_t watch_face_index, void ** context_ptr);
