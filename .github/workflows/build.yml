@@ -9,7 +9,23 @@ on:
       - eirik3
 
 jobs:
+  # The build containers have no PHP, so install the composer dependencies
+  # once here and hand vendor/ to the build jobs as an artifact.
+  composer:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install composer dependencies
+        run: composer install --no-interaction --no-progress
+      - name: Upload vendor directory
+        uses: actions/upload-artifact@v4
+        with:
+          name: vendor
+          path: vendor/
+
   build:
+    needs: composer
     container:
       image: ghcr.io/armmbed/mbed-os-env:latest
     runs-on: ubuntu-latest
@@ -34,6 +50,11 @@ jobs:
           submodules: recursive
       - name: Ensure workspace directory is defined as safe
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Download vendor directory
+        uses: actions/download-artifact@v4
+        with:
+          name: vendor
+          path: vendor/
       - name: Compile movement firmware
         run: make
         working-directory: '.'
@@ -44,6 +65,7 @@ jobs:
           path: build/firmware.uf2
 
   build-simulator:
+    needs: composer
     container:
       image: emscripten/emsdk
     strategy:
@@ -67,6 +89,11 @@ jobs:
           submodules: recursive
       - name: Ensure workspace directory is defined as safe
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Download vendor directory
+        uses: actions/download-artifact@v4
+        with:
+          name: vendor
+          path: vendor/
       - name: Compile movement
         run: emmake make
         working-directory: '.'

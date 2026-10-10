@@ -1,0 +1,74 @@
+{
+    "_readme": [
+        "This file locks the dependencies of your project to a known state",
+        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
+        "This file is @generated automatically"
+    ],
+    "content-hash": "ab4d86884d187c5005de9b41aec62289",
+    "packages": [
+        {
+            "name": "eiriksm/atb.c",
+            "version": "dev-main",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/eiriksm/atb.c.git",
+                "reference": "87ae226db0e59ab80431cc814685ac88c8beea91"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/eiriksm/atb.c/zipball/87ae226db0e59ab80431cc814685ac88c8beea91",
+                "reference": "87ae226db0e59ab80431cc814685ac88c8beea91",
+                "shasum": ""
+            },
+            "default-branch": true,
+            "type": "library",
+            "license": [
+                "MIT"
+            ],
+            "description": "C API for AtB schedule",
+            "support": {
+                "source": "https://github.com/eiriksm/atb.c/tree/main",
+                "issues": "https://github.com/eiriksm/atb.c/issues"
+            },
+            "time": "2026-10-07T19:10:13+00:00"
+        },
+        {
+            "name": "eiriksm/bac.c",
+            "version": "dev-main",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/eiriksm/bac.c.git",
+                "reference": "248dddcf6943061f91ebdf3a292646a8bee34c04"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/eiriksm/bac.c/zipball/248dddcf6943061f91ebdf3a292646a8bee34c04",
+                "reference": "248dddcf6943061f91ebdf3a292646a8bee34c04",
+                "shasum": ""
+            },
+            "default-branch": true,
+            "type": "library",
+            "license": [
+                "MIT"
+            ],
+            "description": "Blood Alcohol Content API in C",
+            "support": {
+                "source": "https://github.com/eiriksm/bac.c/tree/main",
+                "issues": "https://github.com/eiriksm/bac.c/issues"
+            },
+            "time": "2026-10-07T19:14:29+00:00"
+        }
+    ],
+    "packages-dev": [],
+    "aliases": [],
+    "minimum-stability": "stable",
+    "stability-flags": {
+        "eiriksm/atb.c": 20,
+        "eiriksm/bac.c": 20
+    },
+    "prefer-stable": false,
+    "prefer-lowest": false,
+    "platform": [],
+    "platform-dev": [],
+    "plugin-api-version": "2.6.0"
+}
