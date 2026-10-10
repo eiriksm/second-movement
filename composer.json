@@ -15,11 +15,16 @@
         {
             "type": "vcs",
             "url": "https://github.com/eiriksm/lux-rx"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/eiriksm/lux-demo-face"
         }
     ],
     "require": {
         "eiriksm/atb.c": "dev-main",
         "eiriksm/bac.c": "dev-main",
+        "eiriksm/lux-demo-face": "dev-main",
         "eiriksm/lux-rx": "dev-main"
     },
     "scripts": {
