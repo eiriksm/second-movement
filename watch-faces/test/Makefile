@@ -2,10 +2,10 @@ test:
 	rm -rf build
 	mkdir build
 	mkdir build/objs
-	gcc -c -Werror -I. -Iunity/src/ -Imock/ -Isrc/ -I../../vendor/eiriksm/bac.c/src -I../complication -I../../lib/fesk_tx testunit_counter_face.c -o build/objs/testunit_counter_face.o
+	gcc -c -Werror -I. -Iunity/src/ -Imock/ -I../../vendor/eiriksm/unit-counter-face/src -I../../vendor/eiriksm/bac.c/src -I../complication -I../../lib/fesk_tx testunit_counter_face.c -o build/objs/testunit_counter_face.o
 	gcc -c -Werror -I. -Iunity/src/ -Imock/ -Isrc/ -I../complication -I../../lib/fesk_tx testuptime_face.c -o build/objs/testuptime_face.o
 	gcc -c -Werror -I. -Iunity/src/ -Isrc/ -DTEST unity/src/unity.c -o build/objs/unity.o
-	gcc -c -Werror -Wno-format-overflow -I. -Imock/ -Iunity/src/ -Isrc/ -I../../vendor/eiriksm/bac.c/src -DTEST src/unit_counter_face.c -o build/objs/unit_counter_face.o
+	gcc -c -Werror -Wno-format-overflow -I. -Imock/ -Iunity/src/ -I../../vendor/eiriksm/unit-counter-face/src -I../../vendor/eiriksm/bac.c/src -DTEST ../../vendor/eiriksm/unit-counter-face/src/unit_counter_face.c -o build/objs/unit_counter_face.o
 	gcc -c -Werror -I. -Imock/ -Iunity/src/ -Isrc/ -I../complication -I../../lib/fesk_tx -DTEST ../complication/uptime_face.c -o build/objs/uptime_face.o
 	gcc -c -Werror -I. -Imock/ -Iunity/src/ -Isrc/ -I../complication -I../../lib/fesk_tx -I../../lib/base32 -DTEST ../../lib/fesk_tx/fesk_session.c -o build/objs/fesk_session.o
 	gcc -c -Werror -I../../lib/base32 -DTEST ../../lib/base32/base32.c -o build/objs/base32.o
