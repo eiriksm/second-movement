@@ -30,6 +30,7 @@
 #include <time.h>
 #include "atb_countdown_face.h"
 #include "atb.h"
+#include "filesystem.h"
 #include "watch.h"
 #include "watch_utility.h"
 #include "zones.h"
@@ -48,7 +49,82 @@ static inline void load_countdown(atb_countdown_state_t *state) {
     state->seconds = state->set_seconds;
 }
 
+#define ATB_FILE "atb.txt"
+
+// Used when there is no schedule file.
+static const struct {
+    char *route;
+    char *stop_id;
+    AtbEntryInfo info;
+    char fallback_label[3];
+} builtin_stops[] = {
+    {"09_2", "71779", {"UGL", " 9"}, "UA"},
+    {"09_1", "74061", {"STO", " 9"}, "ST"},
+    {"11_2", "71773", {"UGL", "11"}, "UA"},
+    {"11_1", "74265", {"KON", "11"}, "KG"},
+};
+
+typedef struct {
+    int32_t offset;
+    int32_t size;
+} atb_file_reader_t;
+
+static bool read_atb_line(void *ctx, char *buf, int len) {
+    atb_file_reader_t *reader = (atb_file_reader_t *)ctx;
+    // filesystem_read_line does not report the end of the file by itself.
+    if (reader->offset >= reader->size) {
+        return false;
+    }
+    return filesystem_read_line(ATB_FILE, buf, &reader->offset, len - 1);
+}
+
+static atb_file_reader_t open_atb_file(void) {
+    return (atb_file_reader_t){ .offset = 0, .size = filesystem_get_file_size(ATB_FILE) };
+}
+
+static void load_stops(atb_countdown_state_t *state) {
+    state->use_file = false;
+    state->stop_count = sizeof(builtin_stops) / sizeof(builtin_stops[0]);
+    if (filesystem_file_exists(ATB_FILE)) {
+        atb_file_reader_t reader = open_atb_file();
+        int count = atb_file_count_entries(read_atb_line, &reader);
+        if (count > 0) {
+            state->use_file = true;
+            state->stop_count = count > UINT8_MAX ? UINT8_MAX : count;
+        }
+    }
+    if (state->stopOffset >= state->stop_count) {
+        state->stopOffset = 0;
+    }
+    state->departures_valid = false;
+}
+
+static void load_departures(atb_countdown_state_t *state) {
+    AtbEntryInfo info;
+    ResultSet result_set;
+    if (state->use_file) {
+        atb_file_reader_t reader = open_atb_file();
+        if (!atb_file_get_entry(read_atb_line, &reader, state->stopOffset, &info)) {
+            memset(&info, 0, sizeof(info));
+        }
+        reader = open_atb_file();
+        result_set = atb_file_next_departures(state->now_ts, read_atb_line, &reader, state->stopOffset);
+        snprintf(state->fallback_label, sizeof(state->fallback_label), "%-2.2s", info.label);
+    } else {
+        info = builtin_stops[state->stopOffset].info;
+        strcpy(state->fallback_label, builtin_stops[state->stopOffset].fallback_label);
+        result_set = atb_get_next_departures(state->now_ts, builtin_stops[state->stopOffset].route, builtin_stops[state->stopOffset].stop_id);
+    }
+    strcpy(state->label, info.label);
+    strcpy(state->route_label, info.route_label);
+    for (int i = 0; i < ATB_COUNTDOWN_DEPARTURES; i++) {
+        state->departures[i] = i < MAX_DEPARTURES ? result_set.resultSet[i] : 0;
+    }
+    state->departures_valid = true;
+}
+
 static void draw(atb_countdown_state_t *state, uint8_t subsecond) {
+    (void) subsecond;
     char buf[16];
 
     uint32_t delta;
@@ -57,38 +133,25 @@ static void draw(atb_countdown_state_t *state, uint8_t subsecond) {
     watch_date_time_t now = movement_get_local_date_time();
     state->now_ts = watch_utility_date_time_to_unix_time(now, movement_get_current_timezone_offset());
 
+    // Reading the schedule file is slow, so only look up departures again once
+    // the next one has left, or every minute while there are none.
+    uint32_t next_ts = state->departures[0];
+    if (!state->departures_valid
+        || (next_ts != 0 && state->now_ts >= next_ts)
+        || (next_ts == 0 && state->now_ts % 60 == 0)) {
+        load_departures(state);
+    }
+    state->target_ts = state->departures[state->offset];
 
-    ResultSet result_set;
-    result_set = atb_get_next_departures(state->now_ts, "09_2", "71779");
-    state->target_ts = result_set.resultSet[state->offset];
+    sprintf(buf, "%-3s", state->label);
+    watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, buf, state->fallback_label);
+    sprintf(buf, "%2s", state->route_label);
+    watch_display_text_with_fallback(WATCH_POSITION_TOP_RIGHT, buf, buf);
 
-    // Check which stop we are using.
-    switch (state->stopOffset) {
-        case 0:
-            watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "UGL", "UA");
-            watch_display_text_with_fallback(WATCH_POSITION_TOP_RIGHT, " 9", " 9");
-            break;
-
-        case 1:
-            result_set = atb_get_next_departures(state->now_ts, "09_1", "74061");
-            state->target_ts = result_set.resultSet[state->offset];
-            watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "STO", "ST");
-            watch_display_text_with_fallback(WATCH_POSITION_TOP_RIGHT, " 9", " 9");
-            break;
-
-        case 2:
-            result_set = atb_get_next_departures(state->now_ts, "11_2", "71773");
-            state->target_ts = result_set.resultSet[state->offset];
-            watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "UGL", "UA");
-            watch_display_text_with_fallback(WATCH_POSITION_TOP_RIGHT, "11", "11");
-            break;
-
-        case 3:
-            result_set = atb_get_next_departures(state->now_ts, "11_1", "74265");
-            state->target_ts = result_set.resultSet[state->offset];
-            watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, "KON", "KG");
-            watch_display_text_with_fallback(WATCH_POSITION_TOP_RIGHT, "11", "11");
-            break;
+    if (state->target_ts == 0) {
+        // No departure in this slot.
+        watch_display_text(WATCH_POSITION_BOTTOM, "------");
+        return;
     }
     if (state->target_ts <= state->now_ts) {
         delta = 0;
@@ -131,6 +194,8 @@ void atb_countdown_face_setup(uint8_t watch_face_index, void ** context_ptr) {
 
 void atb_countdown_face_activate(void *context) {
     atb_countdown_state_t *state = (atb_countdown_state_t *)context;
+    // The schedule file may have changed while we were away.
+    load_stops(state);
     watch_set_colon();
 
     movement_request_tick_frequency(1);
@@ -151,12 +216,13 @@ bool atb_countdown_face_loop(movement_event_t event, void *context) {
             break;
         case EVENT_LIGHT_BUTTON_UP:
             state->offset = 0;
-            if (state->stopOffset < 3) {
+            if (state->stopOffset + 1 < state->stop_count) {
                 state->stopOffset++;
             }
             else {
                 state->stopOffset = 0;
             }
+            state->departures_valid = false;
             draw(state, event.subsecond);
             break;
         case EVENT_ALARM_BUTTON_UP:
