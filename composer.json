@@ -11,11 +11,16 @@
         {
             "type": "vcs",
             "url": "https://github.com/eiriksm/bac.c"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/eiriksm/lux-rx"
         }
     ],
     "require": {
         "eiriksm/atb.c": "dev-main",
-        "eiriksm/bac.c": "dev-main"
+        "eiriksm/bac.c": "dev-main",
+        "eiriksm/lux-rx": "dev-main"
     },
     "scripts": {
         "post-install-cmd": "@php scripts/composer-c-deps.php",

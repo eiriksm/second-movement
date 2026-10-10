@@ -36,6 +36,12 @@ typedef struct {
     uint8_t subsecond;
 } movement_event_t;
 
+typedef enum {
+    BUZZER_PRIORITY_BUTTON = 0,
+    BUZZER_PRIORITY_SIGNAL,
+    BUZZER_PRIORITY_ALARM,
+} movement_buzzer_priority_t;
+
 bool movement_default_loop_handler(movement_event_t event);
 void movement_move_to_face(uint8_t watch_face_index);
 void movement_move_to_next_face(void);
@@ -44,6 +50,19 @@ watch_date_time_t movement_get_local_date_time(void);
 int32_t movement_get_current_timezone_offset_for_zone(uint8_t zone_index);
 int32_t movement_get_current_timezone_offset(void);
 void movement_request_tick_frequency(uint8_t freq);
+void movement_set_utc_timestamp(uint32_t timestamp);
+void movement_play_sequence(int8_t *note_sequence, movement_buzzer_priority_t priority);
+void movement_force_led_on(uint8_t red, uint8_t green, uint8_t blue);
+void movement_force_led_off(void);
 
 void movement_mock_set_local_date_time(watch_date_time_t date_time);
 void movement_mock_clear_local_date_time(void);
+
+// Records of the calls above, so tests can assert on them.
+void movement_mock_reset(void);
+uint32_t movement_mock_get_utc_timestamp(void);
+int8_t *movement_mock_get_last_sequence(void);
+uint8_t movement_mock_get_sequence_count(void);
+bool movement_mock_led_is_on(void);
+uint8_t movement_mock_get_led_red(void);
+uint8_t movement_mock_get_led_green(void);
