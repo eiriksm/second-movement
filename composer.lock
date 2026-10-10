@@ -90,12 +90,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/eiriksm/lux-demo-face.git",
-                "reference": "d114fc92dc446c3cf4ebdc88c2887e8883174698"
+                "reference": "d822e8dbc5674ce52f7920e1e5b5427fb96b1e71"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/eiriksm/lux-demo-face/zipball/d114fc92dc446c3cf4ebdc88c2887e8883174698",
-                "reference": "d114fc92dc446c3cf4ebdc88c2887e8883174698",
+                "url": "https://api.github.com/repos/eiriksm/lux-demo-face/zipball/d822e8dbc5674ce52f7920e1e5b5427fb96b1e71",
+                "reference": "d822e8dbc5674ce52f7920e1e5b5427fb96b1e71",
                 "shasum": ""
             },
             "require": {
@@ -111,7 +111,7 @@
                 "source": "https://github.com/eiriksm/lux-demo-face/tree/main",
                 "issues": "https://github.com/eiriksm/lux-demo-face/issues"
             },
-            "time": "2026-10-10T15:45:11+00:00"
+            "time": "2026-10-10T20:20:49+00:00"
         },
         {
             "name": "eiriksm/lux-rx",
@@ -119,12 +119,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/eiriksm/lux-rx.git",
-                "reference": "9ec0f963f7a093ffcbdcc8d4d0af6e887b54a4c0"
+                "reference": "ccb80b469e18087f5b12da371bfb3dd15067d107"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/eiriksm/lux-rx/zipball/9ec0f963f7a093ffcbdcc8d4d0af6e887b54a4c0",
-                "reference": "9ec0f963f7a093ffcbdcc8d4d0af6e887b54a4c0",
+                "url": "https://api.github.com/repos/eiriksm/lux-rx/zipball/ccb80b469e18087f5b12da371bfb3dd15067d107",
+                "reference": "ccb80b469e18087f5b12da371bfb3dd15067d107",
                 "shasum": ""
             },
             "default-branch": true,
@@ -137,7 +137,7 @@
                 "source": "https://github.com/eiriksm/lux-rx/tree/main",
                 "issues": "https://github.com/eiriksm/lux-rx/issues"
             },
-            "time": "2026-10-10T14:10:56+00:00"
+            "time": "2026-10-10T20:05:15+00:00"
         },
         {
             "name": "eiriksm/unit-counter-face",
@@ -182,7 +182,7 @@
     },
     "prefer-stable": false,
     "prefer-lowest": false,
-    "platform": {},
-    "platform-dev": {},
-    "plugin-api-version": "2.9.0"
+    "platform": [],
+    "platform-dev": [],
+    "plugin-api-version": "2.6.0"
 }

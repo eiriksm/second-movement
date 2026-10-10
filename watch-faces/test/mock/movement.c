@@ -9,8 +9,11 @@ bool movement_default_loop_handler(movement_event_t event) {
     return true;
 }
 
+static bool movement_moved_to_face;
+
 void movement_move_to_face(uint8_t watch_face_index) {
     (void) watch_face_index;
+    movement_moved_to_face = true;
 }
 
 void movement_move_to_next_face(void) {
@@ -82,7 +85,12 @@ void movement_mock_reset(void) {
     movement_utc_timestamp = 0;
     movement_last_sequence = NULL;
     movement_sequence_count = 0;
+    movement_moved_to_face = false;
     movement_force_led_off();
+}
+
+bool movement_mock_moved_to_face(void) {
+    return movement_moved_to_face;
 }
 
 uint32_t movement_mock_get_utc_timestamp(void) {

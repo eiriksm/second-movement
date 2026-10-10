@@ -63,6 +63,7 @@ void movement_mock_reset(void);
 uint32_t movement_mock_get_utc_timestamp(void);
 int8_t *movement_mock_get_last_sequence(void);
 uint8_t movement_mock_get_sequence_count(void);
+bool movement_mock_moved_to_face(void);
 bool movement_mock_led_is_on(void);
 uint8_t movement_mock_get_led_red(void);
 uint8_t movement_mock_get_led_green(void);

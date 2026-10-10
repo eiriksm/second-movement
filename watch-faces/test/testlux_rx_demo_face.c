@@ -168,6 +168,38 @@ static void test_base32_is_decoded_once(void) {
     TEST_ASSERT_EQUAL_STRING("MZXW6===", ctx->rx.payload);
 }
 
+static void test_long_base32_is_decoded(void) {
+    // The largest decoded payload: LUX_RX_MAX_PAYLOAD base32 symbols.
+    static char text[UNBASE32_LEN(LUX_RX_MAX_PAYLOAD) + 1];
+    size_t len = sizeof(text) - 1;
+    for (size_t i = 0; i < len; i++) text[i] = "Hello World $|{}"[i % 16];
+    text[len] = '\0';
+    send_base32(text);
+    TEST_ASSERT_EQUAL(len, ctx->rx.payload_len);
+    TEST_ASSERT_EQUAL_STRING(text, ctx->rx.payload);
+    assert_display("RECV ", " Hello");
+}
+
+static void test_base32_utf8_is_decoded(void) {
+    send_base32("\xc3\xa9t\xc3\xa9\ttab\r\n");
+    TEST_ASSERT_EQUAL_STRING("\xc3\xa9t\xc3\xa9\ttab\r\n", ctx->rx.payload);
+    // Bytes the display has no glyph for show as spaces.
+    assert_display("RECV ", "   t  ");
+}
+
+static void test_base32_binary_is_not_decoded(void) {
+    // Decodes to 0x00 0x01 0xff, which is not text.
+    send_text("aaa76===");
+    TEST_ASSERT_EQUAL_STRING("aaa76===", ctx->rx.payload);
+}
+
+static void test_timeout_does_not_leave_face(void) {
+    lux_rx_demo_face_loop((movement_event_t){.event_type = EVENT_TIMEOUT}, ctx);
+    TEST_ASSERT_FALSE(movement_mock_moved_to_face());
+    send_text("still here");
+    TEST_ASSERT_EQUAL_STRING("still here", ctx->rx.payload);
+}
+
 static void test_plain_word_is_not_base32(void) {
     // Valid base32 that decodes to printable text, but has no digit or padding.
     send_text("password");
@@ -215,6 +247,10 @@ int main(void) {
     RUN_TEST(test_base32_is_decoded);
     RUN_TEST(test_base32_command_is_run);
     RUN_TEST(test_base32_is_decoded_once);
+    RUN_TEST(test_long_base32_is_decoded);
+    RUN_TEST(test_base32_utf8_is_decoded);
+    RUN_TEST(test_base32_binary_is_not_decoded);
+    RUN_TEST(test_timeout_does_not_leave_face);
     RUN_TEST(test_plain_word_is_not_base32);
     RUN_TEST(test_bad_crc_shows_error);
     RUN_TEST(test_alarm_button_resets_after_receive);
