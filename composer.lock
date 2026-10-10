@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "e60f760b438c83b314ea8f6605a647c1",
+    "content-hash": "21adebc9cb8b5f1091e86b34358d8c8b",
     "packages": [
         {
             "name": "eiriksm/atb.c",
@@ -57,6 +57,32 @@
                 "issues": "https://github.com/eiriksm/bac.c/issues"
             },
             "time": "2026-10-07T19:14:29+00:00"
+        },
+        {
+            "name": "eiriksm/fesk-demo-face",
+            "version": "dev-main",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/eiriksm/fesk-demo-face.git",
+                "reference": "ff4faa1954e1344453fbe76bf31224d62aaa2c4d"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/eiriksm/fesk-demo-face/zipball/ff4faa1954e1344453fbe76bf31224d62aaa2c4d",
+                "reference": "ff4faa1954e1344453fbe76bf31224d62aaa2c4d",
+                "shasum": ""
+            },
+            "default-branch": true,
+            "type": "library",
+            "license": [
+                "MIT"
+            ],
+            "description": "Second Movement watch face that sends text as sound with FESK",
+            "support": {
+                "source": "https://github.com/eiriksm/fesk-demo-face/tree/main",
+                "issues": "https://github.com/eiriksm/fesk-demo-face/issues"
+            },
+            "time": "2026-10-10T17:55:15+00:00"
         },
         {
             "name": "eiriksm/lux-demo-face",
@@ -149,6 +175,7 @@
     "stability-flags": {
         "eiriksm/atb.c": 20,
         "eiriksm/bac.c": 20,
+        "eiriksm/fesk-demo-face": 20,
         "eiriksm/lux-demo-face": 20,
         "eiriksm/lux-rx": 20,
         "eiriksm/unit-counter-face": 20
