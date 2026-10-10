@@ -193,6 +193,13 @@ static void test_base32_binary_is_not_decoded(void) {
     TEST_ASSERT_EQUAL_STRING("aaa76===", ctx->rx.payload);
 }
 
+static void test_timeout_does_not_leave_face(void) {
+    lux_rx_demo_face_loop((movement_event_t){.event_type = EVENT_TIMEOUT}, ctx);
+    TEST_ASSERT_FALSE(movement_mock_moved_to_face());
+    send_text("still here");
+    TEST_ASSERT_EQUAL_STRING("still here", ctx->rx.payload);
+}
+
 static void test_plain_word_is_not_base32(void) {
     // Valid base32 that decodes to printable text, but has no digit or padding.
     send_text("password");
@@ -243,6 +250,7 @@ int main(void) {
     RUN_TEST(test_long_base32_is_decoded);
     RUN_TEST(test_base32_utf8_is_decoded);
     RUN_TEST(test_base32_binary_is_not_decoded);
+    RUN_TEST(test_timeout_does_not_leave_face);
     RUN_TEST(test_plain_word_is_not_base32);
     RUN_TEST(test_bad_crc_shows_error);
     RUN_TEST(test_alarm_button_resets_after_receive);

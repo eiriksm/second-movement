@@ -90,12 +90,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/eiriksm/lux-demo-face.git",
-                "reference": "ab4d196502643b6b84035b2d77633913121208eb"
+                "reference": "d822e8dbc5674ce52f7920e1e5b5427fb96b1e71"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/eiriksm/lux-demo-face/zipball/ab4d196502643b6b84035b2d77633913121208eb",
-                "reference": "ab4d196502643b6b84035b2d77633913121208eb",
+                "url": "https://api.github.com/repos/eiriksm/lux-demo-face/zipball/d822e8dbc5674ce52f7920e1e5b5427fb96b1e71",
+                "reference": "d822e8dbc5674ce52f7920e1e5b5427fb96b1e71",
                 "shasum": ""
             },
             "require": {
@@ -111,7 +111,7 @@
                 "source": "https://github.com/eiriksm/lux-demo-face/tree/main",
                 "issues": "https://github.com/eiriksm/lux-demo-face/issues"
             },
-            "time": "2026-10-10T20:11:48+00:00"
+            "time": "2026-10-10T20:20:49+00:00"
         },
         {
             "name": "eiriksm/lux-rx",
