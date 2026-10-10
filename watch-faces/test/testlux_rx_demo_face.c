@@ -168,6 +168,18 @@ static void test_base32_is_decoded_once(void) {
     TEST_ASSERT_EQUAL_STRING("MZXW6===", ctx->rx.payload);
 }
 
+static void test_long_base32_is_decoded(void) {
+    // The largest decoded payload: LUX_RX_MAX_PAYLOAD base32 symbols.
+    static char text[UNBASE32_LEN(LUX_RX_MAX_PAYLOAD) + 1];
+    size_t len = sizeof(text) - 1;
+    for (size_t i = 0; i < len; i++) text[i] = "Hello World $|{}"[i % 16];
+    text[len] = '\0';
+    send_base32(text);
+    TEST_ASSERT_EQUAL(len, ctx->rx.payload_len);
+    TEST_ASSERT_EQUAL_STRING(text, ctx->rx.payload);
+    assert_display("RECV ", " Hello");
+}
+
 static void test_plain_word_is_not_base32(void) {
     // Valid base32 that decodes to printable text, but has no digit or padding.
     send_text("password");
@@ -215,6 +227,7 @@ int main(void) {
     RUN_TEST(test_base32_is_decoded);
     RUN_TEST(test_base32_command_is_run);
     RUN_TEST(test_base32_is_decoded_once);
+    RUN_TEST(test_long_base32_is_decoded);
     RUN_TEST(test_plain_word_is_not_base32);
     RUN_TEST(test_bad_crc_shows_error);
     RUN_TEST(test_alarm_button_resets_after_receive);
