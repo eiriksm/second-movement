@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a4587b94ece298482b67ee6f75cc078a",
+    "content-hash": "e60f760b438c83b314ea8f6605a647c1",
     "packages": [
         {
             "name": "eiriksm/atb.c",
@@ -112,6 +112,35 @@
                 "issues": "https://github.com/eiriksm/lux-rx/issues"
             },
             "time": "2026-10-10T14:10:56+00:00"
+        },
+        {
+            "name": "eiriksm/unit-counter-face",
+            "version": "dev-main",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/eiriksm/unit-counter-face.git",
+                "reference": "f4f024acab467c9e1e5afdd608e52717dfe9865b"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/eiriksm/unit-counter-face/zipball/f4f024acab467c9e1e5afdd608e52717dfe9865b",
+                "reference": "f4f024acab467c9e1e5afdd608e52717dfe9865b",
+                "shasum": ""
+            },
+            "require": {
+                "eiriksm/bac.c": "dev-main"
+            },
+            "default-branch": true,
+            "type": "library",
+            "license": [
+                "MIT"
+            ],
+            "description": "Second Movement watch face that counts alcohol units and estimates blood alcohol content",
+            "support": {
+                "source": "https://github.com/eiriksm/unit-counter-face/tree/main",
+                "issues": "https://github.com/eiriksm/unit-counter-face/issues"
+            },
+            "time": "2026-10-10T14:56:50+00:00"
         }
     ],
     "packages-dev": [],
@@ -121,7 +150,8 @@
         "eiriksm/atb.c": 20,
         "eiriksm/bac.c": 20,
         "eiriksm/lux-demo-face": 20,
-        "eiriksm/lux-rx": 20
+        "eiriksm/lux-rx": 20,
+        "eiriksm/unit-counter-face": 20
     },
     "prefer-stable": false,
     "prefer-lowest": false,

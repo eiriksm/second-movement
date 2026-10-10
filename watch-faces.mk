@@ -1,5 +1,4 @@
 SRCS += \
-  ./watch-faces/complication/unit_counter_face.c \
   ./watch-faces/complication/atb_countdown_face.c \
   ./watch-faces/clock/clock_face.c \
   ./watch-faces/clock/beats_face.c \

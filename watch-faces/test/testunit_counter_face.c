@@ -1,5 +1,5 @@
 #include "unity/src/unity.h"
-#include "src/unit_counter_face.h"
+#include "unit_counter_face.h"
 #include "movement.h"
 #include <stdlib.h>
 #include <time.h>
