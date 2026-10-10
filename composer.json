@@ -1,0 +1,27 @@
+{
+    "name": "eiriksm/second-movement",
+    "description": "C dependencies for second movement, fetched with composer.",
+    "type": "project",
+    "license": "MIT",
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/eiriksm/atb.c"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/eiriksm/bac.c"
+        }
+    ],
+    "require": {
+        "eiriksm/atb.c": "dev-main",
+        "eiriksm/bac.c": "dev-main"
+    },
+    "scripts": {
+        "post-install-cmd": "@php scripts/composer-c-deps.php",
+        "post-update-cmd": "@php scripts/composer-c-deps.php"
+    },
+    "config": {
+        "preferred-install": "source"
+    }
+}
