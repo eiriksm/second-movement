@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "cfba726ebf341113e4df121c0aff95e1",
+    "content-hash": "a4587b94ece298482b67ee6f75cc078a",
     "packages": [
         {
             "name": "eiriksm/atb.c",
@@ -59,6 +59,35 @@
             "time": "2026-10-07T19:14:29+00:00"
         },
         {
+            "name": "eiriksm/lux-demo-face",
+            "version": "dev-main",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/eiriksm/lux-demo-face.git",
+                "reference": "6d9eb1dfc10e49fa8e4e883417a1d67ff6bfbf78"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/eiriksm/lux-demo-face/zipball/6d9eb1dfc10e49fa8e4e883417a1d67ff6bfbf78",
+                "reference": "6d9eb1dfc10e49fa8e4e883417a1d67ff6bfbf78",
+                "shasum": ""
+            },
+            "require": {
+                "eiriksm/lux-rx": "dev-main"
+            },
+            "default-branch": true,
+            "type": "library",
+            "license": [
+                "MIT"
+            ],
+            "description": "Second Movement watch face that receives text over light with lux_rx",
+            "support": {
+                "source": "https://github.com/eiriksm/lux-demo-face/tree/main",
+                "issues": "https://github.com/eiriksm/lux-demo-face/issues"
+            },
+            "time": "2026-10-10T14:43:53+00:00"
+        },
+        {
             "name": "eiriksm/lux-rx",
             "version": "dev-main",
             "source": {
@@ -91,6 +120,7 @@
     "stability-flags": {
         "eiriksm/atb.c": 20,
         "eiriksm/bac.c": 20,
+        "eiriksm/lux-demo-face": 20,
         "eiriksm/lux-rx": 20
     },
     "prefer-stable": false,
