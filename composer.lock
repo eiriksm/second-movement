@@ -12,12 +12,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/eiriksm/atb.c.git",
-                "reference": "87ae226db0e59ab80431cc814685ac88c8beea91"
+                "reference": "cd6393427061032aca90f679ddc4b6d8e334b9d2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/eiriksm/atb.c/zipball/87ae226db0e59ab80431cc814685ac88c8beea91",
-                "reference": "87ae226db0e59ab80431cc814685ac88c8beea91",
+                "url": "https://api.github.com/repos/eiriksm/atb.c/zipball/cd6393427061032aca90f679ddc4b6d8e334b9d2",
+                "reference": "cd6393427061032aca90f679ddc4b6d8e334b9d2",
                 "shasum": ""
             },
             "default-branch": true,
@@ -30,7 +30,7 @@
                 "source": "https://github.com/eiriksm/atb.c/tree/main",
                 "issues": "https://github.com/eiriksm/atb.c/issues"
             },
-            "time": "2026-10-07T19:10:13+00:00"
+            "time": "2026-10-10T14:05:44+00:00"
         },
         {
             "name": "eiriksm/bac.c",
