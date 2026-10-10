@@ -14,7 +14,7 @@ test:
 	gcc -c -Werror -I. -Imock/ -Iunity/src/ -Isrc/ -I../complication -I../../lib/fesk_tx -DTEST mock/fesk_tx.c -o build/objs/fesk_tx.o
 	gcc -c -Werror -I. -Imock/ -Iunity/src/ -Isrc/ -DTEST ../../vendor/eiriksm/bac.c/src/bac.c -o build/objs/bac.o
 	gcc -c -Werror -I. -Iunity/src/ -Imock/ -I../../vendor/eiriksm/lux-demo-face/src -I../../vendor/eiriksm/lux-rx/src -I../../lib/fesk_tx -I../../lib/base32 testlux_rx_demo_face.c -o build/objs/testlux_rx_demo_face.o
-	gcc -c -Werror -Wno-format-truncation -I. -Imock/ -Iunity/src/ -I../../vendor/eiriksm/lux-demo-face/src -I../../vendor/eiriksm/lux-rx/src -I../../lib/fesk_tx -I../../lib/base32 -DTEST ../../vendor/eiriksm/lux-demo-face/src/lux_rx_demo_face.c -o build/objs/lux_rx_demo_face.o
+	gcc -c -Werror -Wno-format-truncation -I. -Imock/ -Iunity/src/ -I../../vendor/eiriksm/lux-demo-face/src -I../../vendor/eiriksm/lux-rx/src -I../../lib/fesk_tx -I../../lib/base32 -DTEST -DHAS_IR_SENSOR ../../vendor/eiriksm/lux-demo-face/src/lux_rx_demo_face.c -o build/objs/lux_rx_demo_face.o
 	gcc -c -Werror -I../../vendor/eiriksm/lux-rx/src -DTEST ../../vendor/eiriksm/lux-rx/src/lux_rx.c -o build/objs/lux_rx.o
 	gcc -c -Werror -I. -Imock/ -DTEST mock/adc.c -o build/objs/adc.o
 	gcc -c -Werror -I. -Imock/ -DTEST mock/filesystem.c -o build/objs/filesystem.o
