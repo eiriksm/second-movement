@@ -31,6 +31,7 @@
 #include "watch_tcc.h"
 #include "filesystem.h"
 #include "lfs.h"
+#include "base32.h"
 
 extern lfs_t eeprom_filesystem;
 
@@ -129,6 +130,51 @@ static bool _handle_echo_redirect(const char *args, bool *ok) {
     return true;
 }
 
+// If the payload looks like base32 and decodes to printable text, replaces the
+// payload with the decoded text. This lets a sender use characters outside the
+// lux_rx alphabet. The lux_rx alphabet folds most uppercase letters to
+// lowercase, so matching is case-insensitive. Returns true if it decoded.
+static bool _decode_base32_payload(lux_rx_t *rx) {
+    uint8_t len = rx->payload_len;
+    if (len == 0 || len % 8 != 0) return false;
+
+    char coded[LUX_RX_MAX_PAYLOAD + 1];
+    bool in_padding = false;
+    // Plain words like "password" are valid base32 too, so require a digit or
+    // padding, which plain text rarely has.
+    bool has_digit_or_padding = false;
+    for (uint8_t i = 0; i < len; i++) {
+        char c = rx->payload[i];
+        if (c == '=') {
+            in_padding = true;
+            has_digit_or_padding = true;
+        } else if (in_padding) {
+            return false;
+        } else if (c >= 'a' && c <= 'z') {
+            c = c - 'a' + 'A';
+        } else if (c >= '2' && c <= '7') {
+            has_digit_or_padding = true;
+        } else if (!(c >= 'A' && c <= 'Z')) {
+            return false;
+        }
+        coded[i] = c;
+    }
+    if (!has_digit_or_padding) return false;
+    coded[len] = '\0';
+
+    unsigned char plain[UNBASE32_LEN(LUX_RX_MAX_PAYLOAD) + 1];
+    size_t plain_len = base32_decode((unsigned char *)coded, plain);
+    if (plain_len == 0) return false;
+    for (size_t i = 0; i < plain_len; i++) {
+        if ((plain[i] < 0x20 || plain[i] > 0x7e) && plain[i] != '\n') return false;
+    }
+
+    memcpy(rx->payload, plain, plain_len);
+    rx->payload[plain_len] = '\0';
+    rx->payload_len = plain_len;
+    return true;
+}
+
 static uint16_t read_light(void) {
     HAL_GPIO_IR_ENABLE_out();
     HAL_GPIO_IR_ENABLE_clr();
@@ -179,6 +225,9 @@ bool lux_rx_demo_face_loop(movement_event_t event, void *context) {
             switch (status) {
                 case LUX_RX_DONE:
                 {
+                    // Decode once, when the frame completes; the payload is
+                    // replaced in place, so later ticks see the decoded text.
+                    if (just_changed) _decode_base32_payload(&ctx->rx);
                     // Check if payload is a Unix timestamp (all digits, 10 chars)
                     bool is_timestamp = (ctx->rx.payload_len == 10);
                     for (uint8_t i = 0; i < ctx->rx.payload_len && is_timestamp; i++) {
