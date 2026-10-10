@@ -47,6 +47,14 @@ typedef enum {
     BUZZER_NOTE_D7SHARP_E7FLAT,
     BUZZER_NOTE_G7,
     BUZZER_NOTE_REST,
+    BUZZER_NOTE_C4,
+    BUZZER_NOTE_E5,
+    BUZZER_NOTE_G5,
+    BUZZER_NOTE_C5,
+    BUZZER_NOTE_C6,
+    BUZZER_NOTE_D6,
+    BUZZER_NOTE_E6,
+    BUZZER_NOTE_G6,
 } watch_buzzer_note_t;
 
 extern const uint16_t NotePeriods[];
