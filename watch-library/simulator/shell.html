@@ -1763,14 +1763,13 @@
     }
   })();
 
-  // RFC 4648 base32, uppercase with '=' padding. Input is a string of
-  // byte-valued characters.
+  // RFC 4648 base32, uppercase with '=' padding. Input is a Uint8Array.
   function base32Encode(bytes) {
     var alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
     var out = "";
     var buffer = 0, bitsLeft = 0;
     for (var i = 0; i < bytes.length; i++) {
-      buffer = (buffer << 8) | (bytes.charCodeAt(i) & 0xff);
+      buffer = (buffer << 8) | bytes[i];
       bitsLeft += 8;
       while (bitsLeft >= 5) {
         out += alphabet[(buffer >> (bitsLeft - 5)) & 31];
@@ -1795,8 +1794,8 @@
     return !!charToSym[c] && !(c >= 'C' && c <= 'Z');
   }
 
-  // Returns { text, base32, dropped }: the text to put on the wire, whether it
-  // was base32 encoded, and how many characters had to be dropped.
+  // Returns { text, base32 }: the text to put on the wire, and whether it was
+  // base32 encoded. Encoded text is sent as UTF-8, so nothing is lost.
   function lightTxPrepare(text) {
     var needsBase32 = false;
     for (var i = 0; i < text.length; i++) {
@@ -1804,22 +1803,13 @@
     }
     // Plain text that the receiver would mistake for base32 must be encoded too.
     if (!needsBase32 && lightTxLooksLikeBase32(text)) needsBase32 = true;
-    if (!needsBase32) return { text: text, base32: false, dropped: 0 };
+    if (!needsBase32) return { text: text, base32: false };
 
-    // The receiver only accepts printable ASCII and '\n' after decoding.
-    var plain = "";
-    var dropped = 0;
-    for (var i = 0; i < text.length; i++) {
-      var code = text.charCodeAt(i);
-      if ((code >= 0x20 && code <= 0x7e) || code === 10) plain += text[i];
-      else dropped++;
-    }
-    if (!plain) return { text: "", base32: false, dropped: dropped };
-    var coded = base32Encode(plain);
+    var coded = base32Encode(new TextEncoder().encode(text));
     // A multiple of 5 bytes can encode to letters only, which the receiver
     // treats as plain text. A trailing space adds padding.
-    if (!lightTxLooksLikeBase32(coded)) coded = base32Encode(plain + " ");
-    return { text: coded, base32: true, dropped: dropped };
+    if (!lightTxLooksLikeBase32(coded)) coded = base32Encode(new TextEncoder().encode(text + " "));
+    return { text: coded, base32: true };
   }
 
   function lightTxEncode(text) {
@@ -1853,10 +1843,7 @@
     var status = document.getElementById("light-tx-status");
     var prepared = lightTxPrepare(document.getElementById("light-tx-text").value);
     var text = prepared.text;
-    if (!text) {
-      if (prepared.dropped) status.textContent = "Nothing to send: only unsupported characters";
-      return;
-    }
+    if (!text) return;
     // Must match LUX_RX_MAX_PAYLOAD in lux_rx.h.
     var MAX_PAYLOAD = 4096;
     if (text.length > MAX_PAYLOAD) {
@@ -1908,8 +1895,7 @@
     if (prepared.base32) console.log("LUX TX base32: " + text);
     status.textContent = "TX: " + (prepared.base32 ? "base32, " : "") +
       bits.length + " bits (" + (bits.length * SAMPLES_PER_BIT) + " samples, ~" +
-      Math.ceil(queue.length / 64 / 60) + " min) queued" +
-      (prepared.dropped ? ", " + prepared.dropped + " unsupported chars dropped" : "");
+      Math.ceil(queue.length / 64 / 60) + " min) queued";
   }
 
   function lightTxStop() {
