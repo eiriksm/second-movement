@@ -43,5 +43,10 @@
     },
     "config": {
         "preferred-install": "source"
+    },
+    "extra": {
+        "violinist": {
+            "default_branch": "eirik3"
+        }
     }
 }

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "6249999f28514524482ab4d470569578",
+    "content-hash": "21adebc9cb8b5f1091e86b34358d8c8b",
     "packages": [
         {
             "name": "eiriksm/atb.c",
