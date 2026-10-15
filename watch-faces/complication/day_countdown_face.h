@@ -28,23 +28,24 @@
 /*
  * DAY COUNTDOWN
  *
- * Counts down the number of days until a set of events. The top left shows
- * the label of the event, the top right its number in the list and the main
- * line the number of days left. Events that have passed count up again,
+ * Counts down the number of days until a set of events. The top shows the
+ * label of the event and the main line the number of days left. Events that have passed count up again,
  * shown with a minus sign.
  *
  * ALARM cycles through the events. Holding ALARM shows the date of the event
  * as YYMMDD. LIGHT turns on the light as usual.
  *
  * Events are read from the file "days.txt", one per line, as a label and a
- * unix timestamp separated by a pipe. Only the first three characters of the
+ * unix timestamp separated by a pipe. Only the first five characters of the
  * label are shown (two on the classic LCD). Empty lines and lines starting
  * with # are ignored. For example:
  *
  *   # Summer vacation, 1 July 2027
  *   VAC|1814400000
  *
- * The events from the file are followed by a few yearly presets, which always
+ * Without the file, the face counts down to THAI on 1 February 2027.
+ *
+ * The events from the file (or THAI) are followed by a few yearly presets, which always
  * count down to their next occurrence: New Year, Easter, 17 May, Midsummer,
  * Halloween and Christmas Eve.
  */
@@ -55,7 +56,7 @@
 
 typedef struct {
     uint32_t ts;
-    char label[4];
+    char label[6];
 } day_countdown_counter_t;
 
 typedef struct {

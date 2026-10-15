@@ -33,17 +33,21 @@
 #define DAY_COUNTDOWN_LINE_LENGTH 48
 
 // Month 0 means Easter Sunday, which moves around.
+// Shown when there is no file: Thailand trip, noon UTC on 1 February 2027 so
+// it lands on that day in any time zone.
+static const day_countdown_counter_t default_counter = {1801483200, "THAI"};
+
 static const struct {
-    char label[4];
+    char label[6];
     uint8_t month;
     uint8_t day;
 } presets[] = {
-    {"NEW", 1, 1},
-    {"EAS", 0, 0},
-    {"17M", 5, 17},
-    {"SUM", 6, 23},
-    {"HAL", 10, 31},
-    {"XMS", 12, 24},
+    {"NEWYR", 1, 1},
+    {"EASTR", 0, 0},
+    {"17MAY", 5, 17},
+    {"SUMMR", 6, 23},
+    {"HALLO", 10, 31},
+    {"XMAS", 12, 24},
 };
 
 #define PRESET_COUNT (sizeof(presets) / sizeof(presets[0]))
@@ -140,7 +144,7 @@ static bool parse_line(char *line, day_countdown_counter_t *counter) {
         return false;
     }
     *separator = '\0';
-    // Only the first three characters fit on the display.
+    // Only the first five characters fit on the display.
     strncpy(counter->label, line, sizeof(counter->label) - 1);
     counter->label[sizeof(counter->label) - 1] = '\0';
     counter->ts = (uint32_t)ts;
@@ -149,7 +153,10 @@ static bool parse_line(char *line, day_countdown_counter_t *counter) {
 
 static void load_counters(day_countdown_state_t *state) {
     state->file_count = 0;
-    if (filesystem_file_exists(DAY_COUNTDOWN_FILE)) {
+    if (!filesystem_file_exists(DAY_COUNTDOWN_FILE)) {
+        state->counters[0] = default_counter;
+        state->file_count = 1;
+    } else {
         int32_t size = filesystem_get_file_size(DAY_COUNTDOWN_FILE);
         int32_t offset = 0;
         char line[DAY_COUNTDOWN_LINE_LENGTH];
@@ -175,12 +182,10 @@ static void draw(day_countdown_state_t *state) {
     int32_t day = counter_day(state, state->selection, today, year);
     const char *label = counter_label(state, state->selection);
 
-    snprintf(buf, sizeof(buf), "%-3.3s", label);
+    snprintf(buf, sizeof(buf), "%-5.5s", label);
     char fallback[3];
     snprintf(fallback, sizeof(fallback), "%-2.2s", label);
-    watch_display_text_with_fallback(WATCH_POSITION_TOP_LEFT, buf, fallback);
-    snprintf(buf, sizeof(buf), "%2d", (state->selection + 1) % 100);
-    watch_display_text(WATCH_POSITION_TOP_RIGHT, buf);
+    watch_display_text_with_fallback(WATCH_POSITION_TOP, buf, fallback);
 
     if (state->showing_date) {
         int32_t y;
