@@ -32,7 +32,6 @@
 #define DAY_COUNTDOWN_FILE "days.txt"
 #define DAY_COUNTDOWN_LINE_LENGTH 48
 
-// Month 0 means Easter Sunday, which moves around.
 // Shown when there is no file: Thailand trip, noon UTC on 1 February 2027 so
 // it lands on that day in any time zone.
 static const day_countdown_counter_t default_counter = {1801483200, "THAI"};
@@ -42,11 +41,6 @@ static const struct {
     uint8_t month;
     uint8_t day;
 } presets[] = {
-    {"NEWYR", 1, 1},
-    {"EASTR", 0, 0},
-    {"17MAY", 5, 17},
-    {"SUMMR", 6, 23},
-    {"HALLO", 10, 31},
     {"XMAS", 12, 24},
 };
 
@@ -74,23 +68,7 @@ static void civil_from_days(int32_t z, int32_t *y, uint32_t *m, uint32_t *d) {
     *y = (int32_t)yoe + era * 400 + (*m <= 2);
 }
 
-// Anonymous Gregorian algorithm.
-static int32_t easter_day(int32_t y) {
-    int32_t a = y % 19, b = y / 100, c = y % 100;
-    int32_t d = b / 4, e = b % 4, f = (b + 8) / 25, g = (b - f + 1) / 3;
-    int32_t h = (19 * a + b - d - g + 15) % 30;
-    int32_t i = c / 4, k = c % 4;
-    int32_t l = (32 + 2 * e + 2 * i - h - k) % 7;
-    int32_t m = (a + 11 * h + 22 * l) / 451;
-    int32_t month = (h + l - 7 * m + 114) / 31;
-    int32_t day = (h + l - 7 * m + 114) % 31 + 1;
-    return days_from_civil(y, month, day);
-}
-
 static int32_t preset_day(uint8_t index, int32_t year) {
-    if (presets[index].month == 0) {
-        return easter_day(year);
-    }
     return days_from_civil(year, presets[index].month, presets[index].day);
 }
 

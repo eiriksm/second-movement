@@ -58,16 +58,6 @@ static void test_presets_without_file(void) {
     start();
     assert_display("THAI ", "   109");
     press(EVENT_ALARM_BUTTON_UP);
-    assert_display("NEWYR", "    78");
-    press(EVENT_ALARM_BUTTON_UP);
-    assert_display("EASTR", "   164");
-    press(EVENT_ALARM_BUTTON_UP);
-    assert_display("17MAY", "   214");
-    press(EVENT_ALARM_BUTTON_UP);
-    assert_display("SUMMR", "   251");
-    press(EVENT_ALARM_BUTTON_UP);
-    assert_display("HALLO", "    16");
-    press(EVENT_ALARM_BUTTON_UP);
     assert_display("XMAS ", "    70");
     press(EVENT_ALARM_BUTTON_UP);
     assert_display("THAI ", "   109");
@@ -84,7 +74,7 @@ static void test_file_counters_come_before_presets(void) {
     // Long labels are cut short, and there is no THAI with a file.
     assert_display("Vacat", "   259");
     press(EVENT_ALARM_BUTTON_UP);
-    assert_display("NEWYR", "    78");
+    assert_display("XMAS ", "    70");
 }
 
 static void test_long_press_shows_date(void) {
@@ -97,15 +87,14 @@ static void test_long_press_shows_date(void) {
 }
 
 static void test_preset_today_is_zero(void) {
-    set_date(2027, 3, 28);
+    set_date(2026, 12, 24);
     start();
     press(EVENT_ALARM_BUTTON_UP);
-    press(EVENT_ALARM_BUTTON_UP);
-    assert_display("EASTR", "     0");
-    // The day after, it counts down to next Easter, 16 April 2028.
-    set_date(2027, 3, 29);
+    assert_display("XMAS ", "     0");
+    // The day after, it counts down to next Christmas Eve.
+    set_date(2026, 12, 25);
     press(EVENT_TICK);
-    assert_display("EASTR", "   384");
+    assert_display("XMAS ", "   364");
 }
 
 static void test_redraws_at_midnight(void) {

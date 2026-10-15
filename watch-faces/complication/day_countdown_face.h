@@ -29,8 +29,8 @@
  * DAY COUNTDOWN
  *
  * Counts down the number of days until a set of events. The top shows the
- * label of the event and the main line the number of days left. Events that have passed count up again,
- * shown with a minus sign.
+ * label of the event and the main line the number of days left. Events that
+ * have passed count up again, shown with a minus sign.
  *
  * ALARM cycles through the events. Holding ALARM shows the date of the event
  * as YYMMDD. LIGHT turns on the light as usual.
@@ -45,9 +45,8 @@
  *
  * Without the file, the face counts down to THAI on 1 February 2027.
  *
- * The events from the file (or THAI) are followed by a few yearly presets, which always
- * count down to their next occurrence: New Year, Easter, 17 May, Midsummer,
- * Halloween and Christmas Eve.
+ * The events from the file (or THAI) are followed by XMAS, which always
+ * counts down to the next Christmas Eve.
  */
 
 #include "movement.h"
