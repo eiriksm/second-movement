@@ -18,9 +18,13 @@ test:
 	gcc -c -Werror -I../../vendor/eiriksm/lux-rx/src -DTEST ../../vendor/eiriksm/lux-rx/src/lux_rx.c -o build/objs/lux_rx.o
 	gcc -c -Werror -I. -Imock/ -DTEST mock/adc.c -o build/objs/adc.o
 	gcc -c -Werror -I. -Imock/ -DTEST mock/filesystem.c -o build/objs/filesystem.o
+	gcc -c -Werror -I. -Iunity/src/ -Imock/ -I../complication testday_countdown_face.c -o build/objs/testday_countdown_face.o
+	gcc -c -Werror -Wall -Wextra -I. -Imock/ -I../complication -DTEST ../complication/day_countdown_face.c -o build/objs/day_countdown_face.o
 	gcc -o build/testunit_counter_face.out build/objs/testunit_counter_face.o build/objs/unity.o build/objs/unit_counter_face.o build/objs/uptime_face.o build/objs/watch.o build/objs/bac.o build/objs/movement.o build/objs/fesk_session.o build/objs/fesk_tx.o build/objs/base32.o
 	gcc -o build/testuptime_face.out build/objs/testuptime_face.o build/objs/unity.o build/objs/uptime_face.o build/objs/watch.o build/objs/movement.o build/objs/fesk_session.o build/objs/fesk_tx.o build/objs/base32.o
 	gcc -o build/testlux_rx_demo_face.out build/objs/testlux_rx_demo_face.o build/objs/unity.o build/objs/lux_rx_demo_face.o build/objs/lux_rx.o build/objs/adc.o build/objs/filesystem.o build/objs/watch.o build/objs/movement.o build/objs/fesk_session.o build/objs/fesk_tx.o build/objs/base32.o
+	gcc -o build/testday_countdown_face.out build/objs/testday_countdown_face.o build/objs/unity.o build/objs/day_countdown_face.o build/objs/filesystem.o build/objs/watch.o build/objs/movement.o
 	./build/testunit_counter_face.out
 	./build/testuptime_face.out
 	./build/testlux_rx_demo_face.out
+	./build/testday_countdown_face.out
