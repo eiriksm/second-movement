@@ -58,6 +58,33 @@ bool filesystem_append_file(char *filename, char *text, int32_t length) {
     return true;
 }
 
+bool filesystem_file_exists(char *filename) {
+    return find_file(filename) != NULL;
+}
+
+int32_t filesystem_get_file_size(char *filename) {
+    mock_file_t *file = find_file(filename);
+    return file ? file->size : -1;
+}
+
+// Same behaviour as the real one, which reads at most length - 1 bytes but
+// moves the offset past the whole buffer when there is no newline.
+bool filesystem_read_line(char *filename, char *buf, int32_t *offset, int32_t length) {
+    memset(buf, 0, length + 1);
+    mock_file_t *file = find_file(filename);
+    if (!file || file->size <= 0) return false;
+    int32_t to_read = length - 1 < file->size - *offset ? length - 1 : file->size - *offset;
+    if (to_read > 0) memcpy(buf, file->data + *offset, to_read);
+    for (int i = 0; i < length; i++) {
+        (*offset)++;
+        if (buf[i] == '\n') {
+            buf[i] = 0;
+            break;
+        }
+    }
+    return true;
+}
+
 void filesystem_mock_reset(void) {
     memset(files, 0, sizeof(files));
 }

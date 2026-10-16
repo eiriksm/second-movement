@@ -18,6 +18,8 @@ typedef union {
 
 #define watch_date_time_t rtc_date_time_t
 
+#define WATCH_RTC_REFERENCE_YEAR (2020)
+
 /// An enum listing the locations on the display where text can be placed.
 typedef enum {
     WATCH_POSITION_FULL = 0,    ///< Display 10 characters to the full screen, in the standard F-91W layout.
