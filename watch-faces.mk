@@ -13,7 +13,6 @@ SRCS += \
   ./watch-faces/complication/sunrise_sunset_face.c \
   ./watch-faces/complication/moon_phase_face.c \
   ./watch-faces/complication/days_since_face.c \
-  ./watch-faces/complication/day_countdown_face.c \
   ./watch-faces/complication/breathing_face.c \
   ./watch-faces/complication/squash_face.c \
   ./watch-faces/complication/totp_face.c \
