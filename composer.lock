@@ -64,12 +64,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/eiriksm/day-countdown-face.git",
-                "reference": "58cc926a8647b5ec0110ed142d49c59d1d672b49"
+                "reference": "aa7c4ef7ec4a1fb39f97e79c11a0bad3116e4b71"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/eiriksm/day-countdown-face/zipball/58cc926a8647b5ec0110ed142d49c59d1d672b49",
-                "reference": "58cc926a8647b5ec0110ed142d49c59d1d672b49",
+                "url": "https://api.github.com/repos/eiriksm/day-countdown-face/zipball/aa7c4ef7ec4a1fb39f97e79c11a0bad3116e4b71",
+                "reference": "aa7c4ef7ec4a1fb39f97e79c11a0bad3116e4b71",
                 "shasum": ""
             },
             "default-branch": true,
@@ -82,7 +82,7 @@
                 "source": "https://github.com/eiriksm/day-countdown-face/tree/main",
                 "issues": "https://github.com/eiriksm/day-countdown-face/issues"
             },
-            "time": "2026-10-16T05:26:59+00:00"
+            "time": "2026-11-02T19:32:11+00:00"
         },
         {
             "name": "eiriksm/fesk-demo-face",
@@ -211,5 +211,5 @@
     "prefer-lowest": false,
     "platform": {},
     "platform-dev": {},
-    "plugin-api-version": "2.6.0"
+    "plugin-api-version": "2.11.0"
 }

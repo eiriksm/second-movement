@@ -56,25 +56,25 @@ void tearDown(void) {
 
 static void test_presets_without_file(void) {
     start();
-    assert_display("THAI ", "   109");
+    assert_display("THAI ", "  109 ");
     press(EVENT_ALARM_BUTTON_UP);
-    assert_display("XMAS ", "    70");
+    assert_display("XMAS ", "  70  ");
     press(EVENT_ALARM_BUTTON_UP);
-    assert_display("THAI ", "   109");
+    assert_display("THAI ", "  109 ");
 }
 
 static void test_file_counters_come_before_presets(void) {
     write_days_file("# comment\nVAC|1814400000\n\nbroken line\nOLD|1767225600\r\nVacation|1814400000");
     start();
     TEST_ASSERT_EQUAL(3, state->file_count);
-    assert_display("VAC  ", "   259");
+    assert_display("VAC  ", "  259 ");
     press(EVENT_ALARM_BUTTON_UP);
     assert_display("OLD  ", "  -287");
     press(EVENT_ALARM_BUTTON_UP);
     // Long labels are cut short, and there is no THAI with a file.
-    assert_display("Vacat", "   259");
+    assert_display("Vacat", "  259 ");
     press(EVENT_ALARM_BUTTON_UP);
-    assert_display("XMAS ", "    70");
+    assert_display("XMAS ", "  70  ");
 }
 
 static void test_long_press_shows_date(void) {
@@ -83,44 +83,44 @@ static void test_long_press_shows_date(void) {
     press(EVENT_ALARM_LONG_PRESS);
     assert_display("VAC  ", "270701");
     press(EVENT_ALARM_LONG_UP);
-    assert_display("VAC  ", "   259");
+    assert_display("VAC  ", "  259 ");
 }
 
 static void test_preset_today_is_zero(void) {
     set_date(2026, 12, 24);
     start();
     press(EVENT_ALARM_BUTTON_UP);
-    assert_display("XMAS ", "     0");
+    assert_display("XMAS ", "  0   ");
     // The day after, it counts down to next Christmas Eve.
     set_date(2026, 12, 25);
     press(EVENT_TICK);
-    assert_display("XMAS ", "   364");
+    assert_display("XMAS ", "  364 ");
 }
 
 static void test_redraws_at_midnight(void) {
     start();
-    assert_display("THAI ", "   109");
+    assert_display("THAI ", "  109 ");
     set_date(2026, 10, 16);
     press(EVENT_TICK);
-    assert_display("THAI ", "   108");
+    assert_display("THAI ", "  108 ");
 }
 
 static void test_thai_is_on_its_day(void) {
     set_date(2027, 2, 1);
     start();
-    assert_display("THAI ", "     0");
+    assert_display("THAI ", "  0   ");
     press(EVENT_ALARM_LONG_PRESS);
     assert_display("THAI ", "270201");
 }
 
 static void test_reloads_file_on_activate(void) {
     start();
-    assert_display("THAI ", "   109");
+    assert_display("THAI ", "  109 ");
     write_days_file("VAC|1814400000\n");
     day_countdown_face_resign(state);
     day_countdown_face_activate(state);
     press(EVENT_ACTIVATE);
-    assert_display("VAC  ", "   259");
+    assert_display("VAC  ", "  259 ");
 }
 
 int main(void) {

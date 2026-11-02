@@ -30,10 +30,10 @@
 const watch_face_t watch_faces[] = {
     clock_face,
     unit_counter_face,
+    day_countdown_face,
     light_sensor_face,
     lux_rx_demo_face,
     atb_countdown_face,
-    day_countdown_face,
     fast_stopwatch_face,
     countdown_face,
     endless_runner_face,
