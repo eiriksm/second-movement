@@ -27,11 +27,16 @@
         {
             "type": "vcs",
             "url": "https://github.com/eiriksm/fesk-demo-face"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/eiriksm/day-countdown-face"
         }
     ],
     "require": {
         "eiriksm/atb.c": "dev-main",
         "eiriksm/bac.c": "dev-main",
+        "eiriksm/day-countdown-face": "dev-main",
         "eiriksm/fesk-demo-face": "dev-main",
         "eiriksm/lux-demo-face": "dev-main",
         "eiriksm/lux-rx": "dev-main",

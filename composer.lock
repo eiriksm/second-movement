@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "21adebc9cb8b5f1091e86b34358d8c8b",
+    "content-hash": "31145e39ecc2e18d696d01bdc556ddc9",
     "packages": [
         {
             "name": "eiriksm/atb.c",
@@ -57,6 +57,32 @@
                 "issues": "https://github.com/eiriksm/bac.c/issues"
             },
             "time": "2026-10-07T19:14:29+00:00"
+        },
+        {
+            "name": "eiriksm/day-countdown-face",
+            "version": "dev-main",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/eiriksm/day-countdown-face.git",
+                "reference": "aa7c4ef7ec4a1fb39f97e79c11a0bad3116e4b71"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/eiriksm/day-countdown-face/zipball/aa7c4ef7ec4a1fb39f97e79c11a0bad3116e4b71",
+                "reference": "aa7c4ef7ec4a1fb39f97e79c11a0bad3116e4b71",
+                "shasum": ""
+            },
+            "default-branch": true,
+            "type": "library",
+            "license": [
+                "MIT"
+            ],
+            "description": "Second Movement watch face that counts down the days to events read from the filesystem",
+            "support": {
+                "source": "https://github.com/eiriksm/day-countdown-face/tree/main",
+                "issues": "https://github.com/eiriksm/day-countdown-face/issues"
+            },
+            "time": "2026-11-02T19:32:11+00:00"
         },
         {
             "name": "eiriksm/fesk-demo-face",
@@ -175,6 +201,7 @@
     "stability-flags": {
         "eiriksm/atb.c": 20,
         "eiriksm/bac.c": 20,
+        "eiriksm/day-countdown-face": 20,
         "eiriksm/fesk-demo-face": 20,
         "eiriksm/lux-demo-face": 20,
         "eiriksm/lux-rx": 20,
@@ -182,7 +209,7 @@
     },
     "prefer-stable": false,
     "prefer-lowest": false,
-    "platform": [],
-    "platform-dev": [],
-    "plugin-api-version": "2.6.0"
+    "platform": {},
+    "platform-dev": {},
+    "plugin-api-version": "2.11.0"
 }

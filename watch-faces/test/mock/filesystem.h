@@ -6,6 +6,9 @@
 
 bool filesystem_write_file(char *filename, char *text, int32_t length);
 bool filesystem_append_file(char *filename, char *text, int32_t length);
+bool filesystem_file_exists(char *filename);
+int32_t filesystem_get_file_size(char *filename);
+bool filesystem_read_line(char *filename, char *buf, int32_t *offset, int32_t length);
 
 // In-memory store behind the functions above.
 void filesystem_mock_reset(void);
