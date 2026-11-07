@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "31145e39ecc2e18d696d01bdc556ddc9",
+    "content-hash": "1cce6ebe2843b8f6204164f1214a9ab3",
     "packages": [
         {
             "name": "eiriksm/atb.c",
@@ -112,58 +112,56 @@
         },
         {
             "name": "eiriksm/lux-demo-face",
-            "version": "dev-main",
+            "version": "dev-claude/data-transmission-frequency-d8u094",
             "source": {
                 "type": "git",
                 "url": "https://github.com/eiriksm/lux-demo-face.git",
-                "reference": "d822e8dbc5674ce52f7920e1e5b5427fb96b1e71"
+                "reference": "253daa05aa30f0d819004b5edc8a53ff4756b600"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/eiriksm/lux-demo-face/zipball/d822e8dbc5674ce52f7920e1e5b5427fb96b1e71",
-                "reference": "d822e8dbc5674ce52f7920e1e5b5427fb96b1e71",
+                "url": "https://api.github.com/repos/eiriksm/lux-demo-face/zipball/253daa05aa30f0d819004b5edc8a53ff4756b600",
+                "reference": "253daa05aa30f0d819004b5edc8a53ff4756b600",
                 "shasum": ""
             },
             "require": {
                 "eiriksm/lux-rx": "dev-main"
             },
-            "default-branch": true,
             "type": "library",
             "license": [
                 "MIT"
             ],
             "description": "Second Movement watch face that receives text over light with lux_rx",
             "support": {
-                "source": "https://github.com/eiriksm/lux-demo-face/tree/main",
+                "source": "https://github.com/eiriksm/lux-demo-face/tree/claude/data-transmission-frequency-d8u094",
                 "issues": "https://github.com/eiriksm/lux-demo-face/issues"
             },
-            "time": "2026-10-10T20:20:49+00:00"
+            "time": "2026-11-07T11:12:32+00:00"
         },
         {
             "name": "eiriksm/lux-rx",
-            "version": "dev-main",
+            "version": "dev-claude/data-transmission-frequency-d8u094",
             "source": {
                 "type": "git",
                 "url": "https://github.com/eiriksm/lux-rx.git",
-                "reference": "ccb80b469e18087f5b12da371bfb3dd15067d107"
+                "reference": "295dcd672304ad63dc69d03b1cd23e3247684643"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/eiriksm/lux-rx/zipball/ccb80b469e18087f5b12da371bfb3dd15067d107",
-                "reference": "ccb80b469e18087f5b12da371bfb3dd15067d107",
+                "url": "https://api.github.com/repos/eiriksm/lux-rx/zipball/295dcd672304ad63dc69d03b1cd23e3247684643",
+                "reference": "295dcd672304ad63dc69d03b1cd23e3247684643",
                 "shasum": ""
             },
-            "default-branch": true,
             "type": "library",
             "license": [
                 "MIT"
             ],
             "description": "6-bit optical text receiver and encoder in C",
             "support": {
-                "source": "https://github.com/eiriksm/lux-rx/tree/main",
+                "source": "https://github.com/eiriksm/lux-rx/tree/claude/data-transmission-frequency-d8u094",
                 "issues": "https://github.com/eiriksm/lux-rx/issues"
             },
-            "time": "2026-10-10T20:05:15+00:00"
+            "time": "2026-11-07T11:12:24+00:00"
         },
         {
             "name": "eiriksm/unit-counter-face",
@@ -196,7 +194,20 @@
         }
     ],
     "packages-dev": [],
-    "aliases": [],
+    "aliases": [
+        {
+            "package": "eiriksm/lux-demo-face",
+            "version": "dev-claude/data-transmission-frequency-d8u094",
+            "alias": "dev-main",
+            "alias_normalized": "dev-main"
+        },
+        {
+            "package": "eiriksm/lux-rx",
+            "version": "dev-claude/data-transmission-frequency-d8u094",
+            "alias": "dev-main",
+            "alias_normalized": "dev-main"
+        }
+    ],
     "minimum-stability": "stable",
     "stability-flags": {
         "eiriksm/atb.c": 20,
@@ -211,5 +222,5 @@
     "prefer-lowest": false,
     "platform": {},
     "platform-dev": {},
-    "plugin-api-version": "2.11.0"
+    "plugin-api-version": "2.6.0"
 }
