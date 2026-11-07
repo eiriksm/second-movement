@@ -38,8 +38,8 @@
         "eiriksm/bac.c": "dev-main",
         "eiriksm/day-countdown-face": "dev-main",
         "eiriksm/fesk-demo-face": "dev-main",
-        "eiriksm/lux-demo-face": "dev-main",
-        "eiriksm/lux-rx": "dev-main",
+        "eiriksm/lux-demo-face": "dev-claude/data-transmission-frequency-d8u094 as dev-main",
+        "eiriksm/lux-rx": "dev-claude/data-transmission-frequency-d8u094 as dev-main",
         "eiriksm/unit-counter-face": "dev-main"
     },
     "scripts": {
