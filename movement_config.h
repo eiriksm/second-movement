@@ -38,7 +38,7 @@ const watch_face_t watch_faces[] = {
     countdown_face,
     endless_runner_face,
   #ifndef __EMSCRIPTEN__
-    irda_upload_face,
+    firmware_flasher_face,
   #endif
     uptime_face,
     fesk_demo_face,
