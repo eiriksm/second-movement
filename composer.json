@@ -39,7 +39,7 @@
         "eiriksm/day-countdown-face": "dev-main",
         "eiriksm/fesk-demo-face": "dev-main",
         "eiriksm/lux-demo-face": "dev-claude/data-transmission-frequency-d8u094 as dev-main",
-        "eiriksm/lux-rx": "dev-claude/data-transmission-frequency-d8u094 as dev-main",
+        "eiriksm/lux-rx": "dev-claude/wip-128hz-deps-pr-8c63pe as dev-main",
         "eiriksm/unit-counter-face": "dev-main"
     },
     "scripts": {

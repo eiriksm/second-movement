@@ -1865,7 +1865,7 @@
 
     // Each logical bit is held for SAMPLES_PER_BIT samples (NRZ). The receiver
     // runs at 64 Hz and decodes each bit by majority vote over the window.
-    var SAMPLES_PER_BIT = 8;
+    var SAMPLES_PER_BIT = 4;
 
     // Build a queue of ADC values consumed one-per-firmware-tick.
     // The ADC read function in watch_adc.c pops from this queue,

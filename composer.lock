@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "1cce6ebe2843b8f6204164f1214a9ab3",
+    "content-hash": "3f072a968711745f1505fa2b2772eeb9",
     "packages": [
         {
             "name": "eiriksm/atb.c",
@@ -140,16 +140,16 @@
         },
         {
             "name": "eiriksm/lux-rx",
-            "version": "dev-claude/data-transmission-frequency-d8u094",
+            "version": "dev-claude/wip-128hz-deps-pr-8c63pe",
             "source": {
                 "type": "git",
                 "url": "https://github.com/eiriksm/lux-rx.git",
-                "reference": "295dcd672304ad63dc69d03b1cd23e3247684643"
+                "reference": "c19ea5cb6479d393d949284d717d95ef6de2dca1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/eiriksm/lux-rx/zipball/295dcd672304ad63dc69d03b1cd23e3247684643",
-                "reference": "295dcd672304ad63dc69d03b1cd23e3247684643",
+                "url": "https://api.github.com/repos/eiriksm/lux-rx/zipball/c19ea5cb6479d393d949284d717d95ef6de2dca1",
+                "reference": "c19ea5cb6479d393d949284d717d95ef6de2dca1",
                 "shasum": ""
             },
             "type": "library",
@@ -158,10 +158,10 @@
             ],
             "description": "6-bit optical text receiver and encoder in C",
             "support": {
-                "source": "https://github.com/eiriksm/lux-rx/tree/claude/data-transmission-frequency-d8u094",
+                "source": "https://github.com/eiriksm/lux-rx/tree/claude/wip-128hz-deps-pr-8c63pe",
                 "issues": "https://github.com/eiriksm/lux-rx/issues"
             },
-            "time": "2026-11-07T11:12:24+00:00"
+            "time": "2026-11-08T07:47:07+00:00"
         },
         {
             "name": "eiriksm/unit-counter-face",
@@ -203,7 +203,7 @@
         },
         {
             "package": "eiriksm/lux-rx",
-            "version": "dev-claude/data-transmission-frequency-d8u094",
+            "version": "dev-claude/wip-128hz-deps-pr-8c63pe",
             "alias": "dev-main",
             "alias_normalized": "dev-main"
         }

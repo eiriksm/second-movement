@@ -101,8 +101,8 @@ static void test_plays_sound_once_while_done(void) {
 static void test_timestamp_sets_time(void) {
     send_text("1700000000");
     assert_display("RECV ", "SET   ");
-    // The frame takes 624 ticks at 64 Hz, so 9 seconds are added.
-    TEST_ASSERT_EQUAL_UINT32(1700000009, movement_mock_get_utc_timestamp());
+    // The frame takes 312 ticks at 64 Hz, so 4 seconds are added.
+    TEST_ASSERT_EQUAL_UINT32(1700000004, movement_mock_get_utc_timestamp());
     assert_last_sound_starts_with(BUZZER_NOTE_E6);
 }
 
