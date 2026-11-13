@@ -9,6 +9,14 @@ on:
       - silje-clock
 
 jobs: 
+  test-wumpus:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run Wumpus regression tests
+        run: make -C tests/wumpus
+
   build:
     container:
       image: ghcr.io/armmbed/mbed-os-env:latest
